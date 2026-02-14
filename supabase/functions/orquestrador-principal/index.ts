@@ -22,9 +22,44 @@ async function chamarFuncao(nome: string, payload: Record<string, unknown>): Pro
   return { ok: res.ok, status: res.status, data };
 }
 
+async function enviarMegaAPI(numeroDestino: string, mensagem: string): Promise<{ ok: boolean; status: number; data: unknown }> {
+  const megaUrl = Deno.env.get("MEGA_API_URL");
+  const megaToken = Deno.env.get("MEGA_API_TOKEN");
+
+  if (!megaUrl || !megaToken) {
+    console.error("[orquestrador] MEGA_API_URL ou MEGA_API_TOKEN não configurados");
+    return { ok: false, status: 0, data: { error: "MegaAPI não configurada" } };
+  }
+
+  try {
+    const res = await fetch(megaUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${megaToken}`,
+      },
+      body: JSON.stringify({
+        numero_destino: numeroDestino,
+        mensagem,
+      }),
+    });
+
+    let data: unknown;
+    try {
+      data = await res.json();
+    } catch {
+      data = { raw: await res.text() };
+    }
+    console.log(`[orquestrador] MegaAPI resposta (${res.status}):`, JSON.stringify(data).slice(0, 200));
+    return { ok: res.ok, status: res.status, data };
+  } catch (error) {
+    console.error("[orquestrador] Erro ao chamar MegaAPI:", error);
+    return { ok: false, status: 0, data: { error: String(error) } };
+  }
+}
+
 function estaEmHorarioComercial(horarioInicio: string, horarioFim: string, diasSemana: string): boolean {
   const agora = new Date();
-  // Converter para horário de Brasília (UTC-3)
   const brasilOffset = -3 * 60;
   const utcMs = agora.getTime() + agora.getTimezoneOffset() * 60000;
   const brasilDate = new Date(utcMs + brasilOffset * 60000);
@@ -35,9 +70,7 @@ function estaEmHorarioComercial(horarioInicio: string, horarioFim: string, diasS
   const diasAtivos = diasSemana.split(",").map((d) => diasMap[d.trim()]).filter((d) => d !== undefined);
   const diaAtual = brasilDate.getDay();
 
-  if (!diasAtivos.includes(diaAtual)) {
-    return false;
-  }
+  if (!diasAtivos.includes(diaAtual)) return false;
 
   const [hInicio, mInicio] = horarioInicio.split(":").map(Number);
   const [hFim, mFim] = horarioFim.split(":").map(Number);
@@ -122,7 +155,25 @@ Deno.serve(async (req) => {
     };
     console.log(`[orquestrador] Fluxo: ${novo_estado} / ${acao}`);
 
-    // 4. Consultar configurações do sistema
+    // 4. Gerar resposta humanizada
+    const respostaHumanizada = await chamarFuncao("gerar-resposta-humanizada", {
+      paciente_externo_id: pacienteExternoId,
+      intencao,
+      estado: novo_estado,
+      acao,
+      dados,
+    });
+
+    let textoResposta: string;
+    if (respostaHumanizada.ok) {
+      textoResposta = (respostaHumanizada.data as { resposta: string }).resposta;
+      console.log(`[orquestrador] Resposta humanizada gerada: "${textoResposta.slice(0, 60)}..."`);
+    } else {
+      textoResposta = `Recebemos sua mensagem e estamos processando. Em breve retornaremos.`;
+      console.warn("[orquestrador] Falha ao gerar resposta humanizada, usando fallback");
+    }
+
+    // 5. Consultar configurações do sistema
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -150,34 +201,41 @@ Deno.serve(async (req) => {
 
     console.log(`[orquestrador] Horário comercial: ${emHorarioComercial}, Supervisão: ${modoSupervisao}`);
 
-    // 5. Decidir ação baseado no contexto
+    // 6. Decidir ação baseado no contexto
     let supervisionado = false;
     let respostaSugerida: string | null = null;
     let respostaFinal: string | null = null;
     let decisao: string;
     let modo: string;
-
-    const respostaPlaceholder = `[AUTO] Ação: ${acao} | Estado: ${novo_estado}`;
+    let megaEnvio: { ok: boolean; status: number; data: unknown } | null = null;
 
     if (emHorarioComercial && modoSupervisao) {
       // Dentro do horário + supervisão ativa → aguardar aprovação humana
       supervisionado = true;
-      respostaSugerida = respostaPlaceholder;
+      respostaSugerida = textoResposta;
       respostaFinal = null;
       decisao = "aguardar_supervisao";
       modo = "supervisionado";
-      console.log("[orquestrador] Modo: supervisão ativa — aguardando aprovação humana");
+      console.log("[orquestrador] Modo: supervisão — resposta sugerida salva, aguardando aprovação");
     } else {
-      // Fora do horário ou supervisão desativada → resposta automática
+      // Fora do horário ou supervisão desativada → enviar automaticamente via MegaAPI
       supervisionado = false;
       respostaSugerida = null;
-      respostaFinal = respostaPlaceholder;
-      decisao = "resposta_automatica";
+      respostaFinal = textoResposta;
       modo = "automatico";
-      console.log("[orquestrador] Modo: automático — resposta registrada");
+
+      megaEnvio = await enviarMegaAPI(sanitizedNumero, textoResposta);
+
+      if (megaEnvio.ok) {
+        decisao = "resposta_automatica_enviada";
+        console.log("[orquestrador] Modo: automático — mensagem enviada via MegaAPI");
+      } else {
+        decisao = "resposta_automatica_falha_envio";
+        console.error(`[orquestrador] Falha ao enviar via MegaAPI (${megaEnvio.status}):`, megaEnvio.data);
+      }
     }
 
-    // 6. Registrar interação na tabela interacoes_ia
+    // 7. Registrar interação na tabela interacoes_ia
     const { error: insertError } = await supabase.from("interacoes_ia").insert({
       paciente_externo_id: pacienteExternoId,
       sistema_origem: "megaapi",
@@ -199,7 +257,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 7. Registrar decisão em logs_decisao
+    // 8. Registrar decisão em logs_decisao
     const { error: logError } = await supabase.from("logs_decisao").insert({
       evento: "orquestracao_mensagem",
       decisao,
@@ -211,17 +269,17 @@ Deno.serve(async (req) => {
         acao,
         novo_estado,
         dados,
+        mega_envio: megaEnvio ? { ok: megaEnvio.ok, status: megaEnvio.status } : null,
       },
     });
 
     if (logError) {
       console.warn("[orquestrador] Erro ao registrar log de decisão:", logError);
-      // Não falha a requisição por causa de log
     }
 
     console.log(`[orquestrador] Pipeline concluído para ${pacienteExternoId}`);
 
-    // 8. Retornar resultado
+    // 9. Retornar resultado
     return new Response(
       JSON.stringify({
         status: "processado",
@@ -231,7 +289,8 @@ Deno.serve(async (req) => {
         novo_estado,
         acao,
         supervisionado,
-        resposta_enviada: modo === "automatico",
+        resposta_enviada: megaEnvio?.ok ?? false,
+        resposta: textoResposta,
       }),
       {
         status: 200,
