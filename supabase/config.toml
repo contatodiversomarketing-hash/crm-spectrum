@@ -2,3 +2,6 @@ project_id = "chilmuwijkkdefqizleh"
 
 [functions.receber-mensagem-whatsapp]
 verify_jwt = false
+
+[functions.classificar-intencao]
+verify_jwt = false
