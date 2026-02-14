@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.orquestrador-principal]
 verify_jwt = false
+
+[functions.gerar-resposta-humanizada]
+verify_jwt = false
