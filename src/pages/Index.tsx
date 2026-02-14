@@ -1,10 +1,12 @@
 import { Brain, Activity, MessageSquare, Zap, Shield, Settings } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { StatusCard } from "@/components/StatusCard";
 import { SystemStatusBadge } from "@/components/SystemStatusBadge";
 import { RecentInteractions } from "@/components/RecentInteractions";
 import { AutomationQueue } from "@/components/AutomationQueue";
 
 const Index = () => {
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -46,13 +48,15 @@ const Index = () => {
             icon={Zap}
             variant="success"
           />
-          <StatusCard
-            title="Supervisões Pendentes"
-            value={3}
-            subtitle="Aguardando revisão"
-            icon={Shield}
-            variant="warning"
-          />
+          <div onClick={() => navigate("/supervisao")} className="cursor-pointer">
+            <StatusCard
+              title="Supervisões Pendentes"
+              value={3}
+              subtitle="Aguardando revisão"
+              icon={Shield}
+              variant="warning"
+            />
+          </div>
           <StatusCard
             title="Nível Autonomia"
             value="75%"
