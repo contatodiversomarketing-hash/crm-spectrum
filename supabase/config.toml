@@ -18,5 +18,8 @@ verify_jwt = false
 [functions.executar-reativacao-6m]
 verify_jwt = false
 
+[functions.executar-reativacao-score-v1]
+verify_jwt = false
+
 [functions.aprovar-mensagem]
 verify_jwt = false
