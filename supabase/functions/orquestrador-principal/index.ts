@@ -36,11 +36,11 @@ async function enviarMegaAPI(numeroDestino: string, mensagem: string): Promise<{
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${megaToken}`,
+        "Authorization": `Bearer ${megaToken}`,
       },
       body: JSON.stringify({
-        numero_destino: numeroDestino,
-        mensagem,
+        number: numeroDestino,
+        text: mensagem,
       }),
     });
 
