@@ -1,12 +1,14 @@
-import { Brain, Activity, MessageSquare, Zap, Shield, Settings } from "lucide-react";
+import { Brain, Activity, MessageSquare, Zap, Shield, Settings, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { StatusCard } from "@/components/StatusCard";
 import { SystemStatusBadge } from "@/components/SystemStatusBadge";
 import { RecentInteractions } from "@/components/RecentInteractions";
 import { AutomationQueue } from "@/components/AutomationQueue";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { signOut, profile } = useAuth();
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -23,8 +25,12 @@ const Index = () => {
           </div>
           <div className="flex items-center gap-3">
             <SystemStatusBadge status="online" label="Sistemas conectados" />
+            {profile && <span className="text-xs text-muted-foreground hidden sm:inline">{profile.nome || profile.email}</span>}
             <button className="p-2 rounded-lg hover:bg-secondary transition-colors">
               <Settings className="h-5 w-5 text-muted-foreground" />
+            </button>
+            <button onClick={signOut} className="p-2 rounded-lg hover:bg-secondary transition-colors" title="Sair">
+              <LogOut className="h-5 w-5 text-muted-foreground" />
             </button>
           </div>
         </div>
