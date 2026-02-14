@@ -15,5 +15,8 @@ verify_jwt = false
 [functions.gerar-resposta-humanizada]
 verify_jwt = false
 
+[functions.executar-reativacao-6m]
+verify_jwt = false
+
 [functions.aprovar-mensagem]
 verify_jwt = false
