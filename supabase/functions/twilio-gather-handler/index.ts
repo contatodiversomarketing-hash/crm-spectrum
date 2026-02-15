@@ -14,10 +14,11 @@ serve(async (req) => {
 
   try {
     // Twilio envia como application/x-www-form-urlencoded
-    const formData = await req.formData();
-    const digits = formData.get("Digits")?.toString() || "";
-    const callSid = formData.get("CallSid")?.toString() || "";
-    const from = formData.get("From")?.toString() || "";
+    const body = await req.text();
+    const params = new URLSearchParams(body);
+    const digits = params.get("Digits") || "";
+    const callSid = params.get("CallSid") || "";
+    const from = params.get("From") || "";
 
     console.log(`Gather recebido: Digits=${digits}, CallSid=${callSid}, From=${from}`);
 
@@ -41,7 +42,8 @@ serve(async (req) => {
       twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="alice" language="pt-BR">
-    Sua consulta foi confirmada com sucesso. Obrigado!
+    Obrigado. Sua consulta está confirmada.
+    Até breve.
   </Say>
 </Response>`;
     } else if (digits === "2") {
@@ -75,7 +77,8 @@ serve(async (req) => {
       twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="alice" language="pt-BR">
-    Entendido. Vamos enviar uma mensagem pelo WhatsApp para reagendar sua consulta. Obrigado!
+    Sem problemas.
+    Enviaremos uma mensagem pelo WhatsApp para reagendar.
   </Say>
 </Response>`;
     } else {
