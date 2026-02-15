@@ -7,11 +7,30 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-function calcularConversao(automacoes: any[]): { enviados: number; respondidos: number; taxa: number } {
-  const enviados = automacoes.filter(a => a.status === "enviado" || a.status === "ligado").length;
-  const respondidos = automacoes.filter(a => a.respondeu === true).length;
-  const taxa = enviados > 0 ? (respondidos / enviados) * 100 : 0;
-  return { enviados, respondidos, taxa };
+interface Metricas {
+  total_enviados: number;
+  total_confirmados: number;
+  total_agendados: number;
+  total_opt_out: number;
+  taxa_conversao: number;
+}
+
+function calcularMetricas(automacoes: any[], logs: any[]): Metricas {
+  const total_enviados = automacoes.filter(a =>
+    a.status === "enviado" || a.status === "ligado"
+  ).length;
+  const total_confirmados = logs.filter(l =>
+    l.evento === "confirmacao_voz" && l.decisao === "confirmado"
+  ).length;
+  const total_agendados = automacoes.filter(a => a.respondeu === true).length;
+  const total_opt_out = automacoes.filter(a =>
+    a.status === "nao_interessado_temporario"
+  ).length;
+  const taxa_conversao = total_enviados > 0
+    ? (total_agendados / total_enviados) * 100
+    : 0;
+
+  return { total_enviados, total_confirmados, total_agendados, total_opt_out, taxa_conversao };
 }
 
 serve(async (req) => {
@@ -32,175 +51,87 @@ serve(async (req) => {
     const seteDiasAtras = new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const trintaDiasAtras = new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-    // Buscar automações dos dois períodos em paralelo
-    const [auto7d, auto30d] = await Promise.all([
-      supabase.from("automacoes").select("tipo, status, respondeu, payload, criado_em").gte("criado_em", seteDiasAtras),
-      supabase.from("automacoes").select("tipo, status, respondeu, payload, criado_em").gte("criado_em", trintaDiasAtras),
+    // Buscar dados em paralelo
+    const [auto7d, auto30d, logs7d, logs30d] = await Promise.all([
+      supabase.from("automacoes").select("tipo, status, respondeu").gte("criado_em", seteDiasAtras),
+      supabase.from("automacoes").select("tipo, status, respondeu").gte("criado_em", trintaDiasAtras),
+      supabase.from("logs_decisao").select("evento, decisao").gte("criado_em", seteDiasAtras).limit(500),
+      supabase.from("logs_decisao").select("evento, decisao").gte("criado_em", trintaDiasAtras).limit(500),
     ]);
 
-    const dados7d = auto7d.data || [];
-    const dados30d = auto30d.data || [];
-
-    // Conversão geral
-    const conv7d = calcularConversao(dados7d);
-    const conv30d = calcularConversao(dados30d);
-
-    // Conversão por tipo (7d)
-    const tipoMap7d: Record<string, any[]> = {};
-    for (const a of dados7d) {
-      if (!tipoMap7d[a.tipo]) tipoMap7d[a.tipo] = [];
-      tipoMap7d[a.tipo].push(a);
-    }
-    const conversaoPorTipo7d = Object.entries(tipoMap7d).map(([tipo, arr]) => ({
-      tipo,
-      ...calcularConversao(arr),
-    }));
-
-    // Conversão por tipo (30d)
-    const tipoMap30d: Record<string, any[]> = {};
-    for (const a of dados30d) {
-      if (!tipoMap30d[a.tipo]) tipoMap30d[a.tipo] = [];
-      tipoMap30d[a.tipo].push(a);
-    }
-    const conversaoPorTipo30d = Object.entries(tipoMap30d).map(([tipo, arr]) => ({
-      tipo,
-      ...calcularConversao(arr),
-    }));
+    const metricas7d = calcularMetricas(auto7d.data || [], logs7d.data || []);
+    const metricas30d = calcularMetricas(auto30d.data || [], logs30d.data || []);
 
     // Calcular variação percentual
-    const variacao = conv30d.taxa > 0
-      ? ((conv7d.taxa - conv30d.taxa) / conv30d.taxa) * 100
+    const variacao_percentual = metricas30d.taxa_conversao > 0
+      ? ((metricas7d.taxa_conversao - metricas30d.taxa_conversao) / metricas30d.taxa_conversao) * 100
       : 0;
 
-    const quedaDetectada = variacao < -15;
+    const alerta_gerado = Math.abs(variacao_percentual) > 15;
 
-    console.log(`[analise-estrategica] Conv 7d: ${conv7d.taxa.toFixed(1)}%, Conv 30d: ${conv30d.taxa.toFixed(1)}%, Variação: ${variacao.toFixed(1)}%`);
+    console.log(`[analise-estrategica] 7d: ${metricas7d.taxa_conversao.toFixed(1)}%, 30d: ${metricas30d.taxa_conversao.toFixed(1)}%, Variação: ${variacao_percentual.toFixed(1)}%`);
 
-    // Se queda > 15%, registrar alerta
-    if (quedaDetectada) {
+    // Registrar alerta se variação crítica
+    if (alerta_gerado) {
       await supabase.from("logs_decisao").insert({
-        evento: "queda_performance",
-        decisao: `queda_${Math.abs(variacao).toFixed(0)}pct`,
-        regra_aplicada: "variacao_conversao_7d_vs_30d",
-        confianca: Math.min(Math.abs(variacao) / 100, 1),
+        evento: "variacao_critica_performance",
+        decisao: `variacao_${variacao_percentual > 0 ? "positiva" : "negativa"}_${Math.abs(variacao_percentual).toFixed(0)}pct`,
+        regra_aplicada: "comparacao_7d_vs_30d_threshold_15pct",
+        confianca: Math.min(Math.abs(variacao_percentual) / 100, 1),
         dados_entrada: {
-          conv_7d: conv7d,
-          conv_30d: conv30d,
-          variacao_pct: variacao,
+          metricas_7d: metricas7d,
+          metricas_30d: metricas30d,
+          variacao_percentual: parseFloat(variacao_percentual.toFixed(1)),
         },
       });
-      console.log("[analise-estrategica] Alerta de queda registrado");
-    }
 
-    // Gerar sugestão via IA
-    const resumo = {
-      conversao_7d: conv7d,
-      conversao_30d: conv30d,
-      variacao_pct: parseFloat(variacao.toFixed(1)),
-      queda_detectada: quedaDetectada,
-      por_tipo_7d: conversaoPorTipo7d,
-      por_tipo_30d: conversaoPorTipo30d,
-      total_automacoes_7d: dados7d.length,
-      total_automacoes_30d: dados30d.length,
-    };
-
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "gerar_insights_estrategicos",
-              description: "Retorna insights estratégicos baseados nos dados de performance da clínica.",
-              parameters: {
-                type: "object",
-                properties: {
-                  insights: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        tipo: { type: "string", enum: ["oportunidade", "risco", "acao_imediata", "tendencia"] },
-                        descricao: { type: "string" },
-                        impacto_estimado: { type: "string", enum: ["alto", "medio", "baixo"] },
-                      },
-                      required: ["tipo", "descricao", "impacto_estimado"],
-                      additionalProperties: false,
-                    },
-                  },
-                },
-                required: ["insights"],
-                additionalProperties: false,
-              },
+      // Gerar insight via Lovable AI
+      const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            {
+              role: "system",
+              content: "Você é um analista estratégico de clínica médica. Gere um insight conciso e acionável (máximo 3 frases) em português brasileiro. Seja direto e prático.",
             },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "gerar_insights_estrategicos" } },
-        messages: [
-          {
-            role: "system",
-            content: `Você é um analista estratégico de clínica médica. Analise os dados de conversão e automação e gere 3 a 5 insights acionáveis. Foque em: quedas de performance, oportunidades de melhoria, riscos operacionais e ações imediatas recomendadas. Seja direto e específico.`,
-          },
-          {
-            role: "user",
-            content: `Dados de performance:\n${JSON.stringify(resumo, null, 2)}`,
-          },
-        ],
-      }),
-    });
+            {
+              role: "user",
+              content: `Analise a seguinte variação de performance:\n\n- Taxa de conversão últimos 7 dias: ${metricas7d.taxa_conversao.toFixed(1)}%\n- Taxa de conversão últimos 30 dias: ${metricas30d.taxa_conversao.toFixed(1)}%\n- Variação: ${variacao_percentual.toFixed(1)}%\n- Enviados 7d: ${metricas7d.total_enviados}, Agendados 7d: ${metricas7d.total_agendados}, Opt-outs 7d: ${metricas7d.total_opt_out}\n- Enviados 30d: ${metricas30d.total_enviados}, Agendados 30d: ${metricas30d.total_agendados}\n\nSugira ações práticas para ${variacao_percentual < 0 ? "reverter a queda" : "manter o crescimento"}.`,
+            },
+          ],
+        }),
+      });
 
-    let insights: { tipo: string; descricao: string; impacto_estimado: string }[] = [];
+      if (aiRes.ok) {
+        const aiData = await aiRes.json();
+        const descricao = aiData.choices?.[0]?.message?.content || "Insight indisponível.";
 
-    if (aiRes.ok) {
-      const aiData = await aiRes.json();
-      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-      if (toolCall?.function?.arguments) {
-        try {
-          const parsed = JSON.parse(toolCall.function.arguments);
-          insights = parsed.insights || [];
-        } catch {
-          console.error("[analise-estrategica] Erro ao parsear resposta IA");
-        }
-      }
-    } else {
-      console.error(`[analise-estrategica] AI gateway erro: ${aiRes.status}`);
-    }
+        await supabase.from("insights_ia").insert({
+          tipo: "performance",
+          descricao,
+          impacto_estimado: `${Math.abs(variacao_percentual).toFixed(1)}%`,
+        });
 
-    // Salvar insights na tabela
-    if (insights.length > 0) {
-      const inserts = insights.map(i => ({
-        tipo: i.tipo,
-        descricao: i.descricao,
-        impacto_estimado: i.impacto_estimado,
-      }));
-
-      const { error: insertError } = await supabase.from("insights_ia").insert(inserts);
-      if (insertError) {
-        console.error("[analise-estrategica] Erro ao salvar insights:", insertError);
+        console.log("[analise-estrategica] Insight salvo");
       } else {
-        console.log(`[analise-estrategica] ${insights.length} insights salvos`);
+        const errText = await aiRes.text();
+        console.error(`[analise-estrategica] AI erro ${aiRes.status}:`, errText.slice(0, 200));
       }
     }
 
     const relatorio = {
-      status: "concluido",
-      periodo_comparacao: "7d vs 30d",
-      conversao_7d: conv7d,
-      conversao_30d: conv30d,
-      variacao_pct: parseFloat(variacao.toFixed(1)),
-      queda_detectada: quedaDetectada,
-      por_tipo_7d: conversaoPorTipo7d,
-      insights_gerados: insights.length,
-      insights,
+      taxa_7_dias: parseFloat(metricas7d.taxa_conversao.toFixed(1)),
+      taxa_30_dias: parseFloat(metricas30d.taxa_conversao.toFixed(1)),
+      variacao_percentual: parseFloat(variacao_percentual.toFixed(1)),
+      alerta_gerado,
+      metricas_7d: metricas7d,
+      metricas_30d: metricas30d,
     };
-
-    console.log("[analise-estrategica] Análise concluída:", JSON.stringify(relatorio).slice(0, 300));
 
     return new Response(JSON.stringify(relatorio), {
       status: 200,
