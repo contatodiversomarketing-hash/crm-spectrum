@@ -2,38 +2,65 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 serve(async (req) => {
   try {
-    const twiml = `
-      <?xml version="1.0" encoding="UTF-8"?>
-      <Response>
-        <Say voice="alice" language="pt-BR">
-          Olá. Aqui é da Clínica Vite.
-          Esta é uma chamada automática da nossa assistente inteligente.
-        </Say>
-        <Pause length="1"/>
-        <Say voice="alice" language="pt-BR">
-          Em breve enviaremos mais informações pelo WhatsApp.
-          Obrigado.
-        </Say>
-      </Response>
-    `;
+    const url = new URL(req.url);
+    const tipo = url.searchParams.get("tipo");
+    const nome = url.searchParams.get("nome") || "paciente";
+    const data = url.searchParams.get("data") || "";
+    const horario = url.searchParams.get("horario") || "";
+
+    let twiml: string;
+
+    if (tipo === "confirmacao") {
+      const gatherAction = "https://chilmuwijkkdefqizleh.supabase.co/functions/v1/twilio-gather-handler";
+
+      twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Gather numDigits="1" action="${gatherAction}" method="POST">
+    <Say voice="alice" language="pt-BR">
+      Olá ${escapeXml(nome)}. Você tem uma consulta marcada para ${escapeXml(data)} às ${escapeXml(horario)}.
+      Para confirmar, pressione 1.
+      Para remarcar, pressione 2.
+    </Say>
+  </Gather>
+  <Say voice="alice" language="pt-BR">
+    Não detectamos nenhuma resposta. Encerrando a chamada.
+  </Say>
+</Response>`;
+    } else {
+      twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice" language="pt-BR">
+    Olá. Aqui é da Clínica Vite.
+    Esta é uma chamada automática da nossa assistente inteligente.
+  </Say>
+  <Pause length="1"/>
+  <Say voice="alice" language="pt-BR">
+    Em breve enviaremos mais informações pelo WhatsApp.
+    Obrigado.
+  </Say>
+</Response>`;
+    }
 
     return new Response(twiml, {
-      headers: {
-        "Content-Type": "text/xml",
-      },
+      headers: { "Content-Type": "text/xml" },
     });
   } catch (error) {
-    const errorResponse = `
-      <?xml version="1.0" encoding="UTF-8"?>
-      <Response>
-        <Say>Ocorreu um erro. Encerrando chamada.</Say>
-      </Response>
-    `;
-
+    console.error("Erro no twilio-voice-webhook:", error.message);
+    const errorResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice" language="pt-BR">Ocorreu um erro. Encerrando chamada.</Say>
+</Response>`;
     return new Response(errorResponse, {
-      headers: {
-        "Content-Type": "text/xml",
-      },
+      headers: { "Content-Type": "text/xml" },
     });
   }
 });
+
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
