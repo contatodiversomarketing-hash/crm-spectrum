@@ -8,30 +8,28 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const body = await req.json().catch(() => ({}));
+    const clinica_id = body.clinica_id;
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurada");
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    // Buscar dados agregados para contexto
     const agora = new Date();
     const seteDiasAtras = new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    const [automacoes, interacoes, logs] = await Promise.all([
-      supabase.from("automacoes").select("tipo, status, respondeu, payload").gte("criado_em", seteDiasAtras),
-      supabase.from("interacoes_ia").select("intencao_detectada, supervisionado, resposta_final, canal").gte("criado_em", seteDiasAtras),
-      supabase.from("logs_decisao").select("evento, decisao, confianca").gte("criado_em", seteDiasAtras).limit(200),
-    ]);
+    let autoQ = supabase.from("automacoes").select("tipo, status, respondeu, payload").gte("criado_em", seteDiasAtras);
+    let interQ = supabase.from("interacoes_ia").select("intencao_detectada, supervisionado, resposta_final, canal").gte("criado_em", seteDiasAtras);
+    let logsQ = supabase.from("logs_decisao").select("evento, decisao, confianca").gte("criado_em", seteDiasAtras).limit(200);
 
-    // Agregar métricas
+    if (clinica_id) { autoQ = autoQ.eq("clinica_id", clinica_id); interQ = interQ.eq("clinica_id", clinica_id); logsQ = logsQ.eq("clinica_id", clinica_id); }
+
+    const [automacoes, interacoes, logs] = await Promise.all([autoQ, interQ, logsQ]);
+
     const autoData = automacoes.data || [];
     const interData = interacoes.data || [];
     const logData = logs.data || [];
@@ -50,68 +48,39 @@ serve(async (req) => {
     }
 
     const resumoDados = {
-      periodo: "últimos 7 dias",
-      total_mensagens: totalMensagens,
-      total_ligacoes: totalLigacoes,
-      confirmados,
-      total_confirmacoes: totalConfirmacoes,
+      periodo: "últimos 7 dias", total_mensagens: totalMensagens, total_ligacoes: totalLigacoes,
+      confirmados, total_confirmacoes: totalConfirmacoes,
       taxa_confirmacao: totalConfirmacoes > 0 ? ((confirmados / totalConfirmacoes) * 100).toFixed(1) + "%" : "N/A",
-      responderam,
-      total_interacoes_ia: interData.length,
+      responderam, total_interacoes_ia: interData.length,
       supervisionadas: interData.filter(i => i.supervisionado).length,
       automaticas: interData.filter(i => !i.supervisionado).length,
-      por_tipo: porTipo,
-      opt_outs: logData.filter(l => l.evento === "opt_out_90_dias").length,
+      por_tipo: porTipo, opt_outs: logData.filter(l => l.evento === "opt_out_90_dias").length,
     };
 
-    // Gerar insight via IA
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          {
-            role: "system",
-            content: `Você é um analista de dados de uma clínica médica. Gere um resumo executivo conciso (máximo 5 bullet points) em português brasileiro dos dados de automação e IA da clínica. Foque em: tendências, oportunidades de melhoria, riscos e ações recomendadas. Seja direto e acionável. Use emojis para destaque visual.`,
-          },
-          {
-            role: "user",
-            content: `Dados dos últimos 7 dias:\n${JSON.stringify(resumoDados, null, 2)}`,
-          },
+          { role: "system", content: "Analista de dados clínica. Resumo executivo conciso (máx 5 bullets) em português. Foque: tendências, melhorias, riscos, ações. Use emojis." },
+          { role: "user", content: `Dados últimos 7 dias:\n${JSON.stringify(resumoDados, null, 2)}` },
         ],
       }),
     });
 
     if (!aiRes.ok) {
-      if (aiRes.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit excedido, tente novamente em alguns minutos." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (aiRes.status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos de IA esgotados." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      if (aiRes.status === 429) return new Response(JSON.stringify({ error: "Rate limit excedido" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (aiRes.status === 402) return new Response(JSON.stringify({ error: "Créditos esgotados" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       throw new Error(`AI gateway error: ${aiRes.status}`);
     }
 
     const aiData = await aiRes.json();
-    const insight = aiData.choices?.[0]?.message?.content || "Sem insights disponíveis no momento.";
+    const insight = aiData.choices?.[0]?.message?.content || "Sem insights disponíveis.";
 
-    return new Response(
-      JSON.stringify({ resumo: resumoDados, insight }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ resumo: resumoDados, insight }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
-    console.error("[gerar-insights-ia] Erro:", error.message);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.error("[gerar-insights-ia] Erro:", (error as Error).message);
+    return new Response(JSON.stringify({ error: (error as Error).message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
