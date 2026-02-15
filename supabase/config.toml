@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.twilio-voice-webhook]
 verify_jwt = false
+
+[functions.ligar-confirmacao-agendamento]
+verify_jwt = false
