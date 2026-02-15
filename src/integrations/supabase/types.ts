@@ -21,6 +21,7 @@ export type Database = {
           id: string
           paciente_externo_id: string
           payload: Json | null
+          respondeu: boolean
           sistema_alvo: string
           status: string
           tipo: string
@@ -31,6 +32,7 @@ export type Database = {
           id?: string
           paciente_externo_id: string
           payload?: Json | null
+          respondeu?: boolean
           sistema_alvo: string
           status?: string
           tipo: string
@@ -41,6 +43,7 @@ export type Database = {
           id?: string
           paciente_externo_id?: string
           payload?: Json | null
+          respondeu?: boolean
           sistema_alvo?: string
           status?: string
           tipo?: string

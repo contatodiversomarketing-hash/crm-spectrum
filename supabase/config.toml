@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.twilio-gather-handler]
 verify_jwt = false
+
+[functions.executar-reativacao-voz]
+verify_jwt = false
