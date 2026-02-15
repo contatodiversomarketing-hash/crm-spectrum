@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.aprovar-mensagem]
 verify_jwt = false
+
+[functions.gerar-relatorio-estrategico]
+verify_jwt = false
