@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import SupervisaoIA from "./pages/SupervisaoIA";
+import DashboardInteligenciaIA from "./pages/DashboardInteligenciaIA";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -23,6 +24,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/supervisao" element={<ProtectedRoute requiredRoles={["admin", "supervisao"]}><SupervisaoIA /></ProtectedRoute>} />
+            <Route path="/dashboard-ia" element={<ProtectedRoute><DashboardInteligenciaIA /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

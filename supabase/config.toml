@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.executar-prospeccao-leads-frios]
 verify_jwt = false
+
+[functions.gerar-insights-ia]
+verify_jwt = false

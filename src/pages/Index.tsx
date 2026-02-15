@@ -1,4 +1,4 @@
-import { Brain, Activity, MessageSquare, Zap, Shield, Settings, LogOut } from "lucide-react";
+import { Brain, Activity, MessageSquare, Zap, Shield, Settings, LogOut, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { StatusCard } from "@/components/StatusCard";
 import { SystemStatusBadge } from "@/components/SystemStatusBadge";
@@ -39,7 +39,7 @@ const Index = () => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         {/* KPI Cards */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <StatusCard
             title="Interações Hoje"
             value={142}
@@ -69,6 +69,15 @@ const Index = () => {
             subtitle="Modo supervisão ativo"
             icon={Activity}
           />
+          <div onClick={() => navigate("/dashboard-ia")} className="cursor-pointer">
+            <StatusCard
+              title="Dashboard IA"
+              value="→"
+              subtitle="Métricas e insights"
+              icon={TrendingUp}
+              variant="info"
+            />
+          </div>
         </section>
 
         {/* Two Column Layout */}
