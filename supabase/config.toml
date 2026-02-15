@@ -77,3 +77,6 @@ verify_jwt = false
 
 [functions.validar-plano-clinica]
 verify_jwt = false
+
+[functions.avaliar-ligacao-metodo]
+verify_jwt = false
