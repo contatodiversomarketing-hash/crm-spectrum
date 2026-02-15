@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.executar-analise-estrategica-diaria]
 verify_jwt = false
+
+[functions.executar-previsao-demanda]
+verify_jwt = false
