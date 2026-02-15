@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.executar-analise-contratacao]
 verify_jwt = false
+
+[functions.executar-analise-rentabilidade]
+verify_jwt = false
