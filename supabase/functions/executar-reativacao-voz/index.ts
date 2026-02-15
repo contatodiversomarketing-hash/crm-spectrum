@@ -62,6 +62,18 @@ serve(async (req) => {
 
     console.log(`[reativacao-voz] ${filtrados.length} candidatos com score > 70 (de ${candidatos.length} total)`);
 
+    // 2b. Filtrar pacientes com bloqueio ativo (opt-out temporário)
+    const pacienteIds = filtrados.map((a) => a.paciente_externo_id);
+    const { data: bloqueados } = await supabase
+      .from("memorias_ia")
+      .select("paciente_externo_id, bloqueio_ate")
+      .in("paciente_externo_id", pacienteIds)
+      .gt("bloqueio_ate", new Date().toISOString());
+
+    const bloqueadosSet = new Set((bloqueados || []).map((b) => b.paciente_externo_id));
+    const filtradosSemBloqueio = filtrados.filter((a) => !bloqueadosSet.has(a.paciente_externo_id));
+    console.log(`[reativacao-voz] ${bloqueadosSet.size} bloqueados por opt-out, ${filtradosSemBloqueio.length} aptos`);
+
     // 3. Verificar ligações já feitas hoje para evitar duplicação
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
@@ -82,7 +94,7 @@ serve(async (req) => {
       erro?: string;
     }> = [];
 
-    for (const automacao of filtrados) {
+    for (const automacao of filtradosSemBloqueio) {
       const pacienteId = automacao.paciente_externo_id;
 
       // Evitar duplicação no mesmo dia

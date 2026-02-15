@@ -154,6 +154,7 @@ export type Database = {
       }
       memorias_ia: {
         Row: {
+          bloqueio_ate: string | null
           id: string
           paciente_externo_id: string
           preferencia_profissional: string | null
@@ -162,6 +163,7 @@ export type Database = {
           ultima_interacao: string | null
         }
         Insert: {
+          bloqueio_ate?: string | null
           id?: string
           paciente_externo_id: string
           preferencia_profissional?: string | null
@@ -170,6 +172,7 @@ export type Database = {
           ultima_interacao?: string | null
         }
         Update: {
+          bloqueio_ate?: string | null
           id?: string
           paciente_externo_id?: string
           preferencia_profissional?: string | null
