@@ -93,6 +93,17 @@ Deno.serve(async (req) => {
 
     const jaEnviados = new Set((recentes || []).map((r: any) => r.paciente_externo_id));
 
+    // Filtrar pacientes com bloqueio ativo (opt-out temporário)
+    const todosPacienteIds = selecionados.map((p: any) => `tel:${p.phone?.replace(/[^\d+]/g, "")}`);
+    const { data: bloqueados } = await supabase
+      .from("memorias_ia")
+      .select("paciente_externo_id, bloqueio_ate")
+      .in("paciente_externo_id", todosPacienteIds)
+      .gt("bloqueio_ate", new Date().toISOString());
+
+    const bloqueadosSet = new Set((bloqueados || []).map((b: any) => b.paciente_externo_id));
+    console.log(`[reativacao-score] ${bloqueadosSet.size} pacientes bloqueados por opt-out`);
+
     let enviados = 0;
 
     for (const paciente of selecionados) {
@@ -104,6 +115,12 @@ Deno.serve(async (req) => {
       // Deduplicação
       if (jaEnviados.has(pacienteExternoId)) {
         console.log(`[reativacao-score] Ignorado (duplicado): ${pacienteExternoId}`);
+        continue;
+      }
+
+      // Verificar bloqueio opt-out
+      if (bloqueadosSet.has(pacienteExternoId)) {
+        console.log(`[reativacao-score] Ignorado (opt-out bloqueado): ${pacienteExternoId}`);
         continue;
       }
 

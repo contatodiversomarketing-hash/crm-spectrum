@@ -47,50 +47,111 @@ serve(async (req) => {
   </Say>
 </Response>`;
     } else if (digits === "2") {
-      // Remarcar - chamar orquestrador-principal para iniciar fluxo WhatsApp
       const numeroLimpo = from.replace(/[^\d+]/g, "").replace(/^\+55/, "");
+      const pacienteExternoId = `tel:${numeroLimpo}`;
 
-      await supabase.from("logs_decisao").insert({
-        evento: "confirmacao_voz",
-        decisao: "remarcar",
-        regra_aplicada: "gather_digit_2",
-        dados_entrada: { call_sid: callSid, from, digits },
-        confianca: 1.0,
-      });
+      // Verificar se veio de uma chamada de reativação (checando automacoes recentes)
+      const { data: reativacaoRecente } = await supabase
+        .from("automacoes")
+        .select("id")
+        .eq("paciente_externo_id", pacienteExternoId)
+        .eq("tipo", "reativacao_voz")
+        .eq("status", "ligado")
+        .order("criado_em", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      // Chamar orquestrador-principal para disparar WhatsApp via MegaAPI
-      let whatsappOk = false;
-      try {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+      if (reativacaoRecente) {
+        // === OPT-OUT REATIVAÇÃO: 90 dias de bloqueio ===
+        const bloqueioAte = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
 
-        const orqRes = await fetch(`${supabaseUrl}/functions/v1/orquestrador-principal`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${anonKey}`,
-          },
-          body: JSON.stringify({
-            numero_remetente: numeroLimpo,
-            mensagem: "Preciso remarcar minha consulta.",
-            timestamp: new Date().toISOString(),
-          }),
+        // Atualizar automação
+        await supabase
+          .from("automacoes")
+          .update({ status: "nao_interessado_temporario" })
+          .eq("id", reativacaoRecente.id);
+
+        // Upsert memória com bloqueio
+        const { data: memoriaExistente } = await supabase
+          .from("memorias_ia")
+          .select("id")
+          .eq("paciente_externo_id", pacienteExternoId)
+          .maybeSingle();
+
+        if (memoriaExistente) {
+          await supabase.from("memorias_ia").update({
+            risco_classificacao: "opt_out_temporario",
+            ultima_interacao: new Date().toISOString(),
+            bloqueio_ate: bloqueioAte,
+          }).eq("id", memoriaExistente.id);
+        } else {
+          await supabase.from("memorias_ia").insert({
+            paciente_externo_id: pacienteExternoId,
+            risco_classificacao: "opt_out_temporario",
+            ultima_interacao: new Date().toISOString(),
+            bloqueio_ate: bloqueioAte,
+          });
+        }
+
+        await supabase.from("logs_decisao").insert({
+          evento: "opt_out_90_dias",
+          decisao: "nao_interessado_temporario",
+          regra_aplicada: "gather_digit_2_reativacao",
+          dados_entrada: { call_sid: callSid, from, digits, bloqueio_ate: bloqueioAte },
+          confianca: 1.0,
         });
 
-        const orqData = await orqRes.json();
-        whatsappOk = orqRes.ok;
-        console.log(`Orquestrador resposta (${orqRes.status}):`, JSON.stringify(orqData).slice(0, 200));
-      } catch (orqError) {
-        console.error("Erro ao chamar orquestrador-principal:", orqError.message);
-      }
+        twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice" language="pt-BR">
+    Entendido. Não entraremos em contato pelos próximos meses.
+    Se precisar de algo, estaremos à disposição.
+    Obrigado.
+  </Say>
+</Response>`;
+      } else {
+        // === REMARCAR CONSULTA (fluxo original) ===
+        await supabase.from("logs_decisao").insert({
+          evento: "confirmacao_voz",
+          decisao: "remarcar",
+          regra_aplicada: "gather_digit_2",
+          dados_entrada: { call_sid: callSid, from, digits },
+          confianca: 1.0,
+        });
 
-      twiml = `<?xml version="1.0" encoding="UTF-8"?>
+        let whatsappOk = false;
+        try {
+          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+          const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+          const orqRes = await fetch(`${supabaseUrl}/functions/v1/orquestrador-principal`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${anonKey}`,
+            },
+            body: JSON.stringify({
+              numero_remetente: numeroLimpo,
+              mensagem: "Preciso remarcar minha consulta.",
+              timestamp: new Date().toISOString(),
+            }),
+          });
+
+          const orqData = await orqRes.json();
+          whatsappOk = orqRes.ok;
+          console.log(`Orquestrador resposta (${orqRes.status}):`, JSON.stringify(orqData).slice(0, 200));
+        } catch (orqError) {
+          console.error("Erro ao chamar orquestrador-principal:", orqError.message);
+        }
+
+        twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="alice" language="pt-BR">
     Sem problemas.
     ${whatsappOk ? "Enviaremos uma mensagem pelo WhatsApp para reagendar." : "Tentaremos enviar uma mensagem para reagendar em breve."}
   </Say>
 </Response>`;
+      }
     } else {
       // Entrada inválida
       await supabase.from("logs_decisao").insert({
