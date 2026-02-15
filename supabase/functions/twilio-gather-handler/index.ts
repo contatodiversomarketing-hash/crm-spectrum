@@ -47,7 +47,9 @@ serve(async (req) => {
   </Say>
 </Response>`;
     } else if (digits === "2") {
-      // Remarcar - enviar WhatsApp
+      // Remarcar - chamar orquestrador-principal para iniciar fluxo WhatsApp
+      const numeroLimpo = from.replace(/[^\d+]/g, "").replace(/^\+55/, "");
+
       await supabase.from("logs_decisao").insert({
         evento: "confirmacao_voz",
         decisao: "remarcar",
@@ -56,29 +58,37 @@ serve(async (req) => {
         confianca: 1.0,
       });
 
-      // Notificar via WhatsApp para reagendamento
+      // Chamar orquestrador-principal para disparar WhatsApp via MegaAPI
+      let whatsappOk = false;
       try {
-        const coreApiUrl = Deno.env.get("CORE_API_URL");
-        if (coreApiUrl) {
-          await fetch(`${coreApiUrl}/receber-mensagem-whatsapp`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              from: from,
-              body: "Gostaria de remarcar minha consulta",
-              tipo_interno: "remarcacao_via_ligacao",
-            }),
-          });
-        }
-      } catch (whatsappError) {
-        console.error("Erro ao notificar WhatsApp:", whatsappError.message);
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+        const orqRes = await fetch(`${supabaseUrl}/functions/v1/orquestrador-principal`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${anonKey}`,
+          },
+          body: JSON.stringify({
+            numero_remetente: numeroLimpo,
+            mensagem: "Preciso remarcar minha consulta.",
+            timestamp: new Date().toISOString(),
+          }),
+        });
+
+        const orqData = await orqRes.json();
+        whatsappOk = orqRes.ok;
+        console.log(`Orquestrador resposta (${orqRes.status}):`, JSON.stringify(orqData).slice(0, 200));
+      } catch (orqError) {
+        console.error("Erro ao chamar orquestrador-principal:", orqError.message);
       }
 
       twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="alice" language="pt-BR">
     Sem problemas.
-    Enviaremos uma mensagem pelo WhatsApp para reagendar.
+    ${whatsappOk ? "Enviaremos uma mensagem pelo WhatsApp para reagendar." : "Tentaremos enviar uma mensagem para reagendar em breve."}
   </Say>
 </Response>`;
     } else {
