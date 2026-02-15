@@ -10,9 +10,9 @@ serve(async (req) => {
 
     let twiml: string;
 
-    if (tipo === "confirmacao") {
-      const gatherAction = "https://chilmuwijkkdefqizleh.supabase.co/functions/v1/twilio-gather-handler";
+    const gatherAction = "https://chilmuwijkkdefqizleh.supabase.co/functions/v1/twilio-gather-handler";
 
+    if (tipo === "confirmacao") {
       twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Gather numDigits="1" action="${gatherAction}" method="POST">
@@ -20,6 +20,22 @@ serve(async (req) => {
       Olá ${escapeXml(nome)}. Você tem uma consulta marcada para ${escapeXml(data)} às ${escapeXml(horario)}.
       Para confirmar, pressione 1.
       Para remarcar, pressione 2.
+    </Say>
+  </Gather>
+  <Say voice="alice" language="pt-BR">
+    Não detectamos nenhuma resposta. Encerrando a chamada.
+  </Say>
+</Response>`;
+    } else if (tipo === "reativacao") {
+      twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Gather numDigits="1" action="${gatherAction}" method="POST">
+    <Say voice="alice" language="pt-BR">
+      Olá ${escapeXml(nome)}. Aqui é da Clínica Vite.
+      Notamos que não tivemos retorno da nossa última mensagem.
+      Gostaria que enviássemos horários disponíveis pelo WhatsApp?
+      Para sim, pressione 1.
+      Para não, pressione 2.
     </Say>
   </Gather>
   <Say voice="alice" language="pt-BR">
