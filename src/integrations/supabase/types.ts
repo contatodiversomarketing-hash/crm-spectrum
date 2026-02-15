@@ -179,6 +179,97 @@ export type Database = {
           },
         ]
       }
+      avaliacao_ligacoes: {
+        Row: {
+          clinica_id: string | null
+          criado_em: string
+          erros_detectados: string[] | null
+          id: string
+          nota_abertura: number
+          nota_escuta_ativa: number
+          nota_fechamento: number
+          nota_gatilhos: number
+          nota_geral: number
+          nota_identificacao_dor: number
+          nota_objecao_apa: number
+          nota_rapport: number
+          nota_seguranca_emocional: number
+          pontos_fortes: string[] | null
+          resultado_venda: boolean
+          sugestao_pratica: string | null
+          tecnica_recomendada: string | null
+          transcricao_ligacao_id: string | null
+          transcricao_texto: string
+          vendedora_id: string | null
+        }
+        Insert: {
+          clinica_id?: string | null
+          criado_em?: string
+          erros_detectados?: string[] | null
+          id?: string
+          nota_abertura?: number
+          nota_escuta_ativa?: number
+          nota_fechamento?: number
+          nota_gatilhos?: number
+          nota_geral?: number
+          nota_identificacao_dor?: number
+          nota_objecao_apa?: number
+          nota_rapport?: number
+          nota_seguranca_emocional?: number
+          pontos_fortes?: string[] | null
+          resultado_venda?: boolean
+          sugestao_pratica?: string | null
+          tecnica_recomendada?: string | null
+          transcricao_ligacao_id?: string | null
+          transcricao_texto: string
+          vendedora_id?: string | null
+        }
+        Update: {
+          clinica_id?: string | null
+          criado_em?: string
+          erros_detectados?: string[] | null
+          id?: string
+          nota_abertura?: number
+          nota_escuta_ativa?: number
+          nota_fechamento?: number
+          nota_gatilhos?: number
+          nota_geral?: number
+          nota_identificacao_dor?: number
+          nota_objecao_apa?: number
+          nota_rapport?: number
+          nota_seguranca_emocional?: number
+          pontos_fortes?: string[] | null
+          resultado_venda?: boolean
+          sugestao_pratica?: string | null
+          tecnica_recomendada?: string | null
+          transcricao_ligacao_id?: string | null
+          transcricao_texto?: string
+          vendedora_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "avaliacao_ligacoes_clinica_id_fkey"
+            columns: ["clinica_id"]
+            isOneToOne: false
+            referencedRelation: "clinicas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "avaliacao_ligacoes_transcricao_ligacao_id_fkey"
+            columns: ["transcricao_ligacao_id"]
+            isOneToOne: false
+            referencedRelation: "transcricoes_ligacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "avaliacao_ligacoes_vendedora_id_fkey"
+            columns: ["vendedora_id"]
+            isOneToOne: false
+            referencedRelation: "vendedoras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clinicas: {
         Row: {
           ativo: boolean
@@ -238,6 +329,78 @@ export type Database = {
           nivel_autonomia?: number
         }
         Relationships: []
+      }
+      desempenho_vendedoras: {
+        Row: {
+          atualizado_em: string
+          clinica_id: string | null
+          criado_em: string
+          id: string
+          media_abertura: number
+          media_escuta_ativa: number
+          media_fechamento: number
+          media_gatilhos: number
+          media_geral: number
+          media_identificacao_dor: number
+          media_objecao_apa: number
+          media_rapport: number
+          media_seguranca_emocional: number
+          taxa_conversao: number
+          total_ligacoes_avaliadas: number
+          vendedora_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          clinica_id?: string | null
+          criado_em?: string
+          id?: string
+          media_abertura?: number
+          media_escuta_ativa?: number
+          media_fechamento?: number
+          media_gatilhos?: number
+          media_geral?: number
+          media_identificacao_dor?: number
+          media_objecao_apa?: number
+          media_rapport?: number
+          media_seguranca_emocional?: number
+          taxa_conversao?: number
+          total_ligacoes_avaliadas?: number
+          vendedora_id: string
+        }
+        Update: {
+          atualizado_em?: string
+          clinica_id?: string | null
+          criado_em?: string
+          id?: string
+          media_abertura?: number
+          media_escuta_ativa?: number
+          media_fechamento?: number
+          media_gatilhos?: number
+          media_geral?: number
+          media_identificacao_dor?: number
+          media_objecao_apa?: number
+          media_rapport?: number
+          media_seguranca_emocional?: number
+          taxa_conversao?: number
+          total_ligacoes_avaliadas?: number
+          vendedora_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "desempenho_vendedoras_clinica_id_fkey"
+            columns: ["clinica_id"]
+            isOneToOne: false
+            referencedRelation: "clinicas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "desempenho_vendedoras_vendedora_id_fkey"
+            columns: ["vendedora_id"]
+            isOneToOne: true
+            referencedRelation: "vendedoras"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       insights_ia: {
         Row: {
