@@ -80,6 +80,30 @@ export type Database = {
         }
         Relationships: []
       }
+      insights_ia: {
+        Row: {
+          criado_em: string
+          descricao: string
+          id: string
+          impacto_estimado: string | null
+          tipo: string
+        }
+        Insert: {
+          criado_em?: string
+          descricao: string
+          id?: string
+          impacto_estimado?: string | null
+          tipo: string
+        }
+        Update: {
+          criado_em?: string
+          descricao?: string
+          id?: string
+          impacto_estimado?: string | null
+          tipo?: string
+        }
+        Relationships: []
+      }
       interacoes_ia: {
         Row: {
           canal: string
