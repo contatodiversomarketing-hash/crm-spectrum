@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.testar-metrics-crm]
 verify_jwt = false
+
+[functions.coletar-dados-integrados]
+verify_jwt = false
