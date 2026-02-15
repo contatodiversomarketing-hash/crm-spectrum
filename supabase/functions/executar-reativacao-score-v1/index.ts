@@ -8,39 +8,6 @@ const corsHeaders = {
 
 const TOP_N = 50;
 const DIAS_BLOQUEIO = 30;
-const SUPABASE_URL = "https://chilmuwijkkdefqizleh.supabase.co";
-const ESPECIALIDADES_PREMIUM = ["odontologia", "estética", "estetica", "cardiologia"];
-
-interface PacienteGestao {
-  id: string;
-  name: string;
-  phone: string;
-  last_appointment_date: string;
-  status?: string;
-  avg_ticket?: number;
-  ticket_medio?: number;
-  total_appointments?: number;
-  total_consultas?: number;
-  specialty?: string;
-  especialidade?: string;
-  total_absences?: number;
-  total_faltas?: number;
-}
-
-function calcularScore(p: PacienteGestao): number {
-  let score = 0;
-  const ticket = p.ticket_medio ?? p.avg_ticket ?? 0;
-  const consultas = p.total_consultas ?? p.total_appointments ?? 0;
-  const esp = (p.especialidade ?? p.specialty ?? "").toLowerCase();
-  const faltas = p.total_faltas ?? p.total_absences ?? 0;
-
-  if (ticket >= 500) score += 40;
-  if (consultas >= 3) score += 30;
-  if (ESPECIALIDADES_PREMIUM.includes(esp)) score += 20;
-  if (faltas >= 2) score -= 20;
-
-  return score;
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -54,67 +21,67 @@ Deno.serve(async (req) => {
     });
   }
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
-
-  const relatorio = { total_inativos: 0, avaliados: 0, enviados: 0, detalhes: [] as { id: string; score: number; status: string }[] };
-
   try {
-    const gestaoUrl = Deno.env.get("GESTAO_API_URL");
-    const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
-    const megaUrl = Deno.env.get("MEGA_API_URL");
-    const megaToken = Deno.env.get("MEGA_API_TOKEN");
+    const GESTAO_API_URL = Deno.env.get("GESTAO_API_URL");
+    const GESTAO_API_KEY = Deno.env.get("GESTAO_API_TOKEN");
+    const MEGA_API_URL = Deno.env.get("MEGA_API_URL");
+    const MEGA_API_TOKEN = Deno.env.get("MEGA_API_TOKEN");
 
-    if (!gestaoUrl || !gestaoToken) {
+    if (!GESTAO_API_URL || !GESTAO_API_KEY) {
       return new Response(JSON.stringify({ error: "GESTAO_API não configurada" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (!megaUrl || !megaToken) {
+    if (!MEGA_API_URL || !MEGA_API_TOKEN) {
       return new Response(JSON.stringify({ error: "MEGA_API não configurada" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
     // 1. Buscar pacientes inativos
     console.log("[reativacao-score] Buscando pacientes inativos...");
-    const gestaoRes = await fetch(gestaoUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${gestaoToken}` },
-      body: JSON.stringify({ action: "list_inactive_patients", params: { months: 6, limit: 1000, offset: 0 } }),
+    const response = await fetch(`${GESTAO_API_URL}/list_inactive_patients`, {
+      headers: { Authorization: `Bearer ${GESTAO_API_KEY}` },
     });
 
-    if (!gestaoRes.ok) {
-      console.error(`[reativacao-score] API Gestão erro ${gestaoRes.status}`);
-      return new Response(JSON.stringify({ error: "Falha na API de Gestão", status: gestaoRes.status }), {
+    if (!response.ok) {
+      console.error(`[reativacao-score] API Gestão erro ${response.status}`);
+      return new Response(JSON.stringify({ error: "Falha na API de Gestão", status: response.status }), {
         status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const gestaoData = await gestaoRes.json();
-    const pacientes: PacienteGestao[] = Array.isArray(gestaoData) ? gestaoData : gestaoData.data || gestaoData.patients || [];
-    relatorio.total_inativos = pacientes.length;
+    const pacientes = await response.json();
     console.log(`[reativacao-score] ${pacientes.length} inativos encontrados`);
 
-    if (pacientes.length === 0) {
-      return new Response(JSON.stringify(relatorio), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // 2. Calcular score
+    const pacientesComScore = pacientes.map((p: any) => {
+      let score = 0;
 
-    // 2. Calcular score e ordenar
-    const comScore = pacientes
-      .filter((p) => p.phone && (!p.status || p.status.toLowerCase() !== "bloqueado"))
-      .map((p) => ({ ...p, score: calcularScore(p) }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, TOP_N);
+      if (p.ticket_medio >= 500) score += 40;
+      else if (p.ticket_medio >= 300) score += 20;
 
-    relatorio.avaliados = comScore.length;
-    console.log(`[reativacao-score] ${comScore.length} pacientes selecionados (top ${TOP_N})`);
+      if (p.total_consultas >= 5) score += 30;
+      else if (p.total_consultas >= 3) score += 20;
 
-    // 3. Buscar reativações recentes para deduplicação
+      if (p.total_faltas >= 2) score -= 20;
+      if (p.total_faltas === 0) score += 10;
+
+      return { ...p, score };
+    });
+
+    // 3. Ordenar por score DESC
+    pacientesComScore.sort((a: any, b: any) => b.score - a.score);
+
+    // 4. Selecionar top 50
+    const selecionados = pacientesComScore.slice(0, TOP_N);
+
+    // 5. Buscar reativações recentes para deduplicação
     const dataLimite = new Date();
     dataLimite.setDate(dataLimite.getDate() - DIAS_BLOQUEIO);
 
@@ -124,111 +91,101 @@ Deno.serve(async (req) => {
       .eq("tipo", "reativacao_score")
       .gte("criado_em", dataLimite.toISOString());
 
-    const jaEnviados = new Set((recentes || []).map((r) => r.paciente_externo_id));
+    const jaEnviados = new Set((recentes || []).map((r: any) => r.paciente_externo_id));
 
-    // 4. Processar cada paciente
-    for (const pac of comScore) {
-      const telefone = pac.phone.replace(/[^\d+]/g, "");
+    let enviados = 0;
+
+    for (const paciente of selecionados) {
+      if (!paciente.phone) continue;
+
+      const telefone = paciente.phone.replace(/[^\d+]/g, "");
       const pacienteExternoId = `tel:${telefone}`;
 
+      // Deduplicação
       if (jaEnviados.has(pacienteExternoId)) {
-        relatorio.detalhes.push({ id: pacienteExternoId, score: pac.score, status: "duplicado" });
+        console.log(`[reativacao-score] Ignorado (duplicado): ${pacienteExternoId}`);
         continue;
       }
 
+      const nomePrimeiro = paciente.nome ? paciente.nome.split(" ")[0] : "";
+
+      const mensagem = `Olá ${nomePrimeiro} 😊\nNotamos que já faz um tempo desde sua última consulta.\nQue tal agendarmos um retorno para cuidar da sua saúde?`;
+
       try {
-        // Gerar mensagem
-        const respostaRes = await fetch(`${SUPABASE_URL}/functions/v1/gerar-resposta-humanizada`, {
+        const megaRes = await fetch(`${MEGA_API_URL}/api/v1/sendText`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}` },
-          body: JSON.stringify({
-            paciente_externo_id: pacienteExternoId,
-            intencao: "reativacao",
-            estado: "inativo_score",
-            acao: "encaminhar_retorno_inativo",
-            dados: {
-              nome_paciente: pac.name,
-              tipo: "reativacao_score",
-              especialidade: pac.especialidade ?? pac.specialty ?? "",
-              score: pac.score,
-              ultima_consulta: pac.last_appointment_date,
-            },
-          }),
-        });
-
-        let mensagem: string;
-        if (respostaRes.ok) {
-          mensagem = (await respostaRes.json()).resposta;
-        } else {
-          const nome = pac.name ? pac.name.split(" ")[0] : "";
-          mensagem = `Olá${nome ? `, ${nome}` : ""}! Faz tempo que não nos vemos. Gostaríamos de convidá-lo(a) para uma consulta. Estamos à disposição! 😊`;
-        }
-
-        // Enviar via MegaAPI
-        const megaRes = await fetch(megaUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${megaToken}` },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${MEGA_API_TOKEN}`,
+          },
           body: JSON.stringify({ number: telefone, text: mensagem }),
         });
 
-        const enviado = megaRes.ok;
+        const envioOk = megaRes.ok;
 
         // Registrar automação
         await supabase.from("automacoes").insert({
           paciente_externo_id: pacienteExternoId,
           tipo: "reativacao_score",
           sistema_alvo: "megaapi",
-          status: enviado ? "enviado" : "erro_envio",
+          status: envioOk ? "enviado" : "erro_envio",
           data_execucao: new Date().toISOString(),
           payload: {
-            nome: pac.name,
+            nome: paciente.nome,
             telefone,
-            score: pac.score,
-            especialidade: pac.especialidade ?? pac.specialty ?? "",
-            ultima_consulta: pac.last_appointment_date,
+            score: paciente.score,
+            ticket_medio: paciente.ticket_medio,
+            total_consultas: paciente.total_consultas,
+            total_faltas: paciente.total_faltas,
             mensagem_enviada: mensagem,
             mega_status: megaRes.status,
           },
         });
 
-        // Registrar log
+        // Registrar log de decisão
         await supabase.from("logs_decisao").insert({
           evento: "reativacao_score_v1",
-          decisao: enviado ? "enviado" : "erro_envio",
-          confianca: pac.score,
-          regra_aplicada: `score=${pac.score}, top=${TOP_N}, bloqueio=${DIAS_BLOQUEIO}d`,
+          decisao: envioOk ? "enviado" : "erro_envio",
+          confianca: paciente.score,
+          regra_aplicada: `score=${paciente.score}, top=${TOP_N}, bloqueio=${DIAS_BLOQUEIO}d`,
           dados_entrada: {
             paciente_externo_id: pacienteExternoId,
-            nome: pac.name,
-            score: pac.score,
-            especialidade: pac.especialidade ?? pac.specialty,
-            mega_status: megaRes.status,
+            nome: paciente.nome,
+            score: paciente.score,
+            ticket_medio: paciente.ticket_medio,
+            total_consultas: paciente.total_consultas,
+            total_faltas: paciente.total_faltas,
           },
         });
 
-        if (enviado) {
-          relatorio.enviados++;
-          relatorio.detalhes.push({ id: pacienteExternoId, score: pac.score, status: "enviado" });
-          console.log(`[reativacao-score] ✓ ${pacienteExternoId} (score ${pac.score})`);
+        if (envioOk) {
+          enviados++;
+          console.log(`[reativacao-score] ✓ ${pacienteExternoId} (score ${paciente.score})`);
         } else {
-          relatorio.detalhes.push({ id: pacienteExternoId, score: pac.score, status: "erro_envio" });
           console.error(`[reativacao-score] ✗ ${pacienteExternoId} MegaAPI ${megaRes.status}`);
         }
       } catch (err) {
-        relatorio.detalhes.push({ id: pacienteExternoId, score: pac.score, status: "erro" });
         console.error(`[reativacao-score] Erro ${pacienteExternoId}:`, err);
       }
     }
 
-    console.log(`[reativacao-score] Concluído: inativos=${relatorio.total_inativos} avaliados=${relatorio.avaliados} enviados=${relatorio.enviados}`);
+    const resultado = {
+      total_inativos: pacientes.length,
+      avaliados: pacientesComScore.length,
+      enviados,
+    };
 
-    return new Response(JSON.stringify(relatorio), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    console.log(`[reativacao-score] Concluído:`, resultado);
+
+    return new Response(JSON.stringify(resultado), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("[reativacao-score] Erro inesperado:", error);
-    return new Response(JSON.stringify({ error: "Erro interno", relatorio }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: true, message: error instanceof Error ? error.message : "Erro interno" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 });
