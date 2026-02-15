@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.executar-analise-preco]
 verify_jwt = false
+
+[functions.executar-analise-contratacao]
+verify_jwt = false
