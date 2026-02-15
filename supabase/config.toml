@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.coletar-dados-integrados]
 verify_jwt = false
+
+[functions.monitorar-anomalias]
+verify_jwt = false
