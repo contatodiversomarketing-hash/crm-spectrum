@@ -94,9 +94,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // 1. Validar payload
     const body = await req.json();
-    const { numero_remetente, mensagem, timestamp } = body;
+    const { numero_remetente, mensagem, timestamp, clinica_id } = body;
 
     if (!numero_remetente || typeof numero_remetente !== "string") {
       return new Response(JSON.stringify({ error: "numero_remetente é obrigatório" }), {
@@ -117,7 +116,20 @@ Deno.serve(async (req) => {
     const pacienteExternoId = `tel:${sanitizedNumero}`;
     const criadoEm = timestamp ? new Date(timestamp).toISOString() : new Date().toISOString();
 
-    console.log(`[orquestrador] Iniciando processamento para ${pacienteExternoId}`);
+    console.log(`[orquestrador] Iniciando processamento para ${pacienteExternoId}${clinica_id ? ` (clinica: ${clinica_id})` : ""}`);
+
+    // Validar plano se clinica_id fornecido
+    if (clinica_id) {
+      const validacao = await chamarFuncao("validar-plano-clinica", { clinica_id, tipo_uso: "whatsapp" });
+      if (!validacao.ok) {
+        const vData = validacao.data as { erro?: string };
+        console.warn(`[orquestrador] Plano bloqueado: ${vData?.erro}`);
+        return new Response(JSON.stringify({ error: vData?.erro || "Limite de uso atingido" }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     // 2. Classificar intenção
     const classificacao = await chamarFuncao("classificar-intencao", { mensagem: sanitizedMensagem });
@@ -138,6 +150,7 @@ Deno.serve(async (req) => {
       paciente_externo_id: pacienteExternoId,
       mensagem: sanitizedMensagem,
       intencao,
+      clinica_id,
     });
 
     if (!fluxo.ok) {
@@ -210,7 +223,6 @@ Deno.serve(async (req) => {
     let megaEnvio: { ok: boolean; status: number; data: unknown } | null = null;
 
     if (emHorarioComercial && modoSupervisao) {
-      // Dentro do horário + supervisão ativa → aguardar aprovação humana
       supervisionado = true;
       respostaSugerida = textoResposta;
       respostaFinal = null;
@@ -218,7 +230,6 @@ Deno.serve(async (req) => {
       modo = "supervisionado";
       console.log("[orquestrador] Modo: supervisão — resposta sugerida salva, aguardando aprovação");
     } else {
-      // Fora do horário ou supervisão desativada → enviar automaticamente via MegaAPI
       supervisionado = false;
       respostaSugerida = null;
       respostaFinal = textoResposta;
@@ -247,6 +258,7 @@ Deno.serve(async (req) => {
       resposta_final: respostaFinal,
       supervisionado,
       criado_em: criadoEm,
+      ...(clinica_id && { clinica_id }),
     });
 
     if (insertError) {
@@ -271,15 +283,20 @@ Deno.serve(async (req) => {
         dados,
         mega_envio: megaEnvio ? { ok: megaEnvio.ok, status: megaEnvio.status } : null,
       },
+      ...(clinica_id && { clinica_id }),
     });
 
     if (logError) {
       console.warn("[orquestrador] Erro ao registrar log de decisão:", logError);
     }
 
+    // Incrementar uso mensal se clinica_id e envio automático ok
+    if (clinica_id && megaEnvio?.ok) {
+      await incrementarUso(supabase, clinica_id, "whatsapp");
+    }
+
     console.log(`[orquestrador] Pipeline concluído para ${pacienteExternoId}`);
 
-    // 9. Retornar resultado
     return new Response(
       JSON.stringify({
         status: "processado",
@@ -305,3 +322,28 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+async function incrementarUso(supabase: any, clinicaId: string, tipo: "whatsapp" | "ligacao") {
+  const agora = new Date();
+  const mesRef = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}`;
+  const campo = tipo === "whatsapp" ? "mensagens_whatsapp_usadas" : "ligacoes_realizadas";
+
+  const { data: existing } = await supabase
+    .from("uso_mensal_clinica")
+    .select("id, " + campo)
+    .eq("clinica_id", clinicaId)
+    .eq("mes_referencia", mesRef)
+    .maybeSingle();
+
+  if (existing) {
+    await supabase.from("uso_mensal_clinica")
+      .update({ [campo]: (existing[campo] || 0) + 1 })
+      .eq("id", existing.id);
+  } else {
+    await supabase.from("uso_mensal_clinica").insert({
+      clinica_id: clinicaId,
+      mes_referencia: mesRef,
+      [campo]: 1,
+    });
+  }
+}

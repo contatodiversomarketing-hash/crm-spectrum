@@ -74,3 +74,6 @@ verify_jwt = false
 
 [functions.gerar-resposta-com-metodo]
 verify_jwt = false
+
+[functions.validar-plano-clinica]
+verify_jwt = false
