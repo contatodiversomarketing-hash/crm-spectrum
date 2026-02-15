@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.executar-analise-rentabilidade]
 verify_jwt = false
+
+[functions.executar-sintese-executiva-semanal]
+verify_jwt = false

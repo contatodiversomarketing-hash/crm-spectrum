@@ -233,6 +233,30 @@ export type Database = {
         }
         Relationships: []
       }
+      relatorio_executivo_ia: {
+        Row: {
+          criado_em: string
+          id: string
+          impacto_estimado: string | null
+          prioridade_principal: string
+          resumo: string
+        }
+        Insert: {
+          criado_em?: string
+          id?: string
+          impacto_estimado?: string | null
+          prioridade_principal: string
+          resumo: string
+        }
+        Update: {
+          criado_em?: string
+          id?: string
+          impacto_estimado?: string | null
+          prioridade_principal?: string
+          resumo?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
