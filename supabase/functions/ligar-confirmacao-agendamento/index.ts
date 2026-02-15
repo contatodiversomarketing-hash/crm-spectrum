@@ -84,10 +84,15 @@ serve(async (req) => {
     });
     const webhookUrl = `https://chilmuwijkkdefqizleh.supabase.co/functions/v1/twilio-voice-webhook?${webhookParams.toString()}`;
 
+    const recordingCallback = "https://chilmuwijkkdefqizleh.supabase.co/functions/v1/processar-gravacao";
+
     const callParams = new URLSearchParams({
       To: telefoneFormatado,
       From: twilioPhone,
       Url: webhookUrl,
+      Record: "true",
+      RecordingStatusCallback: recordingCallback,
+      RecordingStatusCallbackEvent: "completed",
     });
 
     const callRes = await fetch(
