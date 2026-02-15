@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.executar-sintese-executiva-semanal]
 verify_jwt = false
+
+[functions.gerar-resposta-com-metodo]
+verify_jwt = false
