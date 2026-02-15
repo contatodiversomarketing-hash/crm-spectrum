@@ -47,6 +47,7 @@ serve(async (req) => {
 
     const paciente = await pacienteRes.json();
     const telefone = paciente?.phone || paciente?.telefone;
+    const nomePaciente = paciente?.name || paciente?.nome || "paciente";
 
     // Validar telefone
     if (!telefone || typeof telefone !== "string" || telefone.trim().length < 10) {
@@ -69,7 +70,19 @@ serve(async (req) => {
     }
 
     const twilioAuth = btoa(`${twilioSid}:${twilioToken}`);
-    const webhookUrl = "https://chilmuwijkkdefqizleh.supabase.co/functions/v1/twilio-voice-webhook";
+
+    // Buscar dados do agendamento (data/horário) se disponíveis
+    const dataConsulta = paciente?.next_appointment_date || paciente?.data_consulta || "";
+    const horarioConsulta = paciente?.next_appointment_time || paciente?.horario_consulta || "";
+
+    // Montar URL do webhook com query params dinâmicos
+    const webhookParams = new URLSearchParams({
+      tipo: "confirmacao",
+      nome: nomePaciente,
+      ...(dataConsulta && { data: dataConsulta }),
+      ...(horarioConsulta && { horario: horarioConsulta }),
+    });
+    const webhookUrl = `https://chilmuwijkkdefqizleh.supabase.co/functions/v1/twilio-voice-webhook?${webhookParams.toString()}`;
 
     const callParams = new URLSearchParams({
       To: telefoneFormatado,
