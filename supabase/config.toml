@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.avaliar-ligacao-metodo]
 verify_jwt = false
+
+[functions.processar-gravacao]
+verify_jwt = false
