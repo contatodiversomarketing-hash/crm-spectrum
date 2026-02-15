@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.executar-reativacao-voz]
 verify_jwt = false
+
+[functions.executar-prospeccao-leads-frios]
+verify_jwt = false
