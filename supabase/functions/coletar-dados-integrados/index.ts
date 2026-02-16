@@ -30,6 +30,7 @@ async function fetchWithTimeout(
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
+        apikey: token,
         "Content-Type": "application/json",
       },
       signal: controller.signal,
@@ -92,8 +93,8 @@ Deno.serve(async (req) => {
 
     const [crm, gestao, financeiro] = await Promise.all([
       fetchWithTimeout(`${CRM_API_URL}/functions/v1/metrics-crm-overview`, CRM_API_TOKEN!, TIMEOUT_MS),
-      fetchWithTimeout(`${GESTAO_API_URL}/functions/v1/metrics-gestao-overview`, GESTAO_API_TOKEN!, TIMEOUT_MS),
-      fetchWithTimeout(`${FINANCEIRO_API_URL}/functions/v1/metrics-financeiro-overview`, FINANCEIRO_API_TOKEN!, TIMEOUT_MS),
+      fetchWithTimeout(`${GESTAO_API_URL}`, GESTAO_API_TOKEN!, TIMEOUT_MS),
+      fetchWithTimeout(`${FINANCEIRO_API_URL}`, FINANCEIRO_API_TOKEN!, TIMEOUT_MS),
     ]);
 
     console.log(`[coletar-dados-integrados] CRM: ${crm.status} (${crm.duration_ms}ms) | Gestão: ${gestao.status} (${gestao.duration_ms}ms) | Financeiro: ${financeiro.status} (${financeiro.duration_ms}ms)`);
