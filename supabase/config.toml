@@ -95,3 +95,6 @@ verify_jwt = false
 
 [functions.receber-whatsapp]
 verify_jwt = false
+
+[functions.disparar-ligacao-teste]
+verify_jwt = false
