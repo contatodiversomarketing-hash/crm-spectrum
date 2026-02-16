@@ -62,7 +62,7 @@ serve(async (req) => {
 
         let whatsappOk = false;
         try {
-          const orqRes = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/orquestrador-principal`, {
+          const orqRes = await fetch(`${Deno.env.get("CORE_API_URL")}/functions/v1/orquestrador-principal`, {
             method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}` },
             body: JSON.stringify({ numero_remetente: numeroLimpo, mensagem: "Preciso remarcar minha consulta.", timestamp: new Date().toISOString(), ...(clinica_id && { clinica_id }) }),
           });

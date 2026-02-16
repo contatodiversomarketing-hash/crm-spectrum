@@ -10,7 +10,7 @@ serve(async (req) => {
 
     let twiml: string;
 
-    const gatherAction = "https://chilmuwijkkdefqizleh.supabase.co/functions/v1/twilio-gather-handler";
+    const gatherAction = `${Deno.env.get("CORE_API_URL")}/functions/v1/twilio-gather-handler`;
 
     if (tipo === "confirmacao") {
       twiml = `<?xml version="1.0" encoding="UTF-8"?>

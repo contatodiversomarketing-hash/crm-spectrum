@@ -25,7 +25,7 @@ serve(async (req) => {
 
     // Validar plano
     if (clinica_id) {
-      const validacao = await fetch(`https://chilmuwijkkdefqizleh.supabase.co/functions/v1/validar-plano-clinica`, {
+      const validacao = await fetch(`${Deno.env.get("CORE_API_URL")}/functions/v1/validar-plano-clinica`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}` },
         body: JSON.stringify({ clinica_id, tipo_uso: "ligacao" }),
@@ -78,12 +78,19 @@ serve(async (req) => {
       const payload = automacao.payload as Record<string, unknown> | null;
       const nome = (payload?.nome as string) || "Paciente";
 
+      const coreApiUrl = Deno.env.get("CORE_API_URL")!;
       const webhookParams = new URLSearchParams({ tipo: "reativacao", nome });
-      const webhookUrl = `https://chilmuwijkkdefqizleh.supabase.co/functions/v1/twilio-voice-webhook?${webhookParams.toString()}`;
+      const webhookUrl = `${coreApiUrl}/functions/v1/twilio-voice-webhook?${webhookParams.toString()}`;
 
       try {
-        const recordingCallback = "https://chilmuwijkkdefqizleh.supabase.co/functions/v1/processar-gravacao";
-        const callParams = new URLSearchParams({ To: telefoneFormatado, From: twilioPhone, Url: webhookUrl, Record: "true", RecordingStatusCallback: recordingCallback, RecordingStatusCallbackEvent: "completed" });
+        const recordingCallback = `${coreApiUrl}/functions/v1/processar-gravacao`;
+        const statusCallback = `${coreApiUrl}/functions/v1/call-events`;
+        const callParams = new URLSearchParams({
+          To: telefoneFormatado, From: twilioPhone, Url: webhookUrl,
+          Record: "true", RecordingStatusCallback: recordingCallback, RecordingStatusCallbackEvent: "completed",
+          StatusCallback: statusCallback, StatusCallbackEvent: "initiated ringing answered completed",
+          StatusCallbackMethod: "POST",
+        });
         const callRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Calls.json`, {
           method: "POST",
           headers: { Authorization: `Basic ${twilioAuth}`, "Content-Type": "application/x-www-form-urlencoded" },
