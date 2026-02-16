@@ -19,22 +19,29 @@ interface SystemResult {
 async function fetchWithTimeout(
   url: string,
   token: string,
-  timeoutMs: number
+  timeoutMs: number,
+  options?: { method?: string; body?: unknown }
 ): Promise<SystemResult> {
   const start = Date.now();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const method = options?.method || "GET";
 
   try {
-    const res = await fetch(url, {
-      method: "GET",
+    const fetchOptions: RequestInit = {
+      method,
       headers: {
         Authorization: `Bearer ${token}`,
         apikey: token,
         "Content-Type": "application/json",
       },
       signal: controller.signal,
-    });
+    };
+    if (options?.body && method !== "GET") {
+      fetchOptions.body = JSON.stringify(options.body);
+    }
+
+    const res = await fetch(url, fetchOptions);
 
     clearTimeout(timer);
     const duration_ms = Date.now() - start;
@@ -103,7 +110,10 @@ Deno.serve(async (req) => {
 
     const [crm, gestao, financeiro] = await Promise.all([
       fetchWithTimeout(`${CRM_API_URL}metrics-crm-overview`, CRM_API_TOKEN!, TIMEOUT_MS),
-      fetchWithTimeout(`${GESTAO_API_URL}/functions/v1/internal-api`, GESTAO_API_TOKEN!, TIMEOUT_MS),
+      fetchWithTimeout(`${GESTAO_API_URL}/functions/v1/internal-api`, GESTAO_API_TOKEN!, TIMEOUT_MS, {
+        method: "POST",
+        body: { action: "list_inactive_patients", dias: 180 },
+      }),
       fetchWithTimeout(`${FINANCEIRO_API_URL}`, FINANCEIRO_API_TOKEN!, TIMEOUT_MS),
     ]);
 
