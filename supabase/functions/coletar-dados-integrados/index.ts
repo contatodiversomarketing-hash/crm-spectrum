@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
         method: "POST",
         body: { action: "list_inactive_patients", dias: 180 },
       }),
-      fetchWithTimeout(`${FINANCEIRO_API_URL}`, FINANCEIRO_API_TOKEN!, TIMEOUT_MS),
+      fetchWithTimeout(`${FINANCEIRO_API_URL}/sync-caixa`, FINANCEIRO_API_TOKEN!, TIMEOUT_MS),
     ]);
 
     console.log(`[coletar-dados-integrados] CRM Leads: ${crmLeads.status} (${crmLeads.duration_ms}ms) | CRM Conversões: ${crmConversoes.status} (${crmConversoes.duration_ms}ms) | Gestão: ${gestao.status} (${gestao.duration_ms}ms) | Financeiro: ${financeiro.status} (${financeiro.duration_ms}ms)`);
