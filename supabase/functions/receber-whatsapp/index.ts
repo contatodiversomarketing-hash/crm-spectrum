@@ -34,7 +34,7 @@ serve(async (req) => {
       return new Response("erro config", { status: 500 });
     }
 
-    // MEGA_API_URL já contém o path completo (ex: .../api/v1/sendText)
+    // MEGA_API_URL = https://apinocode01.megaapi.com.br/rest/sendMessage/megacode-M82Emx0E8aQ/text
     const megaEndpoint = MEGA_API_URL;
     console.log(`[receber-whatsapp] Enviando para: ${megaEndpoint}`);
 
@@ -45,8 +45,10 @@ serve(async (req) => {
         "Authorization": `Bearer ${MEGA_API_TOKEN}`,
       },
       body: JSON.stringify({
-        number: numero,
-        text: respostaIA,
+        messageData: {
+          to: `${numero}@s.whatsapp.net`,
+          text: respostaIA,
+        },
       }),
     });
 
