@@ -270,6 +270,33 @@ export type Database = {
           },
         ]
       }
+      call_recordings: {
+        Row: {
+          analyzed: boolean
+          call_sid: string
+          created_at: string
+          duration: number
+          id: string
+          recording_url: string
+        }
+        Insert: {
+          analyzed?: boolean
+          call_sid: string
+          created_at?: string
+          duration?: number
+          id?: string
+          recording_url: string
+        }
+        Update: {
+          analyzed?: boolean
+          call_sid?: string
+          created_at?: string
+          duration?: number
+          id?: string
+          recording_url?: string
+        }
+        Relationships: []
+      }
       clinicas: {
         Row: {
           ativo: boolean
