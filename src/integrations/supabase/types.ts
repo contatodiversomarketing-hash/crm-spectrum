@@ -965,6 +965,33 @@ export type Database = {
           },
         ]
       }
+      voice_memory: {
+        Row: {
+          call_sid: string | null
+          created_at: string
+          id: string
+          message: string
+          phone_number: string
+          role: string
+        }
+        Insert: {
+          call_sid?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          phone_number: string
+          role: string
+        }
+        Update: {
+          call_sid?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          phone_number?: string
+          role?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
