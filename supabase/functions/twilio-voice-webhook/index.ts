@@ -1,53 +1,62 @@
-import { serve } from "https://deno.land/std/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 serve(async (req) => {
   const formData = await req.formData();
-  const speechResult = formData.get("SpeechResult");
+  const speechResultRaw = formData.get("SpeechResult");
 
+  const speechResult = speechResultRaw
+    ? speechResultRaw.toString().trim()
+    : "";
+
+  // PRIMEIRA INTERAÇÃO
   if (!speechResult) {
     return new Response(`
       <Response>
         <Gather 
-          input="speech dtmf"
+          input="speech"
           timeout="8"
           speechTimeout="auto"
+          language="pt-BR"
           action="https://chilmuwijkkdefqizleh.supabase.co/functions/v1/twilio-voice-webhook"
           method="POST"
         >
-          <Say voice="Polly.Camila" language="pt-BR">
-            Olá, aqui é da Clínica LA VITTA.
-            Gostaria de conversar com você.
-            Pode falar comigo normalmente.
+          <Say voice="Polly.Vitoria" language="pt-BR">
+            Olá... <Break time="400ms"/>
+            aqui é da Clínica LA VITTA. <Break time="400ms"/>
+            Estou ligando para falar com você.
+            Pode me ouvir?
           </Say>
         </Gather>
 
-        <Say voice="Polly.Camila" language="pt-BR">Não consegui ouvir sua resposta. Vou tentar mais uma vez.</Say>
+        <Say voice="Polly.Vitoria" language="pt-BR">
+          Não consegui ouvir sua resposta.
+          Vou encerrar por enquanto.
+        </Say>
       </Response>
     `, {
-      headers: { "Content-Type": "text/xml" }
+      headers: { "Content-Type": "text/xml" },
     });
   }
 
+  // RESPOSTA HUMANIZADA
   return new Response(`
     <Response>
-      <Say voice="Polly.Camila" language="pt-BR">
-        Entendi o que você disse: ${speechResult}.
-        Vamos continuar conversando.
-      </Say>
-
       <Gather 
-        input="speech dtmf"
+        input="speech"
         timeout="8"
         speechTimeout="auto"
+        language="pt-BR"
         action="https://chilmuwijkkdefqizleh.supabase.co/functions/v1/twilio-voice-webhook"
         method="POST"
       >
-        <Say voice="Polly.Camila" language="pt-BR">Pode me explicar melhor?</Say>
+        <Say voice="Polly.Vitoria" language="pt-BR">
+          Entendi... <Break time="300ms"/>
+          você disse: ${speechResult}. <Break time="400ms"/>
+          Pode me explicar um pouco melhor?
+        </Say>
       </Gather>
-
-      <Say voice="Polly.Camila" language="pt-BR">Tudo bem, nos falamos depois. Até logo!</Say>
     </Response>
   `, {
-    headers: { "Content-Type": "text/xml" }
+    headers: { "Content-Type": "text/xml" },
   });
 });
