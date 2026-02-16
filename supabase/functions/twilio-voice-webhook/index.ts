@@ -103,6 +103,7 @@ async function gerarAudioElevenLabs(texto: string): Promise<string | null> {
       {
         method: "POST",
         headers: {
+          "apikey": serviceKey,
           "Authorization": `Bearer ${serviceKey}`,
           "Content-Type": "audio/mpeg",
           "x-upsert": "true",
@@ -114,7 +115,27 @@ async function gerarAudioElevenLabs(texto: string): Promise<string | null> {
     if (!uploadResp.ok) {
       const uploadErr = await uploadResp.text();
       console.error("Upload erro:", uploadResp.status, uploadErr);
-      return null;
+      
+      // Fallback: tentar com anon key
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || "";
+      const uploadResp2 = await fetch(
+        `${supabaseUrl}/storage/v1/object/audio/${fileName}`,
+        {
+          method: "POST",
+          headers: {
+            "apikey": anonKey,
+            "Authorization": `Bearer ${serviceKey}`,
+            "Content-Type": "audio/mpeg",
+            "x-upsert": "true",
+          },
+          body: new Uint8Array(audioBuffer),
+        }
+      );
+      if (!uploadResp2.ok) {
+        const uploadErr2 = await uploadResp2.text();
+        console.error("Upload fallback erro:", uploadResp2.status, uploadErr2);
+        return null;
+      }
     }
 
     const audioUrl = `${supabaseUrl}/storage/v1/object/public/audio/${fileName}`;
