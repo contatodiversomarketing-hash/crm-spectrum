@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Brain, LogIn, UserPlus } from "lucide-react";
+import { Brain, LogIn, UserPlus, Shield, Zap, BarChart3 } from "lucide-react";
 
 const Login = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -43,89 +43,168 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center space-y-2">
-          <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center mx-auto">
-            <Brain className="h-7 w-7 text-primary-foreground" />
+    <div className="min-h-screen flex">
+      {/* Left panel - branding */}
+      <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden bg-gradient-to-br from-primary via-[hsl(210,100%,35%)] to-[hsl(220,80%,25%)] text-primary-foreground flex-col justify-between p-12">
+        {/* Decorative elements */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-white/5 -translate-y-1/2 translate-x-1/3" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full bg-white/5 translate-y-1/3 -translate-x-1/4" />
+        <div className="absolute top-1/2 left-1/2 w-[300px] h-[300px] rounded-full bg-white/[0.03] -translate-x-1/2 -translate-y-1/2" />
+
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="h-10 w-10 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center border border-white/20">
+              <Brain className="h-6 w-6" />
+            </div>
+            <span className="text-lg font-semibold tracking-tight">Core IA</span>
           </div>
-          <h1 className="text-xl font-bold tracking-tight">Core IA Clínica</h1>
-          <p className="text-sm text-muted-foreground">
-            {isSignUp ? "Criar nova conta" : "Acesse o painel de controle"}
-          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="rounded-lg border bg-card p-6 shadow-sm space-y-4">
-          {isSignUp && (
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Nome</label>
+        <div className="relative z-10 space-y-8">
+          <div>
+            <h2 className="text-3xl font-bold leading-tight mb-3">
+              Inteligência Artificial<br />para sua Clínica
+            </h2>
+            <p className="text-white/70 text-base leading-relaxed max-w-md">
+              Automatize atendimentos, analise ligações e tome decisões estratégicas com IA avançada.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="h-9 w-9 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Zap className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">Automação Inteligente</p>
+                <p className="text-white/60 text-xs mt-0.5">Reativação, prospecção e confirmação automáticas</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="h-9 w-9 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <BarChart3 className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">Análise Estratégica</p>
+                <p className="text-white/60 text-xs mt-0.5">Insights, previsões e relatórios em tempo real</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="h-9 w-9 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Shield className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">Supervisão & Controle</p>
+                <p className="text-white/60 text-xs mt-0.5">Monitoramento completo com aprovação humana</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative z-10">
+          <p className="text-white/40 text-xs">© 2026 Core IA · Todos os direitos reservados</p>
+        </div>
+      </div>
+
+      {/* Right panel - form */}
+      <div className="flex-1 flex items-center justify-center bg-background px-6 py-12">
+        <div className="w-full max-w-[400px] space-y-8">
+          {/* Mobile logo */}
+          <div className="text-center space-y-3 lg:space-y-4">
+            <div className="lg:hidden h-12 w-12 rounded-xl bg-primary flex items-center justify-center mx-auto shadow-lg shadow-primary/25">
+              <Brain className="h-7 w-7 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                {isSignUp ? "Criar conta" : "Bem-vindo de volta"}
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                {isSignUp ? "Preencha os dados para começar" : "Acesse o painel de controle"}
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {isSignUp && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Nome</label>
+                <input
+                  type="text"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  required
+                  className="w-full rounded-lg border border-input bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                  placeholder="Seu nome completo"
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Email</label>
               <input
-                type="text"
-                value={nome}
-                onChange={(e) => setNome(e.target.value)}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder="Seu nome"
+                className="w-full rounded-lg border border-input bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                placeholder="seu@email.com"
               />
             </div>
-          )}
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="seu@email.com"
-            />
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Senha</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                className="w-full rounded-lg border border-input bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                placeholder="••••••••"
+              />
+            </div>
+
+            {error && (
+              <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3">
+                <p className="text-sm text-destructive">{error}</p>
+              </div>
+            )}
+
+            {successMessage && (
+              <div className="rounded-lg bg-[hsl(var(--success))]/10 border border-[hsl(var(--success))]/20 p-3">
+                <p className="text-sm text-[hsl(var(--success))]">{successMessage}</p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground py-3 text-sm font-semibold hover:bg-primary/90 transition-all disabled:opacity-50 shadow-lg shadow-primary/25 active:scale-[0.98]"
+            >
+              {isSignUp ? <UserPlus className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
+              {loading ? "Processando..." : isSignUp ? "Criar Conta" : "Entrar"}
+            </button>
+          </form>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-3 text-muted-foreground">ou</span>
+            </div>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Senha</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="••••••••"
-            />
-          </div>
-
-          {error && (
-            <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3">
-              <p className="text-xs text-destructive">{error}</p>
-            </div>
-          )}
-
-          {successMessage && (
-            <div className="rounded-md bg-success/10 border border-success/20 p-3">
-              <p className="text-xs text-success">{successMessage}</p>
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground py-2.5 text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            {isSignUp ? <UserPlus className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
-            {loading ? "Processando..." : isSignUp ? "Criar Conta" : "Entrar"}
-          </button>
-        </form>
-
-        <p className="text-center text-xs text-muted-foreground">
-          {isSignUp ? "Já tem conta? " : "Não tem conta? "}
-          <button
-            onClick={() => { setIsSignUp(!isSignUp); setError(null); setSuccessMessage(null); }}
-            className="text-primary hover:underline font-medium"
-          >
-            {isSignUp ? "Fazer login" : "Criar conta"}
-          </button>
-        </p>
+          <p className="text-center text-sm text-muted-foreground">
+            {isSignUp ? "Já tem conta? " : "Não tem conta? "}
+            <button
+              onClick={() => { setIsSignUp(!isSignUp); setError(null); setSuccessMessage(null); }}
+              className="text-primary hover:underline font-semibold"
+            >
+              {isSignUp ? "Fazer login" : "Criar conta"}
+            </button>
+          </p>
+        </div>
       </div>
     </div>
   );
