@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 function limparTexto(texto: string) {
   return texto
-    .replace(/&/g, "&amp;")
+    .replace(/&/g, "e")
     .replace(/</g, "")
     .replace(/>/g, "")
     .replace(/"/g, "")
@@ -11,66 +11,11 @@ function limparTexto(texto: string) {
 
 const SYSTEM_ENGINE = `
 Você é Maria da Clínica La Vitta.
-
-IDENTIDADE:
-- Você é humana.
-- Nunca diga que é IA.
-- Nunca diga que é assistente virtual.
-- Nunca fale inglês.
-- Fale português do Brasil natural.
-
-MODELO DE CONVERSÃO ESTRATÉGICA:
-
-Você segue 4 etapas internas:
-
-1) CLASSIFICAR INTENÇÃO:
-   - preco
-   - interesse
-   - duvida
-   - objecao
-   - urgencia
-   - cancelamento
-
-2) DEFINIR TEMPERATURA:
-   - frio
-   - morno
-   - quente
-
-3) ESCOLHER ESTRATÉGIA:
-
-Se preco:
-- Ancoragem de valor
-- Mostrar diferencial
-- Oferecer plano próprio
-- Nunca falar preço direto
-
-Se interesse:
-- Fechamento assumido
-- Oferecer duas opções
-- Pergunta binária
-
-Se duvida:
-- Educação simples
-- Autoridade
-- Conduzir para ação
-
-Se objecao:
-- Validar emoção
-- Reduzir risco
-- Oferecer alternativa
-
-Se urgencia:
-- Agendamento imediato
-
-4) FECHAMENTO AGRESSIVO SUAVE:
-Sempre termine conduzindo para ação.
-Nunca deixe conversa aberta.
-Nunca diga "como posso ajudar".
-
-ESTRUTURA SAAS:
-Responda de forma escalável.
-Seja eficiente.
-Conduza sempre para agendamento.
+Você é humana.
+Nunca diga que é IA.
+Sempre fale português do Brasil natural.
+Seja acolhedora e estratégica.
+Sempre conduza para próximo passo.
 `;
 
 serve(async (req) => {
@@ -91,10 +36,8 @@ serve(async (req) => {
     action="https://chilmuwijkkdefqizleh.supabase.co/functions/v1/twilio-voice-webhook"
     method="POST">
     <Say voice="Polly.Vitoria" language="pt-BR">
-      Boa tarde.
-      Aqui é Maria da Clínica La Vitta.
-      Vi que você entrou em contato conosco.
-      Me conta, você está buscando atendimento para qual especialidade?
+      Boa tarde. Aqui é Maria da Clínica La Vitta.
+      Me conta, você está buscando qual atendimento?
     </Say>
   </Gather>
 </Response>`, {
@@ -123,16 +66,73 @@ serve(async (req) => {
     });
 
     const data = await aiResp.json();
-
     if (data?.choices?.[0]?.message?.content) {
       respostaFinal = data.choices[0].message.content;
     }
 
-  } catch {
-    respostaFinal = "Tive uma pequena instabilidade agora. Pode repetir para mim?";
-  }
+  } catch {}
 
   respostaFinal = limparTexto(respostaFinal);
+
+  // =============================
+  // GERAR ÁUDIO ELEVENLABS
+  // =============================
+
+  let audioUrl = "";
+
+  try {
+
+    const elevenResp = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${Deno.env.get("ELEVENLABS_VOICE_ID")}`,
+      {
+        method: "POST",
+        headers: {
+          "xi-api-key": Deno.env.get("ELEVENLABS_API_KEY")!,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          text: respostaFinal,
+          model_id: "eleven_multilingual_v2",
+          voice_settings: {
+            stability: 0.4,
+            similarity_boost: 0.8
+          }
+        })
+      }
+    );
+
+    const audioBuffer = await elevenResp.arrayBuffer();
+
+    const fileName = `audio-${Date.now()}.mp3`;
+
+    // salvar no storage público
+    const uploadResp = await fetch(
+      `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/audio/${fileName}`,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          "Content-Type": "audio/mpeg"
+        },
+        body: audioBuffer
+      }
+    );
+
+    audioUrl = `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/public/audio/${fileName}`;
+
+  } catch {}
+
+  if (!audioUrl) {
+    // fallback se falhar
+    return new Response(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Vitoria" language="pt-BR">
+    ${respostaFinal}
+  </Say>
+</Response>`, {
+      headers: { "Content-Type": "text/xml; charset=utf-8" }
+    });
+  }
 
   return new Response(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -140,9 +140,7 @@ serve(async (req) => {
     language="pt-BR"
     action="https://chilmuwijkkdefqizleh.supabase.co/functions/v1/twilio-voice-webhook"
     method="POST">
-    <Say voice="Polly.Vitoria" language="pt-BR">
-      ${respostaFinal}
-    </Say>
+    <Play>${audioUrl}</Play>
   </Gather>
 </Response>`, {
     headers: { "Content-Type": "text/xml; charset=utf-8" }
