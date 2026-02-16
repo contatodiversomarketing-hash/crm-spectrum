@@ -75,29 +75,11 @@ serve(async (req) => {
     const dataConsulta = paciente?.next_appointment_date || paciente?.data_consulta || "";
     const horarioConsulta = paciente?.next_appointment_time || paciente?.horario_consulta || "";
 
-    // Montar URL do webhook com query params dinâmicos
-    const coreApiUrl = Deno.env.get("CORE_API_URL")!;
-    const webhookParams = new URLSearchParams({
-      tipo: "confirmacao",
-      nome: nomePaciente,
-      ...(dataConsulta && { data: dataConsulta }),
-      ...(horarioConsulta && { horario: horarioConsulta }),
-    });
-    const webhookUrl = `${coreApiUrl}/functions/v1/twilio-voice-webhook?${webhookParams.toString()}`;
-
-    const recordingCallback = `${coreApiUrl}/functions/v1/processar-gravacao`;
-    const statusCallback = `${coreApiUrl}/functions/v1/call-events`;
-
     const callParams = new URLSearchParams({
       To: telefoneFormatado,
       From: twilioPhone,
-      Url: webhookUrl,
-      Record: "true",
-      RecordingStatusCallback: recordingCallback,
-      RecordingStatusCallbackEvent: "completed",
-      StatusCallback: statusCallback,
-      StatusCallbackEvent: "initiated ringing answered completed",
-      StatusCallbackMethod: "POST",
+      Url: "https://chilmuwijkkdefqizleh.supabase.co/functions/v1/twilio-voice-webhook",
+      Method: "POST",
     });
 
     const callRes = await fetch(
