@@ -1,11 +1,12 @@
 import { Zap, Clock, CheckCircle, AlertTriangle } from "lucide-react";
 
-const mockAutomations = [
-  { id: 1, tipo: "Lembrete consulta", sistema: "CRM", status: "executado", paciente: "PAC-2847" },
-  { id: 2, tipo: "Nota fiscal", sistema: "Financeiro", status: "pendente", paciente: "PAC-1932" },
-  { id: 3, tipo: "Atualizar prontuário", sistema: "Gestão", status: "executado", paciente: "PAC-4521" },
-  { id: 4, tipo: "Envio pós-consulta", sistema: "CRM", status: "falha", paciente: "PAC-3190" },
-];
+interface AutomationItem {
+  id: string;
+  tipo: string;
+  sistema: string;
+  status: string;
+  paciente: string;
+}
 
 const statusIcon: Record<string, React.ReactNode> = {
   executado: <CheckCircle className="h-4 w-4 text-success" />,
@@ -13,27 +14,40 @@ const statusIcon: Record<string, React.ReactNode> = {
   falha: <AlertTriangle className="h-4 w-4 text-destructive" />,
 };
 
-export function AutomationQueue() {
+const tipoLabels: Record<string, string> = {
+  reativacao_score: "Reativação WhatsApp",
+  reativacao_voz: "Reativação Voz",
+  prospeccao_lead: "Prospecção Lead",
+  confirmacao_voz: "Confirmação",
+};
+
+export function AutomationQueue({ items }: { items?: AutomationItem[] }) {
+  const empty = !items || items.length === 0;
+
   return (
     <div className="rounded-lg border bg-card p-5 shadow-sm">
       <div className="flex items-center gap-2 mb-4">
         <Zap className="h-4 w-4 text-primary" />
         <h3 className="text-sm font-semibold">Fila de Automações</h3>
       </div>
-      <div className="space-y-3">
-        {mockAutomations.map((item) => (
-          <div key={item.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-            <div className="flex items-center gap-3">
-              {statusIcon[item.status]}
-              <div>
-                <span className="text-sm font-medium">{item.tipo}</span>
-                <p className="text-xs text-muted-foreground">{item.paciente} → {item.sistema}</p>
+      {empty ? (
+        <p className="text-sm text-muted-foreground text-center py-6">Nenhuma automação recente</p>
+      ) : (
+        <div className="space-y-3">
+          {items.map((item) => (
+            <div key={item.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+              <div className="flex items-center gap-3">
+                {statusIcon[item.status] || statusIcon.pendente}
+                <div>
+                  <span className="text-sm font-medium">{tipoLabels[item.tipo] || item.tipo}</span>
+                  <p className="text-xs text-muted-foreground">{item.paciente} → {item.sistema}</p>
+                </div>
               </div>
+              <span className="text-xs text-muted-foreground capitalize">{item.status}</span>
             </div>
-            <span className="text-xs text-muted-foreground capitalize">{item.status}</span>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
