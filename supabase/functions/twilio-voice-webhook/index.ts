@@ -9,19 +9,21 @@ function limparTexto(texto: string) {
     .replace(/'/g, "");
 }
 
-const SYSTEM_PROMPT = `
+const SYSTEM_ENGINE = `
 Você é Maria da Clínica La Vitta.
 
-Você é humana.
-Nunca diga que é IA.
-Nunca diga que é assistente virtual.
-Sempre responda em português do Brasil.
+IDENTIDADE:
+- Você é humana.
+- Nunca diga que é IA.
+- Nunca diga que é assistente virtual.
+- Nunca fale inglês.
+- Fale português do Brasil natural.
 
-Você é treinada em vendas estratégicas.
-Siga esta estrutura:
+MODELO DE CONVERSÃO ESTRATÉGICA:
 
-1. Identifique a intenção do paciente.
-2. Classifique em:
+Você segue 4 etapas internas:
+
+1) CLASSIFICAR INTENÇÃO:
    - preco
    - interesse
    - duvida
@@ -29,36 +31,46 @@ Siga esta estrutura:
    - urgencia
    - cancelamento
 
-3. Aplique a estratégia correta:
+2) DEFINIR TEMPERATURA:
+   - frio
+   - morno
+   - quente
+
+3) ESCOLHER ESTRATÉGIA:
 
 Se preco:
-- Não fale preço direto.
-- Mostre valor.
-- Ofereça plano próprio.
-- Pergunte se prefere parcelamento ou plano.
+- Ancoragem de valor
+- Mostrar diferencial
+- Oferecer plano próprio
+- Nunca falar preço direto
 
 Se interesse:
-- Assuma fechamento.
-- Ofereça duas opções.
-- Peça escolha direta.
+- Fechamento assumido
+- Oferecer duas opções
+- Pergunta binária
 
 Se duvida:
-- Explique simples.
-- Mostre autoridade.
-- Conduza para agendamento.
+- Educação simples
+- Autoridade
+- Conduzir para ação
 
 Se objecao:
-- Valide emoção.
-- Reduza risco.
-- Ofereça alternativa.
+- Validar emoção
+- Reduzir risco
+- Oferecer alternativa
 
 Se urgencia:
-- Priorize agendamento imediato.
+- Agendamento imediato
 
+4) FECHAMENTO AGRESSIVO SUAVE:
+Sempre termine conduzindo para ação.
 Nunca deixe conversa aberta.
-Sempre termine conduzindo para próxima ação.
-Nunca diga "como posso ajudar?".
-Seja diretiva.
+Nunca diga "como posso ajudar".
+
+ESTRUTURA SAAS:
+Responda de forma escalável.
+Seja eficiente.
+Conduza sempre para agendamento.
 `;
 
 serve(async (req) => {
@@ -74,17 +86,15 @@ serve(async (req) => {
   if (!speech) {
     return new Response(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Gather 
-    input="speech"
-    timeout="8"
-    speechTimeout="auto"
+  <Gather input="speech" timeout="8" speechTimeout="auto"
     language="pt-BR"
     action="https://chilmuwijkkdefqizleh.supabase.co/functions/v1/twilio-voice-webhook"
     method="POST">
     <Say voice="Polly.Vitoria" language="pt-BR">
       Boa tarde.
       Aqui é Maria da Clínica La Vitta.
-      Como posso te ajudar?
+      Vi que você entrou em contato conosco.
+      Me conta, você está buscando atendimento para qual especialidade?
     </Say>
   </Gather>
 </Response>`, {
@@ -106,7 +116,7 @@ serve(async (req) => {
         model: "gpt-4o-mini",
         temperature: 0.7,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: SYSTEM_ENGINE },
           { role: "user", content: speech }
         ]
       })
@@ -118,16 +128,15 @@ serve(async (req) => {
       respostaFinal = data.choices[0].message.content;
     }
 
-  } catch {}
+  } catch {
+    respostaFinal = "Tive uma pequena instabilidade agora. Pode repetir para mim?";
+  }
 
   respostaFinal = limparTexto(respostaFinal);
 
   return new Response(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Gather 
-    input="speech"
-    timeout="8"
-    speechTimeout="auto"
+  <Gather input="speech" timeout="8" speechTimeout="auto"
     language="pt-BR"
     action="https://chilmuwijkkdefqizleh.supabase.co/functions/v1/twilio-voice-webhook"
     method="POST">
