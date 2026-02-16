@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
     console.log("[coletar-dados-integrados] Iniciando coleta paralela...");
 
     const [crm, gestao, financeiro] = await Promise.all([
-      fetchWithTimeout(`${CRM_API_URL}metrics-crm-overview`, CRM_API_TOKEN!, TIMEOUT_MS),
+      fetchWithTimeout(`${CRM_API_URL}/functions/v1/metrics-crm-overview`, CRM_API_TOKEN!, TIMEOUT_MS),
       fetchWithTimeout(`${GESTAO_API_URL}/functions/v1/internal-api`, GESTAO_API_TOKEN!, TIMEOUT_MS, {
         method: "POST",
         body: { action: "list_inactive_patients", dias: 180 },
