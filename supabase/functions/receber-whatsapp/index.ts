@@ -18,7 +18,7 @@ serve(async (req) => {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${Deno.env.get("MEGAAPI_TOKEN")}`
+      "Authorization": `Bearer ${Deno.env.get("MEGA_API_TOKEN")}`
     },
     body: JSON.stringify({
       number: numero,
