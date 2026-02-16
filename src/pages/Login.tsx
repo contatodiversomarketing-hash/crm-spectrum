@@ -55,7 +55,7 @@ const Login = () => {
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-2">
             <img src={logoLaVitta} alt="La Vitta" className="h-12 w-auto brightness-0 invert" />
-            <span className="text-lg font-semibold tracking-tight">La Vitta</span>
+            <span className="text-lg font-semibold tracking-tight">La Vitta — CORE IA</span>
           </div>
         </div>
 
