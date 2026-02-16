@@ -89,6 +89,16 @@ Deno.serve(async (req) => {
       );
     }
 
+    console.log("[coletar-dados-integrados] URLs:", {
+      crm: `${CRM_API_URL}metrics-crm-overview`,
+      gestao: `${GESTAO_API_URL}/functions/v1/internal-api`,
+      financeiro: FINANCEIRO_API_URL,
+    });
+    console.log("[coletar-dados-integrados] Tokens (primeiros 20 chars):", {
+      crm: CRM_API_TOKEN?.substring(0, 20),
+      gestao: GESTAO_API_TOKEN?.substring(0, 20),
+      financeiro: FINANCEIRO_API_TOKEN?.substring(0, 20),
+    });
     console.log("[coletar-dados-integrados] Iniciando coleta paralela...");
 
     const [crm, gestao, financeiro] = await Promise.all([
