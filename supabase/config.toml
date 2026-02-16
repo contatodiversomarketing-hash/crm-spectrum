@@ -83,3 +83,6 @@ verify_jwt = false
 
 [functions.processar-gravacao]
 verify_jwt = false
+
+[functions.save-recording]
+verify_jwt = false
