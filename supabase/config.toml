@@ -89,3 +89,6 @@ verify_jwt = false
 
 [functions.voice-recording-callback]
 verify_jwt = false
+
+[functions.call-events]
+verify_jwt = false
