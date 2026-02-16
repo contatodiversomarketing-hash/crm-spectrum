@@ -21,7 +21,7 @@ serve(async (req) => {
           </Say>
         </Gather>
 
-        <Say>Não consegui ouvir sua resposta.</Say>
+        <Say voice="Polly.Camila" language="pt-BR">Não consegui ouvir sua resposta. Vou tentar mais uma vez.</Say>
       </Response>
     `, {
       headers: { "Content-Type": "text/xml" }
@@ -42,8 +42,10 @@ serve(async (req) => {
         action="https://chilmuwijkkdefqizleh.supabase.co/functions/v1/twilio-voice-webhook"
         method="POST"
       >
-        <Say voice="Polly.Camila">Pode me explicar melhor?</Say>
+        <Say voice="Polly.Camila" language="pt-BR">Pode me explicar melhor?</Say>
       </Gather>
+
+      <Say voice="Polly.Camila" language="pt-BR">Tudo bem, nos falamos depois. Até logo!</Say>
     </Response>
   `, {
     headers: { "Content-Type": "text/xml" }
