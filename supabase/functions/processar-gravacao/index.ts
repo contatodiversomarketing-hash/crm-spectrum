@@ -142,6 +142,20 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // 1. Salvar metadados na call_recordings (registro rápido)
+    const durationInt = parseInt(recordingDuration || "0", 10);
+    const { error: recErr } = await supabase.from("call_recordings").insert({
+      call_sid: callSid,
+      recording_url: `${recordingUrl}.mp3`,
+      duration: durationInt,
+      analyzed: false,
+    });
+    if (recErr) {
+      console.error("[processar-gravacao] Erro ao salvar call_recording:", recErr);
+    } else {
+      console.log(`[processar-gravacao] call_recording salva para CallSid=${callSid}`);
+    }
+
     // Buscar automação correspondente para obter paciente_externo_id e clinica_id
     const { data: automacao } = await supabase
       .from("automacoes")
