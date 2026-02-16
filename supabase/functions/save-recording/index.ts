@@ -24,22 +24,18 @@ serve(async (req) => {
       return new Response("ok", { status: 200 });
     }
 
-    console.log(`[save-recording] CallSid=${callSid} Duration=${duration}s URL=${recordingUrl}`);
+    console.log(`[save-recording] CallSid=${callSid} Duration=${duration}s`);
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { error } = await supabase.from("transcricoes_ligacoes").insert({
+    const { error } = await supabase.from("call_recordings").insert({
       call_sid: callSid,
-      paciente_externo_id: callSid,
-      transcricao: null,
-      resultado: JSON.stringify({
-        recording_url: recordingUrl + ".mp3",
-        duration: parseInt(duration || "0", 10),
-        analyzed: false,
-      }),
+      recording_url: recordingUrl + ".mp3",
+      duration: parseInt(duration || "0", 10),
+      analyzed: false,
     });
 
     if (error) {
