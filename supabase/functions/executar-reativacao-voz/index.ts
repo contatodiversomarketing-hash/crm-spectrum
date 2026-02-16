@@ -78,18 +78,12 @@ serve(async (req) => {
       const payload = automacao.payload as Record<string, unknown> | null;
       const nome = (payload?.nome as string) || "Paciente";
 
-      const coreApiUrl = Deno.env.get("CORE_API_URL")!;
-      const webhookParams = new URLSearchParams({ tipo: "reativacao", nome });
-      const webhookUrl = `${coreApiUrl}/functions/v1/twilio-voice-webhook?${webhookParams.toString()}`;
-
       try {
-        const recordingCallback = `${coreApiUrl}/functions/v1/processar-gravacao`;
-        const statusCallback = `${coreApiUrl}/functions/v1/call-events`;
         const callParams = new URLSearchParams({
-          To: telefoneFormatado, From: twilioPhone, Url: webhookUrl,
-          Record: "true", RecordingStatusCallback: recordingCallback, RecordingStatusCallbackEvent: "completed",
-          StatusCallback: statusCallback, StatusCallbackEvent: "initiated ringing answered completed",
-          StatusCallbackMethod: "POST",
+          To: telefoneFormatado,
+          From: twilioPhone,
+          Url: "https://chilmuwijkkdefqizleh.supabase.co/functions/v1/twilio-voice-webhook",
+          Method: "POST",
         });
         const callRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Calls.json`, {
           method: "POST",
