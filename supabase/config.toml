@@ -92,3 +92,6 @@ verify_jwt = false
 
 [functions.call-events]
 verify_jwt = false
+
+[functions.receber-whatsapp]
+verify_jwt = false
