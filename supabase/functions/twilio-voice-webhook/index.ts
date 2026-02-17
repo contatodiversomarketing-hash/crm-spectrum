@@ -47,6 +47,8 @@ Vendedora de elite treinada pelo "Mestre das Vendas" + AWSales.
 - Máximo 2 frases por turno, SEMPRE termine com pergunta diretiva ou ação
 - NÃO repita informações já ditas
 - NADA de "senhor/senhora", "prezado", "informamos"
+- NUNCA proponha horários sem ANTES perguntar a preferência do paciente (dia, turno)
+- Se não conseguir entender o paciente após 2 tentativas, diga: "Vou te transferir pra uma das nossas atendentes, tá? Um momentinho." e inclua ao final: ##TRANSFERIR_HUMANO##
 
 ## TÉCNICAS DE VENDA (use naturalmente, 1-2 por turno)
 - ESPECIFICIDADE: números exatos, detalhes, nunca vaga
@@ -96,9 +98,11 @@ Vendedora de elite treinada pelo "Mestre das Vendas" + AWSales.
 ## FLUXO DE AGENDAMENTO
 ## ═══════════════════════════════════════
 1. Se não sabe o nome: pergunte de forma natural
-2. Confirme o telefone: "Esse número que cê tá ligando é o melhor pra contato?"
-3. Ofereça 2-3 opções REAIS da agenda (NUNCA invente)
-4. Confirme: "[Nome], então fica marcado [dia] às [hora]. Vou te mandar uma confirmação, tá?"
+2. Pergunte qual serviço/especialidade o paciente precisa
+3. Pergunte a PREFERÊNCIA de dia e turno (manhã/tarde): "Qual dia seria melhor pra você? Manhã ou tarde?"
+4. SÓ DEPOIS de saber a preferência, consulte a agenda e ofereça 2-3 opções REAIS
+5. Confirme o telefone: "Esse número que cê tá ligando é o melhor pra contato?"
+6. Confirme: "[Nome], então fica marcado [dia] às [hora]. Vou te mandar uma confirmação, tá?"
 
 ## CONTEXTO DA CLÍNICA LA VITTA
 - Horário: segunda a sexta, 8h às 18h
@@ -365,6 +369,21 @@ serve(async (req) => {
   // PRIMEIRA INTERAÇÃO (sem speech)
   // =============================
   if (!speech) {
+    // Verificar se já existe histórico para este callSid (evitar loop de saudação)
+    if (callSid) {
+      const { data: existing } = await supabase
+        .from("voice_memory")
+        .select("id")
+        .eq("call_sid", callSid)
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        // Já tem histórico — não reiniciar conversa, apenas pedir para repetir
+        const msgRepetir = "Desculpa, não consegui te ouvir. Pode repetir pra mim?";
+        return gerarRespostaComAudio(msgRepetir, supabase, webhookUrl);
+      }
+    }
+
     const saudacao = getSaudacao();
 
     if (callSid && fromNumber) {
@@ -506,6 +525,29 @@ serve(async (req) => {
     ).catch(err => console.error("[voice] Erro ao processar agendamento:", err));
   }
 
+  // =============================
+  // DETECTAR TRANSFERÊNCIA PARA HUMANO
+  // =============================
+  if (respostaFinal.includes("##TRANSFERIR_HUMANO##")) {
+    respostaFinal = respostaFinal.replace("##TRANSFERIR_HUMANO##", "").trim();
+    respostaFinal = limparTexto(respostaFinal);
+
+    // Salvar em background
+    if (callSid && fromNumber) {
+      supabase.from("voice_memory").insert({
+        call_sid: callSid,
+        phone_number: fromNumber,
+        role: "assistant",
+        message: respostaFinal + " [TRANSFERIDO PARA HUMANO]",
+      }).then(() => {});
+    }
+
+    console.log(`[voice] 🔀 Transferindo para atendente humana: ${fromNumber}`);
+
+    const numeroTransferencia = Deno.env.get("TWILIO_PHONE_NUMBER") || "";
+    return gerarRespostaComTransferencia(respostaFinal, supabase, numeroTransferencia);
+  }
+
   respostaFinal = limparTexto(respostaFinal);
 
   // Salvar resposta em background (não bloqueia)
@@ -521,6 +563,7 @@ serve(async (req) => {
   console.log(`[voice] Resposta: "${respostaFinal.slice(0, 100)}..."`);
 
   return gerarRespostaComAudio(respostaFinal, supabase, webhookUrl);
+});
 });
 
 // =============================
@@ -623,6 +666,82 @@ async function gerarRespostaComAudio(
     <Say voice="Polly.Vitoria" language="pt-BR">${textoLimpo}</Say>
   </Gather>
   <Redirect method="POST">${webhookUrl}</Redirect>
+</Response>`,
+    { headers: { "Content-Type": "text/xml; charset=utf-8" } }
+  );
+}
+
+// =============================
+// GERAR ÁUDIO + TRANSFERIR PARA HUMANO
+// =============================
+async function gerarRespostaComTransferencia(
+  texto: string,
+  supabase: ReturnType<typeof createClient>,
+  numeroTransferencia: string
+): Promise<Response> {
+  const textoLimpo = limparTexto(texto);
+  let audioUrl = "";
+
+  try {
+    const voiceId = Deno.env.get("ELEVENLABS_VOICE_ID");
+    const apiKey = Deno.env.get("ELEVENLABS_API_KEY");
+
+    if (voiceId && apiKey) {
+      const elevenResp = await fetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+        {
+          method: "POST",
+          headers: {
+            "xi-api-key": apiKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            text: textoLimpo,
+            model_id: "eleven_multilingual_v2",
+            voice_settings: { stability: 0.50, similarity_boost: 0.85, style: 0.15, use_speaker_boost: true },
+          }),
+        }
+      );
+
+      if (elevenResp.ok) {
+        const audioBuffer = await elevenResp.arrayBuffer();
+        const fileName = `voice-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.mp3`;
+        const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+        const uploadResp = await fetch(
+          `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/audio/${fileName}`,
+          {
+            method: "POST",
+            headers: {
+              "apikey": anonKey!,
+              "Authorization": `Bearer ${anonKey}`,
+              "Content-Type": "audio/mpeg",
+              "x-upsert": "true",
+            },
+            body: audioBuffer,
+          }
+        );
+
+        if (uploadResp.ok) {
+          audioUrl = `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/public/audio/${fileName}`;
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[voice] Erro áudio transferência:", err);
+  }
+
+  // TwiML: fala a mensagem e transfere a ligação
+  const playOrSay = audioUrl
+    ? `<Play>${audioUrl}</Play>`
+    : `<Say voice="Polly.Vitoria" language="pt-BR">${textoLimpo}</Say>`;
+
+  return new Response(
+    `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  ${playOrSay}
+  <Dial timeout="30" callerId="${Deno.env.get("TWILIO_PHONE_NUMBER") || ""}">${numeroTransferencia}</Dial>
+  <Say voice="Polly.Vitoria" language="pt-BR">Não foi possível transferir a ligação. Por favor, ligue novamente.</Say>
 </Response>`,
     { headers: { "Content-Type": "text/xml; charset=utf-8" } }
   );
