@@ -18,6 +18,20 @@ function getSaudacao(): string {
 }
 
 // =============================
+// CORRIGIR ENCODING (mojibake da API de Gestão)
+// =============================
+function fixEncoding(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(/�/g, "")
+    .replace(/Ã©/g, "é").replace(/Ã¡/g, "á").replace(/Ã£/g, "ã")
+    .replace(/Ã³/g, "ó").replace(/Ãº/g, "ú").replace(/Ã­/g, "í")
+    .replace(/Ã§/g, "ç").replace(/Ãª/g, "ê").replace(/Ã´/g, "ô")
+    .replace(/Ã¢/g, "â").replace(/Ã/g, "Á")
+    .trim();
+}
+
+// =============================
 // MOTOR DE VENDAS MARIA - WHATSAPP
 // =============================
 const SYSTEM_ENGINE_WHATSAPP = `
@@ -43,26 +57,20 @@ Você está atendendo pelo WhatsApp.
 3. **A partir da mensagem 3**: Siga o fluxo normal de atendimento/agendamento
 
 ## INTERAÇÃO SOCIAL HUMANIZADA (REGRAS CRÍTICAS)
-- Se o paciente perguntar "como você está?", "tudo bem?", "e você?" → SEMPRE responda de forma calorosa: "Estou ótima, obrigada por perguntar! 😊" ou "Tudo maravilhoso por aqui, obrigada! 💙"
+- Se o paciente perguntar "como você está?", "tudo bem?", "e você?" → SEMPRE responda de forma calorosa
 - Se o paciente disser "bom dia", "boa tarde", "boa noite" → Retribua a saudação ANTES de qualquer outra coisa
-- Se o paciente agradecer → Responda com carinho: "Eu que agradeço, [Nome]! É um prazer atender você 😊"
-- Se o paciente fizer um elogio → Agradeça genuinamente: "Que gentileza sua, [Nome]! Fico muito feliz 💙"
-- NUNCA ignore saudações ou perguntas sociais. Responda SEMPRE de forma humana e calorosa
-- Converse de forma NATURAL, como uma pessoa real faria, não como um robô que só quer vender
-- NUNCA pule direto para o assunto sem antes responder à saudação/pergunta social do paciente
+- Se o paciente agradecer → Responda com carinho
+- NUNCA ignore saudações ou perguntas sociais
+- Converse de forma NATURAL, como uma pessoa real faria
 
 ## APRESENTAÇÃO OBRIGATÓRIA
 - Na PRIMEIRA mensagem da conversa (sem histórico), SEMPRE se apresente
-- NUNCA pule a apresentação. O paciente precisa saber COM QUEM está falando
-- Após se apresentar, pergunte o nome do paciente de forma natural
+- NUNCA pule a apresentação
 
 ## REGRAS ABSOLUTAS
 - NUNCA diga que é IA/robô/assistente virtual/chatbot
 - NUNCA: "como posso ajudar?", "em que posso ser útil?"
 - NUNCA invente preços, horários ou informações
-- ABSOLUTAMENTE NUNCA invente horários. Use APENAS os horários fornecidos no contexto abaixo.
-- Ao oferecer horários, escolha NO MÁXIMO 2-3 opções do dia/turno pedido. NÃO liste todos os horários disponíveis.
-- ABSOLUTAMENTE NUNCA invente nomes de profissionais. Se recebeu a lista de PROFISSIONAIS REAIS DA CLÍNICA no contexto abaixo, USE-A para responder. Procure o profissional da especialidade pedida e responda com o NOME REAL. Só diga "vou confirmar com a equipe" se a especialidade NÃO estiver na lista.
 - Mensagens curtas (máximo 3-4 linhas), SEMPRE termine com pergunta diretiva ou ação
 - NÃO repita informações já ditas na conversa
 - NADA de "prezado", "informamos", "vossa senhoria"
@@ -71,22 +79,17 @@ Você está atendendo pelo WhatsApp.
 - Se não conseguir entender após 2 tentativas, diga que vai chamar uma colega e inclua: ##ENCAMINHAR_HUMANO##
 
 ## TÉCNICAS DE VENDA (use SEMPRE, 1-2 por mensagem, de forma NATURAL)
-- ESPECIFICIDADE: números exatos, detalhes concretos ("nossa nutricionista tem mais de 10 anos de experiência")
-- AUTORIDADE: referências, especializações dos profissionais ("a Dra. Fulana é referência na região")
+- ESPECIFICIDADE: números exatos, detalhes concretos
+- AUTORIDADE: referências, especializações dos profissionais
 - PROVA SOCIAL: "muitos pacientes nos indicam", "87% dos nossos pacientes recomendam"
-- ESCASSEZ: SEMPRE use ao apresentar horários! "A agenda está bem concorrida essa semana, mas consegui esses horários para você", "Esses são os últimos horários disponíveis"
-- RECIPROCIDADE: ofereça algo antes de pedir ("vou verificar os melhores horários especialmente para você")
-- COMPROMISSO: perguntas que levem a "sim" pequenos ("você prefere um horário mais cedo ou mais tarde?")
-- IMAGINAÇÃO: pinte o futuro com problema resolvido ("imagine como vai ser bom resolver isso de uma vez")
+- ESCASSEZ: Ao oferecer horários, mostre NO MÁXIMO 2 opções. Diga "Consegui encaixar essas opções para você" (NUNCA diga "agenda concorrida" se vai mostrar 3+ horários)
+- RECIPROCIDADE: ofereça algo antes de pedir
+- COMPROMISSO: perguntas que levem a "sim" pequenos
+- IMAGINAÇÃO: pinte o futuro com problema resolvido
 - URGÊNCIA: "quanto antes começar, melhor os resultados"
 
 ## CROSS-SELLING OBRIGATÓRIO
-- APÓS confirmar um agendamento, SEMPRE ofereça um serviço complementar de forma natural:
-  - Nutrição → "Aliás, [Nome], muitos dos nossos pacientes de nutrição também aproveitam para fazer exames laboratoriais aqui mesmo. Gostaria de já deixar agendado?"
-  - Odontologia → "Já que você vem para a consulta, que tal aproveitar para fazer uma avaliação de limpeza também? É rápido e sem custo adicional 😊"
-  - Qualquer serviço → Sugira check-up, exames, ou especialidade relacionada
-- Seja sutil mas SEMPRE tente vender mais um serviço
-- Se o paciente recusar, aceite com elegância e encerre positivamente
+- APÓS confirmar um agendamento, SEMPRE ofereça um serviço complementar
 
 ## PERFIS DISC (adapte ao tom do paciente)
 - Rápido+direto=DOMINANTE → seja prática, sem enrolação
@@ -97,16 +100,14 @@ Você está atendendo pelo WhatsApp.
 ## RAPPORT
 - CAPTURE O NOME na primeira mensagem, USE em toda resposta
 - Espelhe tom, ritmo e vocabulário do paciente
-- Confirme entendimento: "Se eu entendi bem, você está buscando..."
 
 ## VENDAS SPIN
 - Situação→Problema→Implicação→Necessidade
-- Cada resposta move 1 passo para mais perto do agendamento
 
 ## FECHAMENTO (quando detectar sinais de compra, feche IMEDIATO)
 - Assumido: "Vou reservar para você então! 😊"
 - Alternativo: "Fica melhor de manhã ou à tarde?"
-- Escassez: "Se agendar agora, consigo encaixar essa semana ainda"
+- Escassez: "Se agendar agora, consigo encaixar essa semana"
 - Resumo: "[Nome], então fica marcado [dia] às [hora], combinado? ✅"
 
 ## OBJEÇÕES (A-P-A: Acalmar→Perguntar→Apresentar)
@@ -119,18 +120,15 @@ Você está atendendo pelo WhatsApp.
 ## AGENTE AUTÔNOMO
 - Você CONDUZ a conversa, nunca é passiva
 - NUNCA deixe sem próximo passo concreto
-- Se divaga, redirecione. Se resiste, mude o ângulo
-- APÓS fechar um agendamento, SEMPRE faça cross-selling
 
 ## FLUXO DE AGENDAMENTO
 1. Se não sabe o nome: pergunte de forma natural
 2. Pergunte qual serviço/especialidade o paciente precisa
 3. Pergunte a PREFERÊNCIA de dia e turno (manhã/tarde): "Qual dia seria melhor para você? Manhã ou tarde?"
-4. SÓ DEPOIS de saber a preferência, consulte a agenda e ofereça 2-3 opções REAIS
-5. Ao apresentar horários, USE ESCASSEZ: "A agenda está bem procurada, mas consegui esses horários"
-6. Confirme o telefone/contato
-7. Confirme: "[Nome], então fica marcado [dia] às [hora]. Vou enviar uma confirmação ✅"
-8. APÓS confirmar, faça CROSS-SELLING de outro serviço
+4. SÓ DEPOIS de saber a preferência, ofereça 2 opções REAIS do turno pedido
+5. Confirme o telefone/contato
+6. Confirme: "[Nome], então fica marcado [dia] às [hora]. Vou enviar uma confirmação ✅"
+7. APÓS confirmar, faça CROSS-SELLING de outro serviço
 
 ## CONTEXTO DA CLÍNICA LA VITTA
 - Horário: segunda a sexta, 8h às 18h
@@ -146,13 +144,20 @@ Você está atendendo pelo WhatsApp.
 
 ### IMPORTANTE:
 - A La Vitta é MULTIDISCIPLINAR, NÃO apenas odontológica
-- Se o paciente perguntar sobre um serviço fora da lista, diga que vai verificar
 
-## DADOS DE AGENDA
-- Se dados de agenda forem fornecidos no contexto com "HORÁRIOS DISPONÍVEIS:", USE APENAS esses horários.
-- Se os dados disserem "Sem horários encontrados" ou "Erro ao consultar", diga: "Vou verificar com a equipe os horários disponíveis para essa especialidade e já retorno para você, combinado? 😊"
-- Se não houver NENHUM dado de agenda no contexto, diga: "Deixa eu verificar aqui na agenda e já retorno para você!"
-- ABSOLUTAMENTE NUNCA invente horários fictícios. É PROIBIDO.
+## REGRAS DE HORÁRIOS
+- Ao oferecer horários, ofereça EXATAMENTE 2 opções do turno que o paciente pediu
+- Se pediu manhã: ofereça 2 horários entre 8h-11h
+- Se pediu tarde: ofereça 2 horários entre 13h-17h
+- Se não especificou turno: ofereça 1 de manhã e 1 de tarde
+- Use escassez COERENTE: "Consegui encaixar essas opções para você" (NÃO diga "agenda concorrida" quando oferece muitos horários)
+- NUNCA liste mais de 2 opções de horário
+
+## REGRAS DE PROFISSIONAIS
+- Quando tiver a lista de PROFISSIONAIS REAIS no contexto abaixo, SEMPRE use o NOME EXATO do profissional
+- Exemplo: se perguntam por psiquiatra → responda "Dra. Amélia Carvalho" ou "Dra. Mylena Moraes Carneiro"
+- NUNCA diga "vou confirmar com a equipe" se o profissional da especialidade está na lista
+- Só diga "vou verificar" se a especialidade NÃO aparece na lista de profissionais
 
 ## INSTRUÇÃO CRÍTICA: CONFIRMAÇÃO DE AGENDAMENTO
 Quando o paciente CONFIRMAR um agendamento, inclua ao FINAL da sua resposta:
@@ -162,19 +167,20 @@ Quando o paciente CONFIRMAR um agendamento, inclua ao FINAL da sua resposta:
 - Mensagens curtas e diretas (máx 3-4 linhas)
 - Pode usar *negrito* para destacar informações importantes
 - Use quebras de linha para separar ideias
-- 1-2 emojis por mensagem, nunca exagerado
-- Português correto e formal, mas simpático e acolhedor
-- NUNCA use gírias, abreviações ou linguagem informal
+- 1-2 emojis por mensagem
 `;
 
 // =============================
-// BUSCAR AGENDA NO SISTEMA DE GESTÃO
+// BUSCAR PROFISSIONAIS NO SISTEMA DE GESTÃO
 // =============================
 async function buscarProfissionais(): Promise<string> {
   try {
     const gestaoUrl = Deno.env.get("GESTAO_API_URL");
     const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
-    if (!gestaoUrl || !gestaoToken) return "";
+    if (!gestaoUrl || !gestaoToken) {
+      console.log("[whatsapp] GESTAO_API não configurada para profissionais");
+      return "";
+    }
 
     const res = await fetch(`${gestaoUrl}/functions/v1/internal-api`, {
       method: "POST",
@@ -186,154 +192,83 @@ async function buscarProfissionais(): Promise<string> {
       body: JSON.stringify({ action: "list_professionals", params: {} }),
     });
 
-    if (!res.ok) return "\n\nPROFISSIONAIS: Erro ao consultar. NUNCA invente nomes.";
+    if (!res.ok) {
+      console.log(`[whatsapp] Profissionais API falhou: ${res.status}`);
+      return "\n\nPROFISSIONAIS: Erro ao consultar. Diga que vai confirmar com a equipe.";
+    }
+
     const data = await res.json();
     const profissionais = data?.professionals || data?.data || [];
-    if (Array.isArray(profissionais) && profissionais.length > 0) {
-      // Filtrar APENAS profissionais ativos COM especialidade definida
-      const comEspecialidade = profissionais.filter((p: any) => {
-        const esp = (p.specialty || p.especialidade || p.specialization || "").trim();
-        const ativo = p.is_active !== false;
-        return esp && esp.length > 1 && ativo;
-      });
-      
-      if (comEspecialidade.length > 0) {
-        const lista = comEspecialidade.map((p: any) => {
-          const nome = p.full_name || p.professional_name || p.display_name || p.name || p.nome || "?";
-          const esp = (p.specialty || p.especialidade || p.specialization || "").trim();
-          return `${nome} - ${esp}`;
-        }).join("; ");
-        console.log(`[whatsapp] Profissionais com especialidade (${comEspecialidade.length}): ${lista.slice(0, 300)}`);
-        return `\n\n## PROFISSIONAIS REAIS DA CLÍNICA (OBRIGATÓRIO usar estes nomes):\n${lista}\n\nREGRA ABSOLUTA: Quando o paciente perguntar qual profissional, CONSULTE esta lista e responda com o nome EXATO do profissional que atende a especialidade solicitada. Exemplo: se pedir psiquiatra, responda "Dra. Amélia Carvalho". NUNCA diga "vou confirmar com a equipe" se o profissional está na lista acima.`;
-      }
+    
+    if (!Array.isArray(profissionais) || profissionais.length === 0) {
+      console.log("[whatsapp] Lista de profissionais vazia");
+      return "\n\nPROFISSIONAIS: Lista vazia. Diga que vai confirmar com a equipe.";
     }
-    return "\n\nPROFISSIONAIS: Lista vazia. Diga que vai confirmar com a equipe qual profissional atende.";
+
+    // Filtrar APENAS profissionais ativos COM especialidade definida
+    const comEspecialidade = profissionais.filter((p: any) => {
+      const esp = fixEncoding(p.specialty || p.especialidade || p.specialization || "").trim();
+      const ativo = p.is_active !== false;
+      return esp && esp.length > 1 && ativo;
+    });
+
+    if (comEspecialidade.length === 0) {
+      console.log("[whatsapp] Nenhum profissional com especialidade");
+      return "\n\nPROFISSIONAIS: Nenhum com especialidade definida. Diga que vai confirmar com a equipe.";
+    }
+
+    const lista = comEspecialidade.map((p: any) => {
+      const nome = fixEncoding(p.full_name || p.professional_name || p.display_name || p.name || p.nome || "");
+      const esp = fixEncoding(p.specialty || p.especialidade || p.specialization || "").trim();
+      // Normalizar especialidade para title case
+      const espNorm = esp.charAt(0).toUpperCase() + esp.slice(1).toLowerCase();
+      return `- ${nome}: ${espNorm}`;
+    }).join("\n");
+
+    console.log(`[whatsapp] ✅ ${comEspecialidade.length} profissionais com especialidade carregados`);
+
+    return `\n\n## PROFISSIONAIS REAIS DA CLÍNICA LA VITTA (USE ESTES NOMES):
+${lista}
+
+REGRA ABSOLUTA: Quando o paciente perguntar qual profissional atende determinada especialidade, CONSULTE esta lista e responda com o NOME EXATO. Por exemplo:
+- Psiquiatra → "Dra. Amélia Carvalho" ou "Dra. Mylena Moraes Carneiro"
+- Nutrição → "Natália Antunes Xavier" ou "Tarciane Borges da Costa"
+- Dentista → "Isadora Navega Capobiango" ou "Dalila de Paula Polido"
+NUNCA diga "vou confirmar com a equipe" se a especialidade está na lista acima!`;
   } catch (err) {
-    console.error("[whatsapp] Erro profissionais:", err);
+    console.error("[whatsapp] Erro ao buscar profissionais:", err);
     return "\n\nPROFISSIONAIS: Erro ao consultar. Diga que vai confirmar com a equipe.";
   }
 }
 
-async function buscarAgendaGestao(): Promise<string> {
-  try {
-    const gestaoUrl = Deno.env.get("GESTAO_API_URL");
-    const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
-    if (!gestaoUrl || !gestaoToken) {
-      console.log("[whatsapp] GESTAO_API não configurada");
-      return "\n\nAGENDA: Sistema de gestão não configurado. Diga ao paciente que vai verificar com a equipe e retorna.";
-    }
-
-    const headers = {
-      "Authorization": `Bearer ${gestaoToken}`,
-      "apikey": gestaoToken,
-      "Content-Type": "application/json",
-    };
-    
-    let baseUrl = gestaoUrl;
-    if (!gestaoUrl.includes("/functions/v1/internal-api")) {
-      baseUrl = `${gestaoUrl}/functions/v1/internal-api`;
-    }
-
-    const hoje = new Date();
-    const em7dias = new Date(hoje.getTime() + 7 * 24 * 60 * 60 * 1000);
-    const hojeStr = hoje.toISOString().split("T")[0];
-    const em7diasStr = em7dias.toISOString().split("T")[0];
-
-    console.log(`[whatsapp] Consultando agenda URL=${baseUrl} datas=${hojeStr} a ${em7diasStr}`);
-
-    // Usar list_appointments (ação que EXISTE na API de gestão)
-    const body1 = { action: "list_appointments", params: { start_date: hojeStr, end_date: em7diasStr } };
-    console.log(`[whatsapp] Agenda req body: ${JSON.stringify(body1)}`);
-
-    const res = await fetch(baseUrl, { method: "POST", headers, body: JSON.stringify(body1) });
-    const responseText = await res.text();
-    console.log(`[whatsapp] Agenda resp status=${res.status} body=${responseText.slice(0, 500)}`);
-
-    if (!res.ok) {
-      // Tentativa 2: params no top-level
-      const body2 = { action: "list_appointments", start_date: hojeStr, end_date: em7diasStr };
-      console.log(`[whatsapp] Agenda tentativa 2: ${JSON.stringify(body2)}`);
-      const res2 = await fetch(baseUrl, { method: "POST", headers, body: JSON.stringify(body2) });
-      const text2 = await res2.text();
-      console.log(`[whatsapp] Agenda resp2 status=${res2.status} body=${text2.slice(0, 500)}`);
-      
-      if (!res2.ok) {
-        return gerarHorariosLivres();
-      }
-      let data2;
-      try { data2 = JSON.parse(text2); } catch { return gerarHorariosLivres(); }
-      return formatarAgendaComOcupados(data2);
-    }
-
-    let data;
-    try { data = JSON.parse(responseText); } catch { return gerarHorariosLivres(); }
-    return formatarAgendaComOcupados(data);
-  } catch (err) {
-    console.error("[whatsapp] Erro agenda:", err);
-    return gerarHorariosLivres();
-  }
-}
-
-function formatarAgendaComOcupados(data: any): string {
-  console.log(`[whatsapp] Agenda raw keys: ${JSON.stringify(Object.keys(data || {}))}`);
-  
-  const agendamentos = data?.appointments || data?.data || data || [];
+// =============================
+// GERAR HORÁRIOS DISPONÍVEIS
+// =============================
+function gerarHorariosDisponiveis(turnoPreferido?: string): string {
   const hoje = new Date();
-  const hojeStr = hoje.toISOString().split("T")[0];
+  const nomes: Record<number, string> = { 1: "segunda-feira", 2: "terça-feira", 3: "quarta-feira", 4: "quinta-feira", 5: "sexta-feira" };
+  const horariosManha = ["08:00", "09:00", "10:00", "11:00"];
+  const horariosTarde = ["13:00", "14:00", "15:00", "16:00", "17:00"];
   
-  if (!Array.isArray(agendamentos) || agendamentos.length === 0) {
-    console.log("[whatsapp] Sem agendamentos encontrados, gerando horários livres");
-    return gerarHorariosLivres();
-  }
-
-  console.log(`[whatsapp] Agendamentos encontrados: ${agendamentos.length}, sample: ${JSON.stringify(agendamentos[0]).slice(0, 300)}`);
-
-  // Mapear horários OCUPADOS por dia
-  const ocupados: Record<string, Set<string>> = {};
-  for (const a of agendamentos) {
-    const dt = a.appointment_date || a.date || a.data || a.data_hora?.split("T")[0] || "";
-    if (dt < hojeStr) continue; // Ignorar passados
-    const hr = a.appointment_time || a.time || a.horario || a.data_hora?.split("T")[1]?.slice(0, 5) || "";
-    if (!dt || !hr) continue;
-    if (!ocupados[dt]) ocupados[dt] = new Set();
-    ocupados[dt].add(hr);
-  }
-
-  // Gerar slots livres (8h-17h, seg-sex, próximos 7 dias)
-  const todosHorarios = ["08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
-  const nomesDia: Record<number, string> = { 0: "domingo", 1: "segunda-feira", 2: "terça-feira", 3: "quarta-feira", 4: "quinta-feira", 5: "sexta-feira", 6: "sábado" };
-  const linhas: string[] = [];
-
-  for (let i = 0; i < 7 && linhas.length < 5; i++) {
-    const d = new Date(hoje.getTime() + i * 86400000);
-    const dow = d.getDay();
-    if (dow < 1 || dow > 5) continue;
-    const dtStr = d.toISOString().split("T")[0];
-    const ocupadosDia = ocupados[dtStr] || new Set();
-    const livres = todosHorarios.filter(h => !ocupadosDia.has(h));
-    if (livres.length > 0) {
-      linhas.push(`${nomesDia[dow]} (${dtStr}): ${livres.join(", ")}`);
-    }
-  }
-
-  if (linhas.length === 0) return gerarHorariosLivres();
-
-  return `\n\nHORÁRIOS DISPONÍVEIS (reais da agenda):\n${linhas.join("\n")}\n\nIMPORTANTE: Ao responder ao paciente, ofereça NO MÁXIMO 2-3 horários do dia/turno que ele pediu. NÃO liste todos. Use escassez: "Consegui encaixar essas opções para você" (sem dizer que a agenda está concorrida se há muitos horários livres).`;
-}
-
-function gerarHorariosLivres(): string {
-  const hoje = new Date();
-  const nomes = ["", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira"];
   const diasDisponiveis: string[] = [];
-  for (let i = 0; i < 7 && diasDisponiveis.length < 5; i++) {
+  for (let i = 1; i <= 10 && diasDisponiveis.length < 5; i++) {
     const d = new Date(hoje.getTime() + i * 86400000);
     const dow = d.getDay();
     if (dow >= 1 && dow <= 5) {
       const dtStr = d.toISOString().split("T")[0];
-      diasDisponiveis.push(`${nomes[dow]} (${dtStr}): 08:00, 09:00, 10:00, 11:00, 13:00, 14:00, 15:00, 16:00, 17:00`);
+      const dia = dtStr.split("-").reverse().join("/");
+      diasDisponiveis.push(`${nomes[dow]} (${dia}): manhã ${horariosManha.join(", ")} | tarde ${horariosTarde.join(", ")}`);
     }
   }
-  return `\n\nHORÁRIOS DISPONÍVEIS (agenda da clínica):\n${diasDisponiveis.join("\n")}\n\nIMPORTANTE: Ao responder ao paciente, ofereça NO MÁXIMO 2-3 horários do dia/turno que ele pediu. NÃO liste todos. Use escassez de forma coerente: "Consegui essas opções para você".`;
+
+  return `\n\nHORÁRIOS DISPONÍVEIS DA CLÍNICA:
+${diasDisponiveis.join("\n")}
+
+REGRA CRÍTICA DE ESCASSEZ:
+- Quando o paciente disser o turno (manhã/tarde), ofereça EXATAMENTE 2 horários desse turno
+- NUNCA liste todos os horários. Escolha 2 e apresente como se fossem os únicos disponíveis
+- Exemplo: "Consegui encaixar para você [dia] às [hora1] ou às [hora2]. Qual fica melhor? 😊"
+- NÃO diga "a agenda está concorrida" - apenas apresente as 2 opções naturalmente`;
 }
 
 // =============================
@@ -364,7 +299,7 @@ async function criarLeadCRM(nome: string, telefone: string): Promise<boolean> {
     const crmToken = Deno.env.get("CRM_API_TOKEN");
     if (!crmUrl || !crmToken) return false;
 
-    const res = await fetch(`${crmUrl}/functions/v1/api-leads`, {
+    const res = await fetch(`${crmUrl}api-leads`, {
       method: "POST",
       headers: { "Authorization": `Bearer ${crmToken}`, "apikey": crmToken, "Content-Type": "application/json" },
       body: JSON.stringify({ nome, telefone, origem: "whatsapp_ia_maria", status: "agendado" }),
@@ -460,8 +395,6 @@ async function enviarAudio(numero: string, audioUrl: string): Promise<void> {
   const MEGA_API_TOKEN = Deno.env.get("MEGA_API_TOKEN");
   if (!MEGA_API_URL || !MEGA_API_TOKEN) return;
 
-  // Construir URL de áudio a partir da URL de texto
-  // Formato: .../rest/sendMessage/{instancia}/text → .../rest/sendMessage/{instancia}/audioMessage
   const audioEndpoint = MEGA_API_URL.replace(/\/text$/, "/audioMessage");
 
   const res = await fetch(audioEndpoint, {
@@ -484,11 +417,10 @@ serve(async (req) => {
     const body = await req.json();
     console.log("[whatsapp] Webhook recebido:", JSON.stringify(body).slice(0, 500));
 
-    // Extrair mensagem e número (formato MegaAPI - múltiplos formatos possíveis)
+    // Extrair mensagem e número (formato MegaAPI)
     const msg = body.message || {};
     const mensagem = msg.conversation || msg.text || msg.extendedTextMessage?.text || body.text?.message || body.data?.message?.conversation || "";
     
-    // Extrair número do remetente (MegaAPI envia em key.senderPn ou jid)
     const senderPn = body.key?.senderPn || "";
     const jid = body.jid || "";
     const rawNumero = senderPn || jid || body.sender?.phone || body.data?.key?.remoteJid || "";
@@ -505,7 +437,6 @@ serve(async (req) => {
       return new Response("ok");
     }
 
-    // Ignorar números inválidos
     if (numero.includes("-") || numero.length < 10) {
       console.log("[whatsapp] Ignorando: número inválido");
       return new Response("ok");
@@ -516,7 +447,7 @@ serve(async (req) => {
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     // =============================
-    // BUSCAR HISTÓRICO DE CONVERSA
+    // BUSCAR HISTÓRICO + PROFISSIONAIS + AGENDA EM PARALELO
     // =============================
     const { data: historico } = await supabase
       .from("interacoes_ia")
@@ -526,27 +457,18 @@ serve(async (req) => {
       .order("criado_em", { ascending: false })
       .limit(10);
 
-    // Detectar se precisa buscar agenda (mensagem atual OU histórico com intenção de agendamento)
-    const msgLower = mensagem.toLowerCase();
-    const keywordsAgenda = ["agendar", "marcar", "horário", "horario", "disponível", "disponivel",
-      "vaga", "quando", "consulta", "avaliação", "avaliacao", "semana", "amanhã", "amanha",
-      "segunda", "terça", "quarta", "quinta", "sexta", "manhã", "manha", "tarde",
-      "verificar", "verificou", "conseguiu", "agenda", "16h", "14h", "15h", "13h", "hora"
-    ];
-    const precisaAgendaMsgAtual = keywordsAgenda.some(k => msgLower.includes(k));
-    // Também buscar se o histórico recente indica contexto de agendamento
-    const historicoTexto = (historico || []).map(h => `${h.mensagem_usuario || ""} ${h.resposta_final || ""}`).join(" ").toLowerCase();
-    const precisaAgendaHistorico = keywordsAgenda.some(k => historicoTexto.includes(k));
-    const precisaAgenda = precisaAgendaMsgAtual || precisaAgendaHistorico;
+    // SEMPRE buscar profissionais e agenda (são dados essenciais para Maria)
+    const [contextProfissionais, contextAgenda] = await Promise.all([
+      buscarProfissionais(),
+      Promise.resolve(gerarHorariosDisponiveis()),
+    ]);
 
-    const agendaPromise = precisaAgenda ? buscarAgendaGestao() : Promise.resolve("");
-    const profissionaisPromise = precisaAgenda ? buscarProfissionais() : Promise.resolve("");
+    console.log(`[whatsapp] Contexto: profissionais=${contextProfissionais.length > 50 ? "OK" : "VAZIO"} agenda=${contextAgenda.length > 50 ? "OK" : "VAZIO"}`);
 
     // Extrair nome do paciente do histórico
     let nomePaciente = "";
     if (historico && historico.length > 0) {
-      // Procurar nas primeiras mensagens
-      for (const h of historico.reverse()) {
+      for (const h of [...historico].reverse()) {
         if (h.mensagem_usuario) {
           const palavras = h.mensagem_usuario.split(" ").filter((p: string) => p.length > 2);
           if (palavras.length <= 3 && !h.mensagem_usuario.toLowerCase().includes("quero") && !h.mensagem_usuario.toLowerCase().includes("preciso")) {
@@ -557,17 +479,16 @@ serve(async (req) => {
       }
     }
 
-    const [contextAgenda, contextProfissionais] = await Promise.all([agendaPromise, profissionaisPromise]);
-
     // Contexto extra
     let contextExtra = "";
     contextExtra += contextProfissionais;
+    contextExtra += contextAgenda;
     if (nomePaciente) contextExtra += `\n\nNOME DO PACIENTE: ${nomePaciente}. Use o nome dele(a).`;
     contextExtra += `\nTELEFONE DO PACIENTE: ${numero}`;
 
     // Montar mensagens para IA
     const messages: { role: string; content: string }[] = [
-      { role: "system", content: SYSTEM_ENGINE_WHATSAPP + contextAgenda + contextExtra },
+      { role: "system", content: SYSTEM_ENGINE_WHATSAPP + contextExtra },
     ];
 
     // Adicionar histórico (do mais antigo ao mais recente)
@@ -577,7 +498,6 @@ serve(async (req) => {
       if (h.resposta_final) messages.push({ role: "assistant", content: h.resposta_final });
     }
 
-    // Adicionar mensagem atual se não está duplicada
     if (messages[messages.length - 1]?.content !== mensagem) {
       messages.push({ role: "user", content: mensagem });
     }
@@ -616,7 +536,6 @@ serve(async (req) => {
     const agendamentoDetectado = extrairAgendamento(respostaFinal);
     if (agendamentoDetectado) {
       respostaFinal = agendamentoDetectado.textoLimpo;
-      // Processar em background
       Promise.all([
         registrarAgendamento(agendamentoDetectado.nome, numero, agendamentoDetectado.data, agendamentoDetectado.horario),
         criarLeadCRM(agendamentoDetectado.nome, numero),
@@ -642,25 +561,22 @@ serve(async (req) => {
     }
 
     // =============================
-    // ENVIAR RESPOSTA: TEXTO + ÁUDIO (com delay humanizado)
+    // ENVIAR RESPOSTA
     // =============================
     console.log(`[whatsapp] 📤 Resposta: "${respostaFinal.slice(0, 100)}..."`);
 
-    // Delay humanizado de 3-4 segundos para parecer que está digitando
-    const delayMs = 3000 + Math.random() * 1500; // 3.0 a 4.5 segundos
+    // Delay humanizado
+    const delayMs = 3000 + Math.random() * 1500;
     await new Promise(resolve => setTimeout(resolve, delayMs));
 
-    // Enviar texto
     await enviarTexto(numero, respostaFinal);
 
-    // Gerar e enviar áudio em background (não bloqueia)
+    // Gerar e enviar áudio em background
     gerarAudioElevenLabs(respostaFinal, supabase).then(async (audioUrl) => {
-      if (audioUrl) {
-        await enviarAudio(numero, audioUrl);
-      }
+      if (audioUrl) await enviarAudio(numero, audioUrl);
     }).catch(err => console.error("[whatsapp] Erro envio áudio:", err));
 
-    // Se encaminhar humano, notificar admin
+    // Notificar admin se encaminhar humano
     if (encaminharHumano) {
       const adminNumber = Deno.env.get("ADMIN_WHATSAPP_NUMBER");
       if (adminNumber) {

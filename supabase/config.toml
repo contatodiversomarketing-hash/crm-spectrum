@@ -98,3 +98,6 @@ verify_jwt = false
 
 [functions.disparar-ligacao-teste]
 verify_jwt = false
+
+[functions.debug-gestao-api]
+verify_jwt = false
