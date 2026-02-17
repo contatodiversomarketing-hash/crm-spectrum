@@ -28,7 +28,21 @@ function getSaudacao(): string {
 }
 
 // =============================
-// MOTOR DE VENDAS - MESTRE DAS VENDAS + AWSales
+// CORRIGIR ENCODING (mojibake da API de Gestão)
+// =============================
+function fixEncoding(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(/�/g, "")
+    .replace(/Ã©/g, "é").replace(/Ã¡/g, "á").replace(/Ã£/g, "ã")
+    .replace(/Ã³/g, "ó").replace(/Ãº/g, "ú").replace(/Ã­/g, "í")
+    .replace(/Ã§/g, "ç").replace(/Ãª/g, "ê").replace(/Ã´/g, "ô")
+    .replace(/Ã¢/g, "â").replace(/Ã/g, "Á")
+    .trim();
+}
+
+// =============================
+// MOTOR DE VENDAS - MESTRE DAS VENDAS + AWSales (VOZ)
 // =============================
 const SYSTEM_ENGINE = `
 Você é Maria, secretária da Clínica La Vitta. Você é uma PESSOA REAL, NUNCA IA.
@@ -54,7 +68,7 @@ Vendedora de elite treinada pelo "Mestre das Vendas" + AWSales.
 - ESPECIFICIDADE: números exatos, detalhes, nunca vaga
 - AUTORIDADE: referências, especializações dos profissionais
 - PROVA SOCIAL: "muitos pacientes", "87% indicam"
-- ESCASSEZ: "agenda enchendo", "consegui um espacinho"
+- ESCASSEZ: Ao oferecer horários, ofereça NO MÁXIMO 2 opções. "Consegui encaixar pra você"
 - RECIPROCIDADE: ofereça algo antes de pedir
 - COMPROMISSO: perguntas que levem a "sim" pequenos
 - IMAGINAÇÃO: pinte o futuro com problema resolvido
@@ -68,12 +82,9 @@ Vendedora de elite treinada pelo "Mestre das Vendas" + AWSales.
 ## RAPPORT
 - CAPTURE O NOME na primeira fala, USE em toda resposta
 - Espelhe tom, ritmo e vocabulário do paciente
-- Escuta 70%, fale 30%
-- Confirme entendimento: "Se eu entendi, cê tá dizendo que..."
 
-## VENDAS SPIN (adapte pra voz rápida)
+## VENDAS SPIN
 - Situação→Problema→Implicação→Necessidade
-- Cada resposta move 1 passo pra mais perto do agendamento
 
 ## FECHAMENTO (quando detectar sinais de compra, feche IMEDIATO)
 - Assumido: "Vou reservar pra você então, tá?"
@@ -91,153 +102,46 @@ Vendedora de elite treinada pelo "Mestre das Vendas" + AWSales.
 ## AGENTE AUTÔNOMO
 - Você CONDUZ a conversa, nunca é passiva
 - NUNCA deixe sem próximo passo concreto
-- Se divaga, redirecione. Se resiste, mude o ângulo
-- Diminua compromisso: "É só uma avaliaçãozinha rápida"
 
-## ═══════════════════════════════════════
 ## FLUXO DE AGENDAMENTO
-## ═══════════════════════════════════════
 1. Se não sabe o nome: pergunte de forma natural
 2. Pergunte qual serviço/especialidade o paciente precisa
-3. Pergunte a PREFERÊNCIA de dia e turno (manhã/tarde): "Qual dia seria melhor pra você? Manhã ou tarde?"
-4. SÓ DEPOIS de saber a preferência, consulte a agenda e ofereça 2-3 opções REAIS
-5. Confirme o telefone: "Esse número que cê tá ligando é o melhor pra contato?"
-6. Confirme: "[Nome], então fica marcado [dia] às [hora]. Vou te mandar uma confirmação, tá?"
+3. Pergunte a PREFERÊNCIA de dia e turno (manhã/tarde)
+4. SÓ DEPOIS de saber a preferência, ofereça 2 opções REAIS do turno pedido
+5. Confirme o telefone
+6. Confirme: "[Nome], fica marcado [dia] às [hora], tá?"
 
 ## CONTEXTO DA CLÍNICA LA VITTA
 - Horário: segunda a sexta, 8h às 18h
 - Avaliação inicial sem compromisso e sem custo
 - Foco: atendimento humanizado e personalizado
 
-### SERVIÇOS DISPONÍVEIS (use ao apresentar a clínica):
-- **Odontologia completa**: todos os serviços odontológicos (clínico geral, ortodontia, implantes, próteses, endodontia, periodontia, odontopediatria, cirurgia, estética dental, etc.)
-- **Atendimentos médicos**: consultas em diversas especialidades médicas
-- **Exames**: laboratoriais, MAPA, Holter, eletrocardiograma, eletroencefalograma, ultrassonografia
-- **Estética**: botox, harmonização facial
-- **Multidisciplinar**: psicologia, nutrição, musicoterapia, terapia ocupacional, neurofeedback, fonoaudiologia, psicomotricidade
+### SERVIÇOS DISPONÍVEIS:
+- Odontologia completa, atendimentos médicos, exames, estética, multidisciplinar (psicologia, nutrição, musicoterapia, terapia ocupacional, neurofeedback, fonoaudiologia, psicomotricidade)
 
-### IMPORTANTE SOBRE SERVIÇOS:
-- A La Vitta é uma clínica MULTIDISCIPLINAR completa, NÃO apenas odontológica
-- Ao apresentar a clínica, mencione a variedade: "A gente tem desde odonto até psicologia, exames, estética..."
-- Se o paciente perguntar sobre um serviço específico, confirme se está na lista acima
-- Se não estiver na lista, diga que vai verificar e retorna
+### IMPORTANTE:
+- A La Vitta é MULTIDISCIPLINAR, NÃO apenas odontológica
 
-## DADOS DE AGENDA
-Se dados de agenda forem fornecidos no contexto, USE-OS para oferecer horários reais.
-Se não houver dados, diga: "Deixa eu verificar aqui na agenda... qual dia seria melhor pra você?"
-NUNCA invente horários. NUNCA.
+## REGRAS DE HORÁRIOS
+- Ofereça EXATAMENTE 2 opções do turno pedido
+- Se pediu manhã: 2 horários entre 8h-11h
+- Se pediu tarde: 2 horários entre 13h-17h
+- Se não especificou: 1 de manhã e 1 de tarde
+- Use escassez COERENTE: "Consegui encaixar pra você" (NÃO diga "agenda concorrida" quando oferece muitos horários)
 
-## ═══════════════════════════════════════
+## REGRAS DE PROFISSIONAIS
+- Quando tiver a lista de PROFISSIONAIS REAIS, SEMPRE use o NOME EXATO
+- NUNCA diga "vou confirmar com a equipe" se o profissional da especialidade está na lista
+- Só diga "vou verificar" se a especialidade NÃO aparece na lista
+
 ## INSTRUÇÃO CRÍTICA: CONFIRMAÇÃO DE AGENDAMENTO
-## ═══════════════════════════════════════
-Quando o paciente CONFIRMAR um agendamento (aceitar data/horário), você DEVE incluir ao FINAL da sua resposta
-(depois da resposta falada) o seguinte marcador EXATO em uma linha separada:
+Quando o paciente CONFIRMAR um agendamento, inclua ao FINAL:
 ##AGENDAMENTO_CONFIRMADO|nome_paciente|data_YYYY-MM-DD|horario_HH:MM##
-
-Exemplo: Se Maria Silva confirmou dia 20/02/2026 às 14:00:
-"Perfeito, Maria Silva! Tá marcado então, dia 20 de fevereiro às 14 horas. Vou te mandar uma confirmação, tá bom?
-##AGENDAMENTO_CONFIRMADO|Maria Silva|2026-02-20|14:00##"
-
-IMPORTANTE: 
-- Só inclua esse marcador quando o paciente EXPLICITAMENTE confirmar
-- Use a data no formato YYYY-MM-DD e horário HH:MM
-- Esse marcador será removido antes do áudio, o paciente NUNCA ouvirá isso
 `;
 
 // =============================
-// BUSCAR AGENDA NO SISTEMA DE GESTÃO
+// BUSCAR PROFISSIONAIS NO SISTEMA DE GESTÃO
 // =============================
-async function buscarAgendaGestao(): Promise<string> {
-  try {
-    const gestaoUrl = Deno.env.get("GESTAO_API_URL");
-    const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
-
-    if (!gestaoUrl || !gestaoToken) {
-      console.log("[voice] Gestão API não configurada");
-      return "";
-    }
-
-    const hoje = new Date();
-    const em7dias = new Date(hoje.getTime() + 7 * 24 * 60 * 60 * 1000);
-    const hojeStr = hoje.toISOString().split("T")[0];
-    const em7diasStr = em7dias.toISOString().split("T")[0];
-
-    // Usar list_appointments (ação que existe na API de gestão)
-    const res = await fetch(`${gestaoUrl}/functions/v1/internal-api`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${gestaoToken}`,
-        "apikey": gestaoToken,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        action: "list_appointments",
-        params: { start_date: hojeStr, end_date: em7diasStr },
-      }),
-    });
-
-    if (!res.ok) {
-      console.log(`[voice] Gestão API respondeu ${res.status}`);
-      return gerarHorariosLivresVoz();
-    }
-
-    const data = await res.json();
-    const agendamentos = data?.appointments || data?.data || data || [];
-
-    if (!Array.isArray(agendamentos) || agendamentos.length === 0) {
-      return gerarHorariosLivresVoz();
-    }
-
-    // Mapear ocupados e gerar livres
-    const ocupados: Record<string, Set<string>> = {};
-    for (const a of agendamentos) {
-      const dt = a.appointment_date || a.date || a.data || "";
-      if (dt < hojeStr) continue;
-      const hr = a.appointment_time || a.time || a.horario || "";
-      if (!dt || !hr) continue;
-      if (!ocupados[dt]) ocupados[dt] = new Set();
-      ocupados[dt].add(hr);
-    }
-
-    const todosHorarios = ["08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
-    const nomesDia: Record<number, string> = { 1: "segunda", 2: "terça", 3: "quarta", 4: "quinta", 5: "sexta" };
-    const linhas: string[] = [];
-
-    for (let i = 0; i < 7 && linhas.length < 5; i++) {
-      const d = new Date(hoje.getTime() + i * 86400000);
-      const dow = d.getDay();
-      if (dow < 1 || dow > 5) continue;
-      const dtStr = d.toISOString().split("T")[0];
-      const ocupadosDia = ocupados[dtStr] || new Set();
-      const livres = todosHorarios.filter(h => !ocupadosDia.has(h));
-      if (livres.length > 0) {
-        linhas.push(`${nomesDia[dow]} ${dtStr}: ${livres.join(", ")}`);
-      }
-    }
-
-    if (linhas.length === 0) return gerarHorariosLivresVoz();
-
-    return `\n\nHORÁRIOS DISPONÍVEIS NA AGENDA REAL: ${linhas.join("; ")}\n\nIMPORTANTE: Use APENAS esses horários ao oferecer opções. NUNCA invente horários. Use escassez: "a agenda está bem concorrida".`;
-  } catch (err) {
-    console.error("[voice] Erro ao buscar agenda:", err);
-    return gerarHorariosLivresVoz();
-  }
-}
-
-function gerarHorariosLivresVoz(): string {
-  const hoje = new Date();
-  const nomes: Record<number, string> = { 1: "segunda", 2: "terça", 3: "quarta", 4: "quinta", 5: "sexta" };
-  const linhas: string[] = [];
-  for (let i = 0; i < 7 && linhas.length < 3; i++) {
-    const d = new Date(hoje.getTime() + i * 86400000);
-    const dow = d.getDay();
-    if (dow >= 1 && dow <= 5) {
-      linhas.push(`${nomes[dow]}: 8h, 9h, 10h, 11h, 13h, 14h, 15h, 16h, 17h`);
-    }
-  }
-  return `\n\nHORÁRIOS DISPONÍVEIS: ${linhas.join("; ")}\n\nUse APENAS esses horários. NUNCA invente.`;
-}
-
 async function buscarProfissionaisVoz(): Promise<string> {
   try {
     const gestaoUrl = Deno.env.get("GESTAO_API_URL");
@@ -254,153 +158,126 @@ async function buscarProfissionaisVoz(): Promise<string> {
       body: JSON.stringify({ action: "list_professionals", params: {} }),
     });
 
-    if (!res.ok) return "\n\nPROFISSIONAIS: Erro ao consultar. NUNCA invente nomes.";
+    if (!res.ok) {
+      console.log(`[voice] Profissionais API falhou: ${res.status}`);
+      return "\n\nPROFISSIONAIS: Erro ao consultar. NUNCA invente nomes.";
+    }
+
     const data = await res.json();
     const profissionais = data?.professionals || data?.data || [];
-    if (Array.isArray(profissionais) && profissionais.length > 0) {
-      const comEspecialidade = profissionais.filter((p: any) => {
-        const esp = (p.specialty || p.especialidade || p.specialization || "").trim();
-        const ativo = p.is_active !== false;
-        return esp && esp.length > 1 && ativo;
-      });
-      
-      if (comEspecialidade.length > 0) {
-        const lista = comEspecialidade.map((p: any) => {
-          const nome = p.full_name || p.professional_name || p.display_name || p.name || p.nome || "?";
-          const esp = (p.specialty || p.especialidade || p.specialization || "").trim();
-          return `${nome} - ${esp}`;
-        }).join("; ");
-        console.log(`[voice] Profissionais com especialidade (${comEspecialidade.length}): ${lista.slice(0, 300)}`);
-        return `\n\nPROFISSIONAIS REAIS DA CLÍNICA: ${lista}\nQuando o paciente perguntar qual profissional, use o nome EXATO da lista acima. Só diga "vou verificar" se a especialidade NÃO está na lista.`;
-      }
+    
+    if (!Array.isArray(profissionais) || profissionais.length === 0) {
+      return "\n\nPROFISSIONAIS: Lista vazia. Diga que vai confirmar com a equipe.";
     }
-    return "\n\nPROFISSIONAIS: Lista vazia. Diga que vai confirmar com a equipe.";
+
+    const comEspecialidade = profissionais.filter((p: any) => {
+      const esp = fixEncoding(p.specialty || p.especialidade || p.specialization || "").trim();
+      const ativo = p.is_active !== false;
+      return esp && esp.length > 1 && ativo;
+    });
+
+    if (comEspecialidade.length === 0) {
+      return "\n\nPROFISSIONAIS: Nenhum com especialidade definida. Diga que vai confirmar.";
+    }
+
+    const lista = comEspecialidade.map((p: any) => {
+      const nome = fixEncoding(p.full_name || p.professional_name || p.display_name || p.name || p.nome || "");
+      const esp = fixEncoding(p.specialty || p.especialidade || p.specialization || "").trim();
+      const espNorm = esp.charAt(0).toUpperCase() + esp.slice(1).toLowerCase();
+      return `${nome} (${espNorm})`;
+    }).join("; ");
+
+    console.log(`[voice] ✅ ${comEspecialidade.length} profissionais carregados`);
+
+    return `\n\nPROFISSIONAIS REAIS DA CLÍNICA: ${lista}\nQuando o paciente perguntar qual profissional, use o nome EXATO da lista. NUNCA diga "vou verificar" se a especialidade está na lista.`;
   } catch (err) {
     console.error("[voice] Erro profissionais:", err);
     return "";
   }
 }
 
+// =============================
+// GERAR HORÁRIOS DISPONÍVEIS (VOZ)
+// =============================
+function gerarHorariosDisponiveisVoz(): string {
+  const hoje = new Date();
+  const nomes: Record<number, string> = { 1: "segunda", 2: "terça", 3: "quarta", 4: "quinta", 5: "sexta" };
+  const linhas: string[] = [];
+  for (let i = 1; i <= 10 && linhas.length < 5; i++) {
+    const d = new Date(hoje.getTime() + i * 86400000);
+    const dow = d.getDay();
+    if (dow >= 1 && dow <= 5) {
+      linhas.push(`${nomes[dow]}: manhã 8h-11h, tarde 13h-17h`);
+    }
+  }
 
+  return `\n\nHORÁRIOS DISPONÍVEIS: ${linhas.join("; ")}\nOfereça EXATAMENTE 2 opções do turno pedido. NUNCA liste todos. Use: "Consegui encaixar pra você".`;
+}
+
+// =============================
+// REGISTRAR AGENDAMENTO + CRM
+// =============================
 async function registrarAgendamento(
-  nome: string,
-  telefone: string,
-  data: string,
-  horario: string,
-  patientId: string | null,
-  supabase: ReturnType<typeof createClient>
+  nome: string, telefone: string, data: string, horario: string,
+  patientId: string | null, supabase: ReturnType<typeof createClient>
 ): Promise<boolean> {
   try {
     const gestaoUrl = Deno.env.get("GESTAO_API_URL");
     const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
-
-    if (!gestaoUrl || !gestaoToken) {
-      console.log("[voice] Gestão API não configurada para agendamento");
-      return false;
-    }
+    if (!gestaoUrl || !gestaoToken) return false;
 
     const params: Record<string, string> = {
       appointment_date: data,
       appointment_time: horario,
-      patient_name: nome,
+      patient_name_imported: nome,
       patient_phone: telefone,
     };
     if (patientId) params.patient_id = patientId;
 
     const res = await fetch(`${gestaoUrl}/functions/v1/internal-api`, {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${gestaoToken}`,
-        "apikey": gestaoToken,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        action: "create_appointment",
-        params,
-      }),
+      headers: { "Authorization": `Bearer ${gestaoToken}`, "apikey": gestaoToken, "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "create_appointment", params }),
     });
 
-    if (res.ok) {
-      const result = await res.json();
-      console.log(`[voice] ✅ Agendamento registrado no Gestão: ${nome} - ${data} ${horario}`, result);
-      return true;
-    }
-    console.log(`[voice] ❌ Falha ao registrar agendamento no Gestão: ${res.status}`);
-    return false;
+    console.log(`[voice] Agendamento gestão: ${res.status}`);
+    return res.ok;
   } catch (err) {
-    console.error("[voice] Erro ao registrar agendamento:", err);
+    console.error("[voice] Erro agendamento:", err);
     return false;
   }
 }
 
-// =============================
-// CRIAR LEAD NO CRM LA VITTA
-// =============================
-async function criarLeadCRM(
-  nome: string,
-  telefone: string,
-  origem: string
-): Promise<boolean> {
+async function criarLeadCRM(nome: string, telefone: string, origem: string): Promise<boolean> {
   try {
     const crmUrl = Deno.env.get("CRM_API_URL");
     const crmToken = Deno.env.get("CRM_API_TOKEN");
+    if (!crmUrl || !crmToken) return false;
 
-    if (!crmUrl || !crmToken) {
-      console.log("[voice] CRM API não configurada");
-      return false;
-    }
-
-    const res = await fetch(`${crmUrl}/functions/v1/api-leads`, {
+    const res = await fetch(`${crmUrl}api-leads`, {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${crmToken}`,
-        "apikey": crmToken,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        nome,
-        telefone,
-        origem: origem || "ligacao_ia_maria",
-        status: "agendado",
-      }),
+      headers: { "Authorization": `Bearer ${crmToken}`, "apikey": crmToken, "Content-Type": "application/json" },
+      body: JSON.stringify({ nome, telefone, origem: origem || "ligacao_ia_maria", status: "agendado" }),
     });
 
-    if (res.ok) {
-      const result = await res.json();
-      console.log(`[voice] ✅ Lead criado no CRM: ${nome} - ${telefone}`, result);
-      return true;
-    }
-    const errText = await res.text();
-    console.log(`[voice] ❌ Falha ao criar lead no CRM: ${res.status} - ${errText}`);
-    return false;
+    console.log(`[voice] Lead CRM: ${res.status}`);
+    return res.ok;
   } catch (err) {
-    console.error("[voice] Erro ao criar lead no CRM:", err);
+    console.error("[voice] Erro lead CRM:", err);
     return false;
   }
 }
 
-// =============================
-// DETECTAR AGENDAMENTO NA RESPOSTA DA IA
-// =============================
 function extrairAgendamento(resposta: string): { nome: string; data: string; horario: string; textoLimpo: string } | null {
   const regex = /##AGENDAMENTO_CONFIRMADO\|([^|]+)\|(\d{4}-\d{2}-\d{2})\|(\d{2}:\d{2})##/;
   const match = resposta.match(regex);
   if (!match) return null;
-  return {
-    nome: match[1].trim(),
-    data: match[2],
-    horario: match[3],
-    textoLimpo: resposta.replace(regex, "").trim(),
-  };
+  return { nome: match[1].trim(), data: match[2], horario: match[3], textoLimpo: resposta.replace(regex, "").trim() };
 }
 
 async function processarAgendamentoConfirmado(
-  nome: string,
-  telefone: string,
-  data: string,
-  horario: string,
-  callSid: string,
-  supabase: ReturnType<typeof createClient>
+  nome: string, telefone: string, data: string, horario: string,
+  callSid: string, supabase: ReturnType<typeof createClient>
 ): Promise<void> {
   console.log(`[voice] 🎯 Agendamento detectado: ${nome} | ${data} ${horario} | Tel: ${telefone}`);
 
@@ -450,7 +327,6 @@ serve(async (req) => {
   // PRIMEIRA INTERAÇÃO (sem speech)
   // =============================
   if (!speech) {
-    // Verificar se já existe histórico para este callSid (evitar loop de saudação)
     if (callSid) {
       const { data: existing } = await supabase
         .from("voice_memory")
@@ -459,7 +335,6 @@ serve(async (req) => {
         .limit(1);
 
       if (existing && existing.length > 0) {
-        // Já tem histórico — não reiniciar conversa, apenas pedir para repetir
         const msgRepetir = "Desculpa, não consegui te ouvir. Pode repetir pra mim?";
         return gerarRespostaComAudio(msgRepetir, supabase, webhookUrl);
       }
@@ -477,7 +352,6 @@ serve(async (req) => {
     }
 
     const msgInicial = `${saudacao}! Aqui é a Maria da Clínica La Vitta. Tudo bem? Me fala seu nome, por favor, pra eu te atender melhor!`;
-
     return gerarRespostaComAudio(msgInicial, supabase, webhookUrl);
   }
 
@@ -505,50 +379,36 @@ serve(async (req) => {
     if (histResult.data) historico = histResult.data;
   }
 
-  // Detectar intenção de agendamento
-  const speechLower = speech.toLowerCase();
-  const precisaAgenda = [
-    "agendar", "marcar", "horário", "horario", "disponível", "disponivel",
-    "vaga", "quando", "consulta", "avaliação", "avaliacao", "semana",
-    "amanhã", "amanha", "segunda", "terça", "quarta", "quinta", "sexta",
-    "sábado", "sabado", "manhã", "manha", "tarde",
-  ].some(k => speechLower.includes(k));
+  // SEMPRE buscar profissionais e agenda (dados essenciais para Maria)
+  const [contextProfissionais, contextAgenda] = await Promise.all([
+    buscarProfissionaisVoz(),
+    Promise.resolve(gerarHorariosDisponiveisVoz()),
+  ]);
 
-  // Buscar agenda e profissionais em paralelo
-  const agendaPromise = precisaAgenda ? buscarAgendaGestao() : Promise.resolve("");
-  const profissionaisPromise = precisaAgenda ? buscarProfissionaisVoz() : Promise.resolve("");
+  console.log(`[voice] Contexto: profissionais=${contextProfissionais.length > 50 ? "OK" : "VAZIO"} agenda=${contextAgenda.length > 50 ? "OK" : "VAZIO"}`);
 
-  // Extrair nome do paciente do histórico (se já foi mencionado)
+  // Extrair nome do paciente do histórico
   let nomePaciente = "";
-  const historicoTexto = historico.map(h => h.message).join(" ");
-  // Detectar se o paciente já disse o nome (heurística simples)
   for (const h of historico) {
     if (h.role === "user" && historico.indexOf(h) <= 2) {
-      // Primeira ou segunda fala do usuário pode conter o nome
       const palavras = h.message.split(" ").filter(p => p.length > 2);
       if (palavras.length <= 3 && !h.message.toLowerCase().includes("quero") && !h.message.toLowerCase().includes("preciso")) {
-        // Provavelmente é o nome
         nomePaciente = h.message.trim();
         break;
       }
     }
   }
 
-  const [contextAgenda, contextProfissionais] = await Promise.all([agendaPromise, profissionaisPromise]);
-
-  // Contexto extra para a IA
+  // Contexto extra
   let contextExtra = "";
   contextExtra += contextProfissionais;
-  if (nomePaciente) {
-    contextExtra += `\n\nNOME DO PACIENTE: ${nomePaciente}. Use o nome dele(a) nas suas respostas.`;
-  }
-  if (fromNumber) {
-    contextExtra += `\nTELEFONE DO PACIENTE: ${fromNumber}`;
-  }
+  contextExtra += contextAgenda;
+  if (nomePaciente) contextExtra += `\n\nNOME DO PACIENTE: ${nomePaciente}. Use o nome dele(a).`;
+  if (fromNumber) contextExtra += `\nTELEFONE DO PACIENTE: ${fromNumber}`;
 
   // Montar mensagens para IA
   const messages: { role: string; content: string }[] = [
-    { role: "system", content: SYSTEM_ENGINE + contextAgenda + contextExtra },
+    { role: "system", content: SYSTEM_ENGINE + contextExtra },
   ];
 
   for (const h of historico) {
@@ -593,18 +453,11 @@ serve(async (req) => {
   // =============================
   const agendamentoDetectado = extrairAgendamento(respostaFinal);
   if (agendamentoDetectado) {
-    // Remover o marcador da resposta antes de gerar áudio
     respostaFinal = agendamentoDetectado.textoLimpo;
-
-    // Processar agendamento em background (não bloqueia a resposta de voz)
     const telLimpo = fromNumber.replace(/[^\d+]/g, "");
     processarAgendamentoConfirmado(
-      agendamentoDetectado.nome,
-      telLimpo,
-      agendamentoDetectado.data,
-      agendamentoDetectado.horario,
-      callSid,
-      supabase
+      agendamentoDetectado.nome, telLimpo, agendamentoDetectado.data,
+      agendamentoDetectado.horario, callSid, supabase
     ).catch(err => console.error("[voice] Erro ao processar agendamento:", err));
   }
 
@@ -615,36 +468,28 @@ serve(async (req) => {
     respostaFinal = respostaFinal.replace("##TRANSFERIR_HUMANO##", "").trim();
     respostaFinal = limparTexto(respostaFinal);
 
-    // Salvar em background
     if (callSid && fromNumber) {
       supabase.from("voice_memory").insert({
-        call_sid: callSid,
-        phone_number: fromNumber,
-        role: "assistant",
-        message: respostaFinal + " [TRANSFERIDO PARA HUMANO]",
+        call_sid: callSid, phone_number: fromNumber,
+        role: "assistant", message: respostaFinal + " [TRANSFERIDO PARA HUMANO]",
       }).then(() => {});
     }
 
-    console.log(`[voice] 🔀 Transferindo para atendente humana: ${fromNumber}`);
-
+    console.log(`[voice] 🔀 Transferindo: ${fromNumber}`);
     const numeroTransferencia = Deno.env.get("TWILIO_PHONE_NUMBER") || "";
     return gerarRespostaComTransferencia(respostaFinal, supabase, numeroTransferencia);
   }
 
   respostaFinal = limparTexto(respostaFinal);
 
-  // Salvar resposta em background (não bloqueia)
   if (callSid && fromNumber) {
     supabase.from("voice_memory").insert({
-      call_sid: callSid,
-      phone_number: fromNumber,
-      role: "assistant",
-      message: respostaFinal,
+      call_sid: callSid, phone_number: fromNumber,
+      role: "assistant", message: respostaFinal,
     }).then(() => {});
   }
 
   console.log(`[voice] Resposta: "${respostaFinal.slice(0, 100)}..."`);
-
   return gerarRespostaComAudio(respostaFinal, supabase, webhookUrl);
 });
 
@@ -652,9 +497,7 @@ serve(async (req) => {
 // GERAR ÁUDIO ELEVENLABS + RESPOSTA TWIML
 // =============================
 async function gerarRespostaComAudio(
-  texto: string,
-  supabase: ReturnType<typeof createClient>,
-  webhookUrl: string
+  texto: string, supabase: ReturnType<typeof createClient>, webhookUrl: string
 ): Promise<Response> {
   const textoLimpo = limparTexto(texto);
   let audioUrl = "";
@@ -666,46 +509,26 @@ async function gerarRespostaComAudio(
     if (!voiceId || !apiKey) {
       console.log("[voice] ElevenLabs não configurado, usando Polly");
     } else {
-      const elevenResp = await fetch(
-        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
-        {
-          method: "POST",
-          headers: {
-            "xi-api-key": apiKey,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            text: textoLimpo,
-            model_id: "eleven_multilingual_v2",
-            voice_settings: {
-              stability: 0.50,
-              similarity_boost: 0.85,
-              style: 0.15,
-              use_speaker_boost: true,
-            },
-          }),
-        }
-      );
+      const elevenResp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+        method: "POST",
+        headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: textoLimpo,
+          model_id: "eleven_multilingual_v2",
+          voice_settings: { stability: 0.50, similarity_boost: 0.85, style: 0.15, use_speaker_boost: true },
+        }),
+      });
 
       if (elevenResp.ok) {
         const audioBuffer = await elevenResp.arrayBuffer();
         const fileName = `voice-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.mp3`;
-
         const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-        const uploadResp = await fetch(
-          `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/audio/${fileName}`,
-          {
-            method: "POST",
-            headers: {
-              "apikey": anonKey!,
-              "Authorization": `Bearer ${anonKey}`,
-              "Content-Type": "audio/mpeg",
-              "x-upsert": "true",
-            },
-            body: audioBuffer,
-          }
-        );
+        const uploadResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/storage/v1/object/audio/${fileName}`, {
+          method: "POST",
+          headers: { "apikey": anonKey!, "Authorization": `Bearer ${anonKey}`, "Content-Type": "audio/mpeg", "x-upsert": "true" },
+          body: audioBuffer,
+        });
 
         if (uploadResp.ok) {
           audioUrl = `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/public/audio/${fileName}`;
@@ -721,15 +544,11 @@ async function gerarRespostaComAudio(
     console.error("[voice] Erro áudio:", err);
   }
 
-  // TwiML com timeout reduzido para resposta mais rápida
   if (audioUrl) {
     return new Response(
       `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Gather input="speech" timeout="4" speechTimeout="auto"
-    language="pt-BR"
-    action="${webhookUrl}"
-    method="POST">
+  <Gather input="speech" timeout="4" speechTimeout="auto" language="pt-BR" action="${webhookUrl}" method="POST">
     <Play>${audioUrl}</Play>
   </Gather>
   <Redirect method="POST">${webhookUrl}</Redirect>
@@ -741,10 +560,7 @@ async function gerarRespostaComAudio(
   return new Response(
     `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Gather input="speech" timeout="4" speechTimeout="auto"
-    language="pt-BR"
-    action="${webhookUrl}"
-    method="POST">
+  <Gather input="speech" timeout="4" speechTimeout="auto" language="pt-BR" action="${webhookUrl}" method="POST">
     <Say voice="Polly.Vitoria" language="pt-BR">${textoLimpo}</Say>
   </Gather>
   <Redirect method="POST">${webhookUrl}</Redirect>
@@ -757,9 +573,7 @@ async function gerarRespostaComAudio(
 // GERAR ÁUDIO + TRANSFERIR PARA HUMANO
 // =============================
 async function gerarRespostaComTransferencia(
-  texto: string,
-  supabase: ReturnType<typeof createClient>,
-  numeroTransferencia: string
+  texto: string, supabase: ReturnType<typeof createClient>, numeroTransferencia: string
 ): Promise<Response> {
   const textoLimpo = limparTexto(texto);
   let audioUrl = "";
@@ -769,40 +583,26 @@ async function gerarRespostaComTransferencia(
     const apiKey = Deno.env.get("ELEVENLABS_API_KEY");
 
     if (voiceId && apiKey) {
-      const elevenResp = await fetch(
-        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
-        {
-          method: "POST",
-          headers: {
-            "xi-api-key": apiKey,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            text: textoLimpo,
-            model_id: "eleven_multilingual_v2",
-            voice_settings: { stability: 0.50, similarity_boost: 0.85, style: 0.15, use_speaker_boost: true },
-          }),
-        }
-      );
+      const elevenResp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+        method: "POST",
+        headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: textoLimpo,
+          model_id: "eleven_multilingual_v2",
+          voice_settings: { stability: 0.50, similarity_boost: 0.85, style: 0.15, use_speaker_boost: true },
+        }),
+      });
 
       if (elevenResp.ok) {
         const audioBuffer = await elevenResp.arrayBuffer();
         const fileName = `voice-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.mp3`;
         const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-        const uploadResp = await fetch(
-          `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/audio/${fileName}`,
-          {
-            method: "POST",
-            headers: {
-              "apikey": anonKey!,
-              "Authorization": `Bearer ${anonKey}`,
-              "Content-Type": "audio/mpeg",
-              "x-upsert": "true",
-            },
-            body: audioBuffer,
-          }
-        );
+        const uploadResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/storage/v1/object/audio/${fileName}`, {
+          method: "POST",
+          headers: { "apikey": anonKey!, "Authorization": `Bearer ${anonKey}`, "Content-Type": "audio/mpeg", "x-upsert": "true" },
+          body: audioBuffer,
+        });
 
         if (uploadResp.ok) {
           audioUrl = `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/public/audio/${fileName}`;
@@ -813,7 +613,6 @@ async function gerarRespostaComTransferencia(
     console.error("[voice] Erro áudio transferência:", err);
   }
 
-  // TwiML: fala a mensagem e transfere a ligação
   const playOrSay = audioUrl
     ? `<Play>${audioUrl}</Play>`
     : `<Say voice="Polly.Vitoria" language="pt-BR">${textoLimpo}</Say>`;
