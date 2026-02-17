@@ -880,6 +880,42 @@ export type Database = {
           },
         ]
       }
+      treinamento_ia: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          canal: string
+          categoria: string
+          criado_em: string
+          criado_por: string | null
+          id: string
+          instrucao: string
+          titulo: string
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          canal?: string
+          categoria?: string
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          instrucao: string
+          titulo: string
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          canal?: string
+          categoria?: string
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          instrucao?: string
+          titulo?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string

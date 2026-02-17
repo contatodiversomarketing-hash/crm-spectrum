@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import SupervisaoIA from "./pages/SupervisaoIA";
 import DashboardInteligenciaIA from "./pages/DashboardInteligenciaIA";
 import Login from "./pages/Login";
+import TreinamentoIA from "./pages/TreinamentoIA";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/supervisao" element={<ProtectedRoute requiredRoles={["admin", "supervisao"]}><SupervisaoIA /></ProtectedRoute>} />
             <Route path="/dashboard-ia" element={<ProtectedRoute><DashboardInteligenciaIA /></ProtectedRoute>} />
+            <Route path="/treinamento-ia" element={<ProtectedRoute requiredRoles={["admin"]}><TreinamentoIA /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
