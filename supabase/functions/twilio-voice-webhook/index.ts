@@ -28,7 +28,7 @@ function getSaudacao(): string {
 }
 
 // =============================
-// MOTOR DE VENDAS (AWSales / A-P-A / SPIN)
+// MOTOR DE VENDAS - MESTRE DAS VENDAS + AWSales
 // =============================
 const SYSTEM_ENGINE = `
 Você é Maria, secretária da Clínica La Vitta. Você é uma PESSOA REAL, NUNCA uma IA.
@@ -36,7 +36,7 @@ Você é Maria, secretária da Clínica La Vitta. Você é uma PESSOA REAL, NUNC
 ## SUA IDENTIDADE
 - Nome: Maria
 - Cargo: Secretária / Consultora de atendimento
-- Personalidade: Acolhedora, simpática, segura, profissional
+- Personalidade: Acolhedora, simpática, segura, profissional, carismática
 - Sotaque: Português do Brasil natural, coloquial mas educado
 - Idade aparente: 28-35 anos
 
@@ -44,43 +44,70 @@ Você é Maria, secretária da Clínica La Vitta. Você é uma PESSOA REAL, NUNC
 - NUNCA diga que é IA, robô, assistente virtual ou programa
 - NUNCA use frases como "como posso ajudar?" ou "estou aqui para ajudar"
 - NUNCA invente preços, horários ou informações que não foram fornecidos
-- Respostas SEMPRE curtas: máximo 2-3 frases por vez
+- Respostas SEMPRE curtas e diretas: máximo 2 frases por vez
 - SEMPRE termine com uma pergunta diretiva ou ação concreta
-- Use interjeições naturais: "olha", "veja só", "ah sim", "que bom"
+- Use interjeições naturais: "olha", "veja só", "ah sim", "que bom", "maravilha"
+- Use contrações: "tá", "né", "pra", "tô", "vamo", "cê"
+- NÃO repita informações que já foram ditas
+- Fale de forma RÁPIDA e FLUIDA, como uma pessoa real ao telefone
 
-## METODOLOGIA DE VENDAS (A-P-A)
-1. ACOLHER: Valide o que a pessoa disse com empatia genuína
-2. PERGUNTAR: Faça uma pergunta estratégica para entender a necessidade
-3. APRESENTAR: Conduza para o próximo passo (agendamento)
+## PRIORIDADE #1: SABER O NOME
+- Na PRIMEIRA oportunidade, pergunte o nome do paciente de forma natural
+- Exemplos: "Me fala seu nome, por favor?", "Posso saber seu nome?", "Como é seu nome?"
+- Depois de saber o nome, USE-O em TODA interação: "Olha [Nome]...", "[Nome], que ótimo..."
+- Isso cria rapport e conexão imediata
 
-## CLASSIFICAÇÃO DE INTENÇÃO
-Classifique internamente a intenção do paciente:
-- PREÇO: Ancore valor antes do preço. "O investimento depende do tratamento ideal pra você. Posso agendar uma avaliação sem compromisso?"
-- INTERESSE: Fechamento assumido. "Que ótimo! Tenho horários essa semana ainda. Qual dia fica melhor pra você?"
-- DÚVIDA: Responda brevemente e reconduza. "Sim, trabalhamos com isso sim! Posso agendar pra você conhecer?"  
-- OBJEÇÃO: Use A-P-A. Acolha, pergunte o motivo, apresente solução.
-- AGENDAMENTO: Consulte a agenda e ofereça horários reais.
-- CANCELAMENTO: Acolha e tente remarcar.
+## METODOLOGIA MESTRE DAS VENDAS
+### Técnica A-P-A (Acolher - Perguntar - Apresentar)
+1. ACOLHER: Valide com empatia genuína ("entendo perfeitamente", "que bom que ligou")
+2. PERGUNTAR: Faça UMA pergunta estratégica pra entender a necessidade real
+3. APRESENTAR: Conduza pro próximo passo (agendamento)
 
-## TÉCNICAS DE FECHAMENTO
+### Técnica SPIN (adaptada pra voz)
+- Situação: "Cê já fez algum tratamento antes?"
+- Problema: "O que tá te incomodando mais?"
+- Implicação: "E isso tem atrapalhado seu dia a dia?"
+- Necessidade: "Então o ideal é a gente resolver logo, né?"
+
+### Gatilhos Mentais (use naturalmente)
+- Escassez: "Essa semana ainda tenho uns horários, mas tá enchendo rápido"
+- Prova social: "A gente tem muitos pacientes que vieram com essa mesma situação"
+- Autoridade: "Nosso doutor é referência nisso, viu?"
+- Reciprocidade: "Vou fazer o melhor pra encaixar você num horário bom"
+
+### Classificação de Temperatura
+- FRIO: Só perguntando → Aquecer com perguntas SPIN
+- MORNO: Demonstrou interesse → Fechamento alternativo
+- QUENTE: Quer agendar → Fechamento assumido imediato
+
+### Técnicas de Fechamento
 - Alternativa: "Fica melhor de manhã ou à tarde?"
-- Assumptivo: "Vou reservar pra você então, tá?"
-- Urgência real: "Essa semana ainda tenho alguns horários, mas tá enchendo rápido"
+- Assumido: "Vou reservar pra você então, tá?"
+- Urgência: "Se agendar agora, consigo um horário ainda essa semana"
 
-## TOM DE VOZ
-- Fale como uma pessoa real ao telefone
-- Use contrações: "tá", "né", "pra", "tô"
-- Demonstre calor humano: "que bom ouvir isso!", "entendo perfeitamente"
-- Pause naturalmente entre ideias
+## TRATAMENTO DE OBJEÇÕES
+- PREÇO: "Olha [Nome], o investimento depende do tratamento ideal pra você. Na avaliação o doutor explica tudinho, sem compromisso nenhum, tá?"
+- SEM TEMPO: "Entendo, [Nome]. A consulta é rapidinha, uns 30 minutinhos. Qual dia fica menos corrido pra você?"
+- PRECISO PENSAR: "Claro, [Nome]! Mas olha, posso reservar o horário pra você sem compromisso. Se mudar de ideia, é só me avisar, tá?"
+- JÁ TENHO DENTISTA: "Ah, que bom! Mas uma segunda opinião nunca é demais, né? Muitos pacientes nossos vieram assim e adoraram"
+
+## FLUXO DE AGENDAMENTO
+Quando o paciente quiser agendar:
+1. Se não sabe o nome ainda: pergunte
+2. Confirme o telefone: "Esse número que você tá ligando é o melhor pra contato?"
+3. Consulte a agenda e ofereça 2-3 opções REAIS
+4. Confirme: "[Nome], então fica marcado [dia] às [hora]. Vou te mandar uma confirmação, tá?"
 
 ## CONTEXTO DA CLÍNICA
 - Clínica La Vitta - Clínica odontológica
 - Localização: informar apenas se perguntarem
-- Horário de funcionamento: segunda a sexta, 8h às 18h
+- Horário: segunda a sexta, 8h às 18h
+- Avaliação inicial sem compromisso
 
-## DADOS DE AGENDA DISPONÍVEL
+## DADOS DE AGENDA
 Se dados de agenda forem fornecidos no contexto, USE-OS para oferecer horários reais.
-Se não houver dados de agenda, diga que vai verificar e pede preferência de dia/horário.
+Se não houver dados de agenda, diga que vai verificar e peça preferência de dia/horário.
+NUNCA invente horários. Se não tem dados, diga: "Deixa eu verificar aqui na agenda... qual dia seria melhor pra você, [Nome]?"
 `;
 
 // =============================
@@ -118,22 +145,64 @@ async function buscarAgendaGestao(): Promise<string> {
 
     if (data?.slots && Array.isArray(data.slots) && data.slots.length > 0) {
       const slotsTexto = data.slots
-        .slice(0, 6)
+        .slice(0, 10)
         .map((s: { data?: string; horario?: string; profissional?: string }) =>
           `${s.data || ""} às ${s.horario || ""} ${s.profissional ? "com " + s.profissional : ""}`
         )
         .join("; ");
-      return `\n\nHORÁRIOS DISPONÍVEIS NA AGENDA: ${slotsTexto}`;
+      return `\n\nHORÁRIOS DISPONÍVEIS NA AGENDA REAL: ${slotsTexto}\n\nIMPORTANTE: Use APENAS esses horários ao oferecer opções. NUNCA invente horários.`;
     }
 
     if (data?.horarios || data?.agendamentos) {
-      return `\n\nDADOS DA AGENDA: ${JSON.stringify(data).slice(0, 500)}`;
+      return `\n\nDADOS DA AGENDA REAL: ${JSON.stringify(data).slice(0, 800)}\n\nIMPORTANTE: Use APENAS esses dados. NUNCA invente horários.`;
     }
 
-    return "";
+    return "\n\nAGENDA: Não foi possível consultar horários no momento. Diga ao paciente que vai verificar e retorna.";
   } catch (err) {
     console.error("[voice] Erro ao buscar agenda:", err);
-    return "";
+    return "\n\nAGENDA: Erro ao consultar. Informe que vai verificar e retorna.";
+  }
+}
+
+// =============================
+// REGISTRAR AGENDAMENTO NO SISTEMA
+// =============================
+async function registrarAgendamento(
+  nome: string,
+  telefone: string,
+  dataHora: string,
+  supabase: ReturnType<typeof createClient>
+): Promise<boolean> {
+  try {
+    const gestaoUrl = Deno.env.get("GESTAO_API_URL");
+    const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
+
+    if (!gestaoUrl || !gestaoToken) return false;
+
+    const res = await fetch(`${gestaoUrl}/functions/v1/internal-api`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${gestaoToken}`,
+        "apikey": gestaoToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        action: "create_appointment",
+        nome_paciente: nome,
+        telefone_paciente: telefone,
+        data_hora: dataHora,
+      }),
+    });
+
+    if (res.ok) {
+      console.log(`[voice] Agendamento registrado: ${nome} - ${dataHora}`);
+      return true;
+    }
+    console.log(`[voice] Falha ao registrar agendamento: ${res.status}`);
+    return false;
+  } catch (err) {
+    console.error("[voice] Erro ao registrar agendamento:", err);
+    return false;
   }
 }
 
@@ -161,7 +230,7 @@ serve(async (req) => {
     console.error("[voice] Erro ao parsear body:", e);
   }
 
-  const webhookUrl = "https://chilmuwijkkdefqizleh.supabase.co/functions/v1/twilio-voice-webhook";
+  const webhookUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/twilio-voice-webhook`;
 
   // =============================
   // PRIMEIRA INTERAÇÃO (sem speech)
@@ -169,7 +238,6 @@ serve(async (req) => {
   if (!speech) {
     const saudacao = getSaudacao();
 
-    // Salvar início da conversa na memória
     if (callSid && fromNumber) {
       await supabase.from("voice_memory").insert({
         call_sid: callSid,
@@ -179,7 +247,7 @@ serve(async (req) => {
       }).then(() => {});
     }
 
-    const msgInicial = `${saudacao}! Aqui é a Maria da Clínica La Vitta. Tudo bem com você? Me conta, no que posso te ajudar hoje?`;
+    const msgInicial = `${saudacao}! Aqui é a Maria da Clínica La Vitta. Tudo bem? Me fala seu nome, por favor, pra eu te atender melhor!`;
 
     return gerarRespostaComAudio(msgInicial, supabase, webhookUrl);
   }
@@ -188,7 +256,6 @@ serve(async (req) => {
   // INTERAÇÕES SEGUINTES
   // =============================
 
-  // Salvar fala do usuário na memória
   if (callSid && fromNumber) {
     await supabase.from("voice_memory").insert({
       call_sid: callSid,
@@ -210,26 +277,50 @@ serve(async (req) => {
     if (data) historico = data;
   }
 
-  // Detectar se precisa consultar agenda
+  // Detectar intenção de agendamento
   const speechLower = speech.toLowerCase();
   const precisaAgenda = [
     "agendar", "marcar", "horário", "horario", "disponível", "disponivel",
     "vaga", "quando", "consulta", "avaliação", "avaliacao", "semana",
     "amanhã", "amanha", "segunda", "terça", "quarta", "quinta", "sexta",
+    "sábado", "sabado", "manhã", "manha", "tarde",
   ].some(k => speechLower.includes(k));
 
-  let contextAgenda = "";
-  if (precisaAgenda) {
-    console.log("[voice] Detectada intenção de agendamento, consultando gestão...");
-    contextAgenda = await buscarAgendaGestao();
+  // Buscar agenda em paralelo com montagem de contexto
+  const agendaPromise = precisaAgenda ? buscarAgendaGestao() : Promise.resolve("");
+
+  // Extrair nome do paciente do histórico (se já foi mencionado)
+  let nomePaciente = "";
+  const historicoTexto = historico.map(h => h.message).join(" ");
+  // Detectar se o paciente já disse o nome (heurística simples)
+  for (const h of historico) {
+    if (h.role === "user" && historico.indexOf(h) <= 2) {
+      // Primeira ou segunda fala do usuário pode conter o nome
+      const palavras = h.message.split(" ").filter(p => p.length > 2);
+      if (palavras.length <= 3 && !h.message.toLowerCase().includes("quero") && !h.message.toLowerCase().includes("preciso")) {
+        // Provavelmente é o nome
+        nomePaciente = h.message.trim();
+        break;
+      }
+    }
   }
 
-  // Montar mensagens para IA com histórico completo
+  const contextAgenda = await agendaPromise;
+
+  // Contexto extra para a IA
+  let contextExtra = "";
+  if (nomePaciente) {
+    contextExtra += `\n\nNOME DO PACIENTE: ${nomePaciente}. Use o nome dele(a) nas suas respostas.`;
+  }
+  if (fromNumber) {
+    contextExtra += `\nTELEFONE DO PACIENTE: ${fromNumber}`;
+  }
+
+  // Montar mensagens para IA
   const messages: { role: string; content: string }[] = [
-    { role: "system", content: SYSTEM_ENGINE + contextAgenda },
+    { role: "system", content: SYSTEM_ENGINE + contextAgenda + contextExtra },
   ];
 
-  // Adicionar histórico como contexto
   for (const h of historico) {
     if (h.role === "system") continue;
     messages.push({
@@ -238,7 +329,6 @@ serve(async (req) => {
     });
   }
 
-  // Garantir que a última mensagem é do usuário
   if (messages[messages.length - 1]?.role !== "user") {
     messages.push({ role: "user", content: speech });
   }
@@ -254,8 +344,8 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
-        temperature: 0.8,
-        max_tokens: 150,
+        temperature: 0.75,
+        max_tokens: 100,
         messages,
       }),
     });
@@ -270,7 +360,7 @@ serve(async (req) => {
 
   respostaFinal = limparTexto(respostaFinal);
 
-  // Salvar resposta da IA na memória
+  // Salvar resposta
   if (callSid && fromNumber) {
     await supabase.from("voice_memory").insert({
       call_sid: callSid,
@@ -280,7 +370,7 @@ serve(async (req) => {
     }).then(() => {});
   }
 
-  console.log(`[voice] Resposta: "${respostaFinal.slice(0, 80)}..."`);
+  console.log(`[voice] Resposta: "${respostaFinal.slice(0, 100)}..."`);
 
   return gerarRespostaComAudio(respostaFinal, supabase, webhookUrl);
 });
@@ -315,9 +405,9 @@ async function gerarRespostaComAudio(
             text: textoLimpo,
             model_id: "eleven_multilingual_v2",
             voice_settings: {
-              stability: 0.35,
-              similarity_boost: 0.85,
-              style: 0.2,
+              stability: 0.30,
+              similarity_boost: 0.90,
+              style: 0.25,
               use_speaker_boost: true,
             },
           }),
@@ -346,10 +436,9 @@ async function gerarRespostaComAudio(
 
         if (uploadResp.ok) {
           audioUrl = `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/public/audio/${fileName}`;
-          console.log(`[voice] Áudio salvo: ${fileName}`);
+          console.log(`[voice] Áudio: ${fileName}`);
         } else {
-          const err = await uploadResp.text();
-          console.error(`[voice] Upload falhou (${uploadResp.status}): ${err}`);
+          console.error(`[voice] Upload falhou: ${uploadResp.status}`);
         }
       } else {
         console.error(`[voice] ElevenLabs falhou: ${elevenResp.status}`);
@@ -359,12 +448,12 @@ async function gerarRespostaComAudio(
     console.error("[voice] Erro áudio:", err);
   }
 
-  // Resposta com áudio ElevenLabs ou fallback Polly
+  // TwiML com timeout reduzido para resposta mais rápida
   if (audioUrl) {
     return new Response(
       `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Gather input="speech" timeout="6" speechTimeout="auto"
+  <Gather input="speech" timeout="4" speechTimeout="auto"
     language="pt-BR"
     action="${webhookUrl}"
     method="POST">
@@ -379,7 +468,7 @@ async function gerarRespostaComAudio(
   return new Response(
     `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Gather input="speech" timeout="6" speechTimeout="auto"
+  <Gather input="speech" timeout="4" speechTimeout="auto"
     language="pt-BR"
     action="${webhookUrl}"
     method="POST">
