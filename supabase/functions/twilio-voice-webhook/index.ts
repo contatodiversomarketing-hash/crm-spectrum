@@ -157,6 +157,12 @@ async function buscarAgendaGestao(): Promise<string> {
       return "";
     }
 
+    const hoje = new Date();
+    const em7dias = new Date(hoje.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const hojeStr = hoje.toISOString().split("T")[0];
+    const em7diasStr = em7dias.toISOString().split("T")[0];
+
+    // Usar list_appointments (ação que existe na API de gestão)
     const res = await fetch(`${gestaoUrl}/functions/v1/internal-api`, {
       method: "POST",
       headers: {
@@ -165,42 +171,109 @@ async function buscarAgendaGestao(): Promise<string> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        action: "list_available_slots",
-        dias: 7,
+        action: "list_appointments",
+        params: { start_date: hojeStr, end_date: em7diasStr },
       }),
     });
 
     if (!res.ok) {
       console.log(`[voice] Gestão API respondeu ${res.status}`);
-      return "";
+      return gerarHorariosLivresVoz();
     }
 
     const data = await res.json();
+    const agendamentos = data?.appointments || data?.data || data || [];
 
-    if (data?.slots && Array.isArray(data.slots) && data.slots.length > 0) {
-      const slotsTexto = data.slots
-        .slice(0, 10)
-        .map((s: { data?: string; horario?: string; profissional?: string }) =>
-          `${s.data || ""} às ${s.horario || ""} ${s.profissional ? "com " + s.profissional : ""}`
-        )
-        .join("; ");
-      return `\n\nHORÁRIOS DISPONÍVEIS NA AGENDA REAL: ${slotsTexto}\n\nIMPORTANTE: Use APENAS esses horários ao oferecer opções. NUNCA invente horários.`;
+    if (!Array.isArray(agendamentos) || agendamentos.length === 0) {
+      return gerarHorariosLivresVoz();
     }
 
-    if (data?.horarios || data?.agendamentos) {
-      return `\n\nDADOS DA AGENDA REAL: ${JSON.stringify(data).slice(0, 800)}\n\nIMPORTANTE: Use APENAS esses dados. NUNCA invente horários.`;
+    // Mapear ocupados e gerar livres
+    const ocupados: Record<string, Set<string>> = {};
+    for (const a of agendamentos) {
+      const dt = a.appointment_date || a.date || a.data || "";
+      if (dt < hojeStr) continue;
+      const hr = a.appointment_time || a.time || a.horario || "";
+      if (!dt || !hr) continue;
+      if (!ocupados[dt]) ocupados[dt] = new Set();
+      ocupados[dt].add(hr);
     }
 
-    return "\n\nAGENDA: Não foi possível consultar horários no momento. Diga ao paciente que vai verificar e retorna.";
+    const todosHorarios = ["08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
+    const nomesDia: Record<number, string> = { 1: "segunda", 2: "terça", 3: "quarta", 4: "quinta", 5: "sexta" };
+    const linhas: string[] = [];
+
+    for (let i = 0; i < 7 && linhas.length < 5; i++) {
+      const d = new Date(hoje.getTime() + i * 86400000);
+      const dow = d.getDay();
+      if (dow < 1 || dow > 5) continue;
+      const dtStr = d.toISOString().split("T")[0];
+      const ocupadosDia = ocupados[dtStr] || new Set();
+      const livres = todosHorarios.filter(h => !ocupadosDia.has(h));
+      if (livres.length > 0) {
+        linhas.push(`${nomesDia[dow]} ${dtStr}: ${livres.join(", ")}`);
+      }
+    }
+
+    if (linhas.length === 0) return gerarHorariosLivresVoz();
+
+    return `\n\nHORÁRIOS DISPONÍVEIS NA AGENDA REAL: ${linhas.join("; ")}\n\nIMPORTANTE: Use APENAS esses horários ao oferecer opções. NUNCA invente horários. Use escassez: "a agenda está bem concorrida".`;
   } catch (err) {
     console.error("[voice] Erro ao buscar agenda:", err);
-    return "\n\nAGENDA: Erro ao consultar. Informe que vai verificar e retorna.";
+    return gerarHorariosLivresVoz();
   }
 }
 
-// =============================
-// REGISTRAR AGENDAMENTO NO SISTEMA DE GESTÃO
-// =============================
+function gerarHorariosLivresVoz(): string {
+  const hoje = new Date();
+  const nomes: Record<number, string> = { 1: "segunda", 2: "terça", 3: "quarta", 4: "quinta", 5: "sexta" };
+  const linhas: string[] = [];
+  for (let i = 0; i < 7 && linhas.length < 3; i++) {
+    const d = new Date(hoje.getTime() + i * 86400000);
+    const dow = d.getDay();
+    if (dow >= 1 && dow <= 5) {
+      linhas.push(`${nomes[dow]}: 8h, 9h, 10h, 11h, 13h, 14h, 15h, 16h, 17h`);
+    }
+  }
+  return `\n\nHORÁRIOS DISPONÍVEIS: ${linhas.join("; ")}\n\nUse APENAS esses horários. NUNCA invente.`;
+}
+
+async function buscarProfissionaisVoz(): Promise<string> {
+  try {
+    const gestaoUrl = Deno.env.get("GESTAO_API_URL");
+    const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
+    if (!gestaoUrl || !gestaoToken) return "";
+
+    const res = await fetch(`${gestaoUrl}/functions/v1/internal-api`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${gestaoToken}`,
+        "apikey": gestaoToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ action: "list_professionals", params: {} }),
+    });
+
+    if (!res.ok) return "";
+    const data = await res.json();
+    const profissionais = data?.professionals || data?.data || [];
+    if (Array.isArray(profissionais) && profissionais.length > 0) {
+      const lista = profissionais.map((p: any) => {
+        const nome = p.full_name || p.professional_name || p.display_name || p.name || p.nome || "?";
+        const esp = p.specialty || p.especialidade || p.specialization || p.role || "";
+        return esp ? `${nome} (${esp})` : nome;
+      }).filter((s: string) => !s.startsWith("?")).join("; ");
+      console.log(`[voice] Profissionais: ${lista.slice(0, 200)}`);
+      return `\n\nPROFISSIONAIS DA CLÍNICA: ${lista}\nNUNCA invente nomes. Se a especialidade não está na lista, diga que vai verificar.`;
+    }
+    return "\n\nPROFISSIONAIS: Não foi possível carregar. NUNCA invente nomes.";
+  } catch (err) {
+    console.error("[voice] Erro profissionais:", err);
+    return "";
+  }
+}
+
+
 async function registrarAgendamento(
   nome: string,
   telefone: string,
@@ -433,8 +506,9 @@ serve(async (req) => {
     "sábado", "sabado", "manhã", "manha", "tarde",
   ].some(k => speechLower.includes(k));
 
-  // Buscar agenda em paralelo com montagem de contexto
+  // Buscar agenda e profissionais em paralelo
   const agendaPromise = precisaAgenda ? buscarAgendaGestao() : Promise.resolve("");
+  const profissionaisPromise = precisaAgenda ? buscarProfissionaisVoz() : Promise.resolve("");
 
   // Extrair nome do paciente do histórico (se já foi mencionado)
   let nomePaciente = "";
@@ -452,10 +526,11 @@ serve(async (req) => {
     }
   }
 
-  const contextAgenda = await agendaPromise;
+  const [contextAgenda, contextProfissionais] = await Promise.all([agendaPromise, profissionaisPromise]);
 
   // Contexto extra para a IA
   let contextExtra = "";
+  contextExtra += contextProfissionais;
   if (nomePaciente) {
     contextExtra += `\n\nNOME DO PACIENTE: ${nomePaciente}. Use o nome dele(a) nas suas respostas.`;
   }

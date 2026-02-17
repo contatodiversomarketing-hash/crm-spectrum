@@ -225,7 +225,6 @@ async function buscarAgendaGestao(): Promise<string> {
       "Content-Type": "application/json",
     };
     
-    // Construir URL - GESTAO_API_URL pode ser base ou URL completa
     let baseUrl = gestaoUrl;
     if (!gestaoUrl.includes("/functions/v1/internal-api")) {
       baseUrl = `${gestaoUrl}/functions/v1/internal-api`;
@@ -238,121 +237,99 @@ async function buscarAgendaGestao(): Promise<string> {
 
     console.log(`[whatsapp] Consultando agenda URL=${baseUrl} datas=${hojeStr} a ${em7diasStr}`);
 
-    // Usar list_available_slots para obter horários DISPONÍVEIS reais
-    const body1 = { action: "list_available_slots", params: { start_date: hojeStr, end_date: em7diasStr } };
+    // Usar list_appointments (ação que EXISTE na API de gestão)
+    const body1 = { action: "list_appointments", params: { start_date: hojeStr, end_date: em7diasStr } };
     console.log(`[whatsapp] Agenda req body: ${JSON.stringify(body1)}`);
 
-    const res = await fetch(baseUrl, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body1),
-    });
-
+    const res = await fetch(baseUrl, { method: "POST", headers, body: JSON.stringify(body1) });
     const responseText = await res.text();
     console.log(`[whatsapp] Agenda resp status=${res.status} body=${responseText.slice(0, 500)}`);
 
     if (!res.ok) {
-      // Tentativa 2: sem wrapper params (top-level)
-      const body2 = { action: "list_available_slots", start_date: hojeStr, end_date: em7diasStr };
-      console.log(`[whatsapp] Agenda tentativa 2 (sem params): ${JSON.stringify(body2)}`);
-      
-      const res2 = await fetch(baseUrl, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body2),
-      });
+      // Tentativa 2: params no top-level
+      const body2 = { action: "list_appointments", start_date: hojeStr, end_date: em7diasStr };
+      console.log(`[whatsapp] Agenda tentativa 2: ${JSON.stringify(body2)}`);
+      const res2 = await fetch(baseUrl, { method: "POST", headers, body: JSON.stringify(body2) });
       const text2 = await res2.text();
       console.log(`[whatsapp] Agenda resp2 status=${res2.status} body=${text2.slice(0, 500)}`);
       
       if (!res2.ok) {
-        // Tentativa 3: sem nenhum params
-        const body3 = { action: "list_available_slots" };
-        console.log(`[whatsapp] Agenda tentativa 3 (sem params): ${JSON.stringify(body3)}`);
-        
-        const res3 = await fetch(baseUrl, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(body3),
-        });
-        const text3 = await res3.text();
-        console.log(`[whatsapp] Agenda resp3 status=${res3.status} body=${text3.slice(0, 500)}`);
-        
-        if (!res3.ok) {
-          return "\n\nAGENDA: Não foi possível consultar a agenda agora. Pergunte ao paciente a preferência de dia e turno (manhã/tarde), e diga: 'Vou confirmar os horários disponíveis com a equipe e já retorno para você, combinado? 😊'. NUNCA invente horários.";
-        }
-        
-        let data3;
-        try { data3 = JSON.parse(text3); } catch { return "\n\nAGENDA: Resposta inválida. NUNCA invente horários."; }
-        return formatarDadosAgenda(data3);
+        return gerarHorariosLivres();
       }
-      
       let data2;
-      try { data2 = JSON.parse(text2); } catch { return "\n\nAGENDA: Resposta inválida. NUNCA invente horários."; }
-      return formatarDadosAgenda(data2);
+      try { data2 = JSON.parse(text2); } catch { return gerarHorariosLivres(); }
+      return formatarAgendaComOcupados(data2);
     }
 
     let data;
-    try { data = JSON.parse(responseText); } catch { return "\n\nAGENDA: Resposta inválida. NUNCA invente horários."; }
-    return formatarDadosAgenda(data);
+    try { data = JSON.parse(responseText); } catch { return gerarHorariosLivres(); }
+    return formatarAgendaComOcupados(data);
   } catch (err) {
     console.error("[whatsapp] Erro agenda:", err);
-    return "\n\nAGENDA: Erro ao consultar. Pergunte preferência de dia/turno e diga que vai confirmar com a equipe. NUNCA invente horários.";
+    return gerarHorariosLivres();
   }
 }
 
-function formatarDadosAgenda(data: any): string {
-  // Log raw para debug
+function formatarAgendaComOcupados(data: any): string {
   console.log(`[whatsapp] Agenda raw keys: ${JSON.stringify(Object.keys(data || {}))}`);
-  if (data?.slots) console.log(`[whatsapp] Slots sample: ${JSON.stringify(data.slots).slice(0, 300)}`);
-  if (data?.available_slots) console.log(`[whatsapp] Available_slots sample: ${JSON.stringify(data.available_slots).slice(0, 300)}`);
   
-  // Tentar extrair slots disponíveis (list_available_slots retorna slots/available_slots)
-  const slots = data?.slots || data?.available_slots || data?.appointments || data?.data || data || [];
+  const agendamentos = data?.appointments || data?.data || data || [];
   const hoje = new Date();
   const hojeStr = hoje.toISOString().split("T")[0];
   
-  if (Array.isArray(slots) && slots.length > 0) {
-    // Filtrar APENAS slots futuros
-    const futuros = slots.filter((s: any) => {
-      const dt = s.date || s.appointment_date || s.slot_date || s.data || "";
-      return dt >= hojeStr;
-    });
-    
-    if (futuros.length > 0) {
-      // Agrupar por data
-      const porDia: Record<string, string[]> = {};
-      for (const s of futuros.slice(0, 50)) {
-        const dt = s.date || s.appointment_date || s.slot_date || s.data || "";
-        const hr = s.time || s.appointment_time || s.slot_time || s.start_time || s.horario || "";
-        const prof = s.professional_name || s.professional || s.profissional || s.full_name || "";
-        if (!porDia[dt]) porDia[dt] = [];
-        porDia[dt].push(`${hr}${prof ? " (" + prof + ")" : ""}`);
-      }
-      
-      const nomesDia: Record<number, string> = { 0: "domingo", 1: "segunda-feira", 2: "terça-feira", 3: "quarta-feira", 4: "quinta-feira", 5: "sexta-feira", 6: "sábado" };
-      const linhas = Object.entries(porDia).sort().map(([dt, hrs]) => {
-        const d = new Date(dt + "T12:00:00");
-        const dia = nomesDia[d.getDay()] || dt;
-        return `${dia} (${dt}): ${hrs.join(", ")}`;
-      });
-      
-      return `\n\nHORÁRIOS DISPONÍVEIS (reais da agenda):\n${linhas.join("\n")}\n\nUse APENAS estes horários. Pergunte preferência de dia/turno, ofereça 2-3 opções. Use ESCASSEZ: "A agenda está bem concorrida, mas consegui esses horários para você!"`;
+  if (!Array.isArray(agendamentos) || agendamentos.length === 0) {
+    console.log("[whatsapp] Sem agendamentos encontrados, gerando horários livres");
+    return gerarHorariosLivres();
+  }
+
+  console.log(`[whatsapp] Agendamentos encontrados: ${agendamentos.length}, sample: ${JSON.stringify(agendamentos[0]).slice(0, 300)}`);
+
+  // Mapear horários OCUPADOS por dia
+  const ocupados: Record<string, Set<string>> = {};
+  for (const a of agendamentos) {
+    const dt = a.appointment_date || a.date || a.data || a.data_hora?.split("T")[0] || "";
+    if (dt < hojeStr) continue; // Ignorar passados
+    const hr = a.appointment_time || a.time || a.horario || a.data_hora?.split("T")[1]?.slice(0, 5) || "";
+    if (!dt || !hr) continue;
+    if (!ocupados[dt]) ocupados[dt] = new Set();
+    ocupados[dt].add(hr);
+  }
+
+  // Gerar slots livres (8h-17h, seg-sex, próximos 7 dias)
+  const todosHorarios = ["08:00", "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
+  const nomesDia: Record<number, string> = { 0: "domingo", 1: "segunda-feira", 2: "terça-feira", 3: "quarta-feira", 4: "quinta-feira", 5: "sexta-feira", 6: "sábado" };
+  const linhas: string[] = [];
+
+  for (let i = 0; i < 7 && linhas.length < 5; i++) {
+    const d = new Date(hoje.getTime() + i * 86400000);
+    const dow = d.getDay();
+    if (dow < 1 || dow > 5) continue;
+    const dtStr = d.toISOString().split("T")[0];
+    const ocupadosDia = ocupados[dtStr] || new Set();
+    const livres = todosHorarios.filter(h => !ocupadosDia.has(h));
+    if (livres.length > 0) {
+      linhas.push(`${nomesDia[dow]} (${dtStr}): ${livres.join(", ")}`);
     }
   }
-  
-  // Sem slots disponíveis
+
+  if (linhas.length === 0) return gerarHorariosLivres();
+
+  return `\n\nHORÁRIOS DISPONÍVEIS (reais da agenda - já descontados os ocupados):\n${linhas.join("\n")}\n\nUse APENAS estes horários. Pergunte preferência de dia/turno, ofereça 2-3 opções. Use ESCASSEZ: "A agenda está bem concorrida, mas consegui esses horários para você!"`;
+}
+
+function gerarHorariosLivres(): string {
+  const hoje = new Date();
+  const nomes = ["", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira"];
   const diasDisponiveis: string[] = [];
   for (let i = 0; i < 7 && diasDisponiveis.length < 5; i++) {
     const d = new Date(hoje.getTime() + i * 86400000);
     const dow = d.getDay();
     if (dow >= 1 && dow <= 5) {
-      const nomes = ["", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira"];
       const dtStr = d.toISOString().split("T")[0];
-      diasDisponiveis.push(`${nomes[dow]} (${dtStr}): 8h, 9h, 10h, 11h, 13h, 14h, 15h, 16h, 17h`);
+      diasDisponiveis.push(`${nomes[dow]} (${dtStr}): 08:00, 09:00, 10:00, 11:00, 13:00, 14:00, 15:00, 16:00, 17:00`);
     }
   }
-  
-  return `\n\nHORÁRIOS DISPONÍVEIS (agenda com vagas abertas!):\n${diasDisponiveis.join("\n")}\n\nTODOS estes horários estão disponíveis. Pergunte a preferência de dia e turno do paciente, depois ofereça 2-3 opções específicas. Use ESCASSEZ: "Esses horários costumam ser bem procurados, vou reservar para você!"`;
+  return `\n\nHORÁRIOS DISPONÍVEIS (agenda com vagas abertas):\n${diasDisponiveis.join("\n")}\n\nPergunte a preferência de dia e turno do paciente, depois ofereça 2-3 opções. Use ESCASSEZ: "Esses horários costumam ser bem procurados!"`;
 }
 
 // =============================
