@@ -254,19 +254,27 @@ async function buscarProfissionaisVoz(): Promise<string> {
       body: JSON.stringify({ action: "list_professionals", params: {} }),
     });
 
-    if (!res.ok) return "";
+    if (!res.ok) return "\n\nPROFISSIONAIS: Erro ao consultar. NUNCA invente nomes.";
     const data = await res.json();
     const profissionais = data?.professionals || data?.data || [];
     if (Array.isArray(profissionais) && profissionais.length > 0) {
-      const lista = profissionais.map((p: any) => {
-        const nome = p.full_name || p.professional_name || p.display_name || p.name || p.nome || "?";
-        const esp = p.specialty || p.especialidade || p.specialization || p.role || "";
-        return esp ? `${nome} (${esp})` : nome;
-      }).filter((s: string) => !s.startsWith("?")).join("; ");
-      console.log(`[voice] Profissionais: ${lista.slice(0, 200)}`);
-      return `\n\nPROFISSIONAIS DA CLÍNICA: ${lista}\nNUNCA invente nomes. Se a especialidade não está na lista, diga que vai verificar.`;
+      const comEspecialidade = profissionais.filter((p: any) => {
+        const esp = (p.specialty || p.especialidade || p.specialization || "").trim();
+        const ativo = p.is_active !== false;
+        return esp && esp.length > 1 && ativo;
+      });
+      
+      if (comEspecialidade.length > 0) {
+        const lista = comEspecialidade.map((p: any) => {
+          const nome = p.full_name || p.professional_name || p.display_name || p.name || p.nome || "?";
+          const esp = (p.specialty || p.especialidade || p.specialization || "").trim();
+          return `${nome} - ${esp}`;
+        }).join("; ");
+        console.log(`[voice] Profissionais com especialidade (${comEspecialidade.length}): ${lista.slice(0, 300)}`);
+        return `\n\nPROFISSIONAIS REAIS DA CLÍNICA: ${lista}\nQuando o paciente perguntar qual profissional, use o nome EXATO da lista acima. Só diga "vou verificar" se a especialidade NÃO está na lista.`;
+      }
     }
-    return "\n\nPROFISSIONAIS: Não foi possível carregar. NUNCA invente nomes.";
+    return "\n\nPROFISSIONAIS: Lista vazia. Diga que vai confirmar com a equipe.";
   } catch (err) {
     console.error("[voice] Erro profissionais:", err);
     return "";

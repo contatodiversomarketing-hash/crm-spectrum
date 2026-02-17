@@ -60,9 +60,9 @@ Você está atendendo pelo WhatsApp.
 - NUNCA diga que é IA/robô/assistente virtual/chatbot
 - NUNCA: "como posso ajudar?", "em que posso ser útil?"
 - NUNCA invente preços, horários ou informações
-- ABSOLUTAMENTE NUNCA invente horários. Se não recebeu dados de agenda, diga que vai verificar e peça um momento.
-- ABSOLUTAMENTE NUNCA invente nomes de profissionais (médicos, dentistas, psicólogos, etc). Se não recebeu a lista de PROFISSIONAIS DA CLÍNICA no contexto, diga que vai confirmar com a equipe qual profissional atende essa especialidade.
-- Se o paciente perguntar "quem é o profissional?" ou "qual é o doutor(a)?", e você NÃO tem a lista de profissionais no contexto, responda: "Vou confirmar com a equipe qual profissional atende essa especialidade e já retorno para você!"
+- ABSOLUTAMENTE NUNCA invente horários. Use APENAS os horários fornecidos no contexto abaixo.
+- Ao oferecer horários, escolha NO MÁXIMO 2-3 opções do dia/turno pedido. NÃO liste todos os horários disponíveis.
+- ABSOLUTAMENTE NUNCA invente nomes de profissionais. Se recebeu a lista de PROFISSIONAIS REAIS DA CLÍNICA no contexto abaixo, USE-A para responder. Procure o profissional da especialidade pedida e responda com o NOME REAL. Só diga "vou confirmar com a equipe" se a especialidade NÃO estiver na lista.
 - Mensagens curtas (máximo 3-4 linhas), SEMPRE termine com pergunta diretiva ou ação
 - NÃO repita informações já ditas na conversa
 - NADA de "prezado", "informamos", "vossa senhoria"
@@ -186,27 +186,31 @@ async function buscarProfissionais(): Promise<string> {
       body: JSON.stringify({ action: "list_professionals", params: {} }),
     });
 
-    if (!res.ok) return "";
+    if (!res.ok) return "\n\nPROFISSIONAIS: Erro ao consultar. NUNCA invente nomes.";
     const data = await res.json();
     const profissionais = data?.professionals || data?.data || [];
     if (Array.isArray(profissionais) && profissionais.length > 0) {
-      // Log raw para debug dos campos
-      if (profissionais[0]) {
-        console.log(`[whatsapp] Profissional raw keys: ${Object.keys(profissionais[0]).join(", ")}`);
-        console.log(`[whatsapp] Profissional raw sample: ${JSON.stringify(profissionais[0]).slice(0, 500)}`);
+      // Filtrar APENAS profissionais ativos COM especialidade definida
+      const comEspecialidade = profissionais.filter((p: any) => {
+        const esp = (p.specialty || p.especialidade || p.specialization || "").trim();
+        const ativo = p.is_active !== false;
+        return esp && esp.length > 1 && ativo;
+      });
+      
+      if (comEspecialidade.length > 0) {
+        const lista = comEspecialidade.map((p: any) => {
+          const nome = p.full_name || p.professional_name || p.display_name || p.name || p.nome || "?";
+          const esp = (p.specialty || p.especialidade || p.specialization || "").trim();
+          return `${nome} - ${esp}`;
+        }).join("; ");
+        console.log(`[whatsapp] Profissionais com especialidade (${comEspecialidade.length}): ${lista.slice(0, 300)}`);
+        return `\n\n## PROFISSIONAIS REAIS DA CLÍNICA (OBRIGATÓRIO usar estes nomes):\n${lista}\n\nREGRA ABSOLUTA: Quando o paciente perguntar qual profissional, CONSULTE esta lista e responda com o nome EXATO do profissional que atende a especialidade solicitada. Exemplo: se pedir psiquiatra, responda "Dra. Amélia Carvalho". NUNCA diga "vou confirmar com a equipe" se o profissional está na lista acima.`;
       }
-      const lista = profissionais.map((p: any) => {
-        const nome = p.full_name || p.professional_name || p.display_name || p.name || p.nome || p.first_name || "?";
-        const esp = p.specialty || p.especialidade || p.specialization || p.role || "?";
-        return `${nome} (${esp})`;
-      }).join("; ");
-      console.log(`[whatsapp] Profissionais formatados: ${lista.slice(0, 300)}`);
-      return `\n\nPROFISSIONAIS DA CLÍNICA (use APENAS estes nomes): ${lista}\nNUNCA invente nomes de profissionais. Se o paciente pedir uma especialidade que não está na lista, diga que vai verificar com a equipe.`;
     }
-    return "\n\nPROFISSIONAIS: Não foi possível carregar a lista. NUNCA invente nomes de profissionais. Diga que vai confirmar com a equipe.";
+    return "\n\nPROFISSIONAIS: Lista vazia. Diga que vai confirmar com a equipe qual profissional atende.";
   } catch (err) {
     console.error("[whatsapp] Erro profissionais:", err);
-    return "\n\nPROFISSIONAIS: Erro ao consultar. NUNCA invente nomes. Diga que vai confirmar com a equipe.";
+    return "\n\nPROFISSIONAIS: Erro ao consultar. Diga que vai confirmar com a equipe.";
   }
 }
 
@@ -314,7 +318,7 @@ function formatarAgendaComOcupados(data: any): string {
 
   if (linhas.length === 0) return gerarHorariosLivres();
 
-  return `\n\nHORÁRIOS DISPONÍVEIS (reais da agenda - já descontados os ocupados):\n${linhas.join("\n")}\n\nUse APENAS estes horários. Pergunte preferência de dia/turno, ofereça 2-3 opções. Use ESCASSEZ: "A agenda está bem concorrida, mas consegui esses horários para você!"`;
+  return `\n\nHORÁRIOS DISPONÍVEIS (reais da agenda):\n${linhas.join("\n")}\n\nIMPORTANTE: Ao responder ao paciente, ofereça NO MÁXIMO 2-3 horários do dia/turno que ele pediu. NÃO liste todos. Use escassez: "Consegui encaixar essas opções para você" (sem dizer que a agenda está concorrida se há muitos horários livres).`;
 }
 
 function gerarHorariosLivres(): string {
@@ -329,7 +333,7 @@ function gerarHorariosLivres(): string {
       diasDisponiveis.push(`${nomes[dow]} (${dtStr}): 08:00, 09:00, 10:00, 11:00, 13:00, 14:00, 15:00, 16:00, 17:00`);
     }
   }
-  return `\n\nHORÁRIOS DISPONÍVEIS (agenda com vagas abertas):\n${diasDisponiveis.join("\n")}\n\nPergunte a preferência de dia e turno do paciente, depois ofereça 2-3 opções. Use ESCASSEZ: "Esses horários costumam ser bem procurados!"`;
+  return `\n\nHORÁRIOS DISPONÍVEIS (agenda da clínica):\n${diasDisponiveis.join("\n")}\n\nIMPORTANTE: Ao responder ao paciente, ofereça NO MÁXIMO 2-3 horários do dia/turno que ele pediu. NÃO liste todos. Use escassez de forma coerente: "Consegui essas opções para você".`;
 }
 
 // =============================
