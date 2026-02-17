@@ -293,17 +293,41 @@ async function buscarAgendaGestao(): Promise<string> {
 
 function formatarDadosAgenda(data: any): string {
   const appointments = data?.appointments || data?.data || data || [];
+  const hoje = new Date();
+  const hojeStr = hoje.toISOString().split("T")[0];
+  
   if (Array.isArray(appointments) && appointments.length > 0) {
-    const ocupados = appointments.slice(0, 30).map((a: any) => {
+    // Filtrar APENAS agendamentos futuros (hoje em diante)
+    const futuros = appointments.filter((a: any) => {
       const dt = a.date || a.appointment_date || a.data || "";
-      const hr = a.time || a.appointment_time || a.horario || a.start_time || "";
-      const prof = a.professional_name || a.professional || a.profissional || "";
-      return `${dt} ${hr}${prof ? " (" + prof + ")" : ""}`;
-    }).join("; ");
-    return `\n\nAGENDAMENTOS JÁ MARCADOS (horários OCUPADOS): ${ocupados}\nHorário comercial: 8h-18h, seg-sex. Consultas de 1h. Sugira horários que NÃO estão nesta lista de ocupados. NUNCA invente. Use ESCASSEZ ao apresentar.`;
+      return dt >= hojeStr;
+    });
+    
+    if (futuros.length > 0) {
+      const ocupados = futuros.slice(0, 30).map((a: any) => {
+        const dt = a.date || a.appointment_date || a.data || "";
+        const hr = a.time || a.appointment_time || a.horario || a.start_time || "";
+        const prof = a.professional_name || a.professional || a.profissional || "";
+        return `${dt} ${hr}${prof ? " (" + prof + ")" : ""}`;
+      }).join("; ");
+      return `\n\nHORÁRIOS OCUPADOS (próximos 7 dias): ${ocupados}\nHorário comercial: 8h às 18h, segunda a sexta. Consultas de 1h.\nSugira horários que NÃO estão nesta lista. Use ESCASSEZ: "A agenda está bem concorrida, mas consegui esses horários para você!"`;
+    }
   }
   
-  return `\n\nAGENDA: ${JSON.stringify(data).slice(0, 800)}\nIMPORTANTE: Use APENAS dados reais. NUNCA invente horários.`;
+  // Sem agendamentos futuros = agenda TODA livre
+  // Gerar dias úteis dos próximos 5 dias para Maria oferecer
+  const diasDisponiveis: string[] = [];
+  for (let i = 0; i < 7 && diasDisponiveis.length < 5; i++) {
+    const d = new Date(hoje.getTime() + i * 86400000);
+    const dow = d.getDay();
+    if (dow >= 1 && dow <= 5) { // seg-sex
+      const nomes = ["", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira"];
+      const dtStr = d.toISOString().split("T")[0];
+      diasDisponiveis.push(`${nomes[dow]} (${dtStr}): 8h, 9h, 10h, 11h, 13h, 14h, 15h, 16h, 17h`);
+    }
+  }
+  
+  return `\n\nHORÁRIOS DISPONÍVEIS (agenda com vagas abertas!):\n${diasDisponiveis.join("\n")}\n\nTODOS estes horários estão disponíveis. Pergunte a preferência de dia e turno do paciente, depois ofereça 2-3 opções específicas. Use ESCASSEZ mesmo assim: "Esses horários costumam ser bem procurados, vou reservar para você!"`;
 }
 
 // =============================
