@@ -310,20 +310,30 @@ serve(async (req) => {
     const body = await req.json();
     console.log("[whatsapp] Webhook recebido:", JSON.stringify(body).slice(0, 500));
 
-    // Extrair mensagem e número (formato MegaAPI)
-    const mensagem = body.message?.text || body.text?.message || body.data?.message?.conversation || "";
-    const numero = body.sender?.phone || body.data?.key?.remoteJid?.replace("@s.whatsapp.net", "") || "";
-    const isFromMe = body.data?.key?.fromMe || false;
+    // Extrair mensagem e número (formato MegaAPI - múltiplos formatos possíveis)
+    const msg = body.message || {};
+    const mensagem = msg.conversation || msg.text || msg.extendedTextMessage?.text || body.text?.message || body.data?.message?.conversation || "";
+    
+    // Extrair número do remetente (MegaAPI envia em key.senderPn ou jid)
+    const senderPn = body.key?.senderPn || "";
+    const jid = body.jid || "";
+    const rawNumero = senderPn || jid || body.sender?.phone || body.data?.key?.remoteJid || "";
+    const numero = rawNumero.replace("@s.whatsapp.net", "").replace("@lid", "").trim();
+    
+    const isFromMe = body.key?.fromMe || body.data?.key?.fromMe || false;
+    const isGroup = body.isGroup || false;
 
-    // Ignorar mensagens vazias, do próprio bot, ou de status/grupo
-    if (!mensagem || !numero || isFromMe) {
+    console.log(`[whatsapp] Parsed: msg="${mensagem.slice(0,50)}" num="${numero}" fromMe=${isFromMe} group=${isGroup}`);
+
+    // Ignorar mensagens vazias, do próprio bot, ou de grupo
+    if (!mensagem || !numero || isFromMe || isGroup) {
       console.log("[whatsapp] Ignorando: vazio/fromMe/grupo");
       return new Response("ok");
     }
 
-    // Ignorar números de grupo
+    // Ignorar números inválidos
     if (numero.includes("-") || numero.length < 10) {
-      console.log("[whatsapp] Ignorando: grupo ou número inválido");
+      console.log("[whatsapp] Ignorando: número inválido");
       return new Response("ok");
     }
 
