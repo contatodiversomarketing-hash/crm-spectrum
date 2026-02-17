@@ -173,6 +173,17 @@ Quando o paciente CONFIRMAR um agendamento E você já tiver nome+CPF, inclua ao
 - Se não souber o professional_id, use "auto"
 - NUNCA inclua o marcador sem ter nome E CPF confirmados
 
+## MÚLTIPLOS AGENDAMENTOS NA MESMA CONVERSA (MUITO IMPORTANTE!)
+- Se o paciente pedir 2 ou mais agendamentos na mesma mensagem, você DEVE incluir UM marcador ##AGENDAMENTO_CONFIRMADO## para CADA agendamento
+- Exemplo com 2 agendamentos:
+  "Pronto! Seus agendamentos estão confirmados! 😊
+  - Dra. Amélia: quinta às 14:00
+  - Dra. Fellicia: quinta às 16:00
+  ##AGENDAMENTO_CONFIRMADO|João Silva|2025-06-19|14:00|uuid-amelia##
+  ##AGENDAMENTO_CONFIRMADO|João Silva|2025-06-19|16:00|uuid-fellicia##"
+- NUNCA esqueça de incluir TODOS os marcadores. Cada profissional = 1 marcador separado
+- Se esquecer algum, o agendamento NÃO será registrado no sistema e o paciente ficará sem consulta
+
 ## CONTEXTO DA CLÍNICA LA VITTA
 - Horário: segunda a sexta, 8h às 18h
 - Avaliação inicial sem compromisso e sem custo
@@ -527,17 +538,20 @@ async function criarLeadCRM(nome: string, telefone: string): Promise<boolean> {
 // =============================
 // EXTRAIR MARCADORES DA RESPOSTA
 // =============================
-function extrairAgendamento(resposta: string): { nome: string; data: string; horario: string; professionalId: string; textoLimpo: string } | null {
-  const regex = /##AGENDAMENTO_CONFIRMADO\|([^|]+)\|(\d{4}-\d{2}-\d{2})\|(\d{2}:\d{2})\|?([^#]*)##/;
-  const match = resposta.match(regex);
-  if (!match) return null;
-  return {
-    nome: match[1].trim(),
-    data: match[2],
-    horario: match[3],
-    professionalId: (match[4] || "auto").trim(),
-    textoLimpo: resposta.replace(regex, "").trim(),
-  };
+function extrairAgendamentos(resposta: string): { agendamentos: Array<{ nome: string; data: string; horario: string; professionalId: string }>; textoLimpo: string } {
+  const regex = /##AGENDAMENTO_CONFIRMADO\|([^|]+)\|(\d{4}-\d{2}-\d{2})\|(\d{2}:\d{2})\|?([^#]*)##/g;
+  const agendamentos: Array<{ nome: string; data: string; horario: string; professionalId: string }> = [];
+  let match;
+  while ((match = regex.exec(resposta)) !== null) {
+    agendamentos.push({
+      nome: match[1].trim(),
+      data: match[2],
+      horario: match[3],
+      professionalId: (match[4] || "auto").trim(),
+    });
+  }
+  const textoLimpo = resposta.replace(/##AGENDAMENTO_CONFIRMADO\|[^#]*##/g, "").trim();
+  return { agendamentos, textoLimpo };
 }
 
 function extrairCPF(resposta: string): { cpf: string; textoLimpo: string } | null {
@@ -770,39 +784,37 @@ serve(async (req) => {
     }
 
     // =============================
-    // DETECTAR AGENDAMENTO CONFIRMADO
+    // DETECTAR AGENDAMENTOS CONFIRMADOS (suporta múltiplos)
     // =============================
-    const agendamentoDetectado = extrairAgendamento(respostaFinal);
-    if (agendamentoDetectado) {
-      respostaFinal = agendamentoDetectado.textoLimpo;
+    const { agendamentos, textoLimpo: textoSemAgendamentos } = extrairAgendamentos(respostaFinal);
+    if (agendamentos.length > 0) {
+      respostaFinal = textoSemAgendamentos;
       const patientId = pacienteEncontrado?.id || "";
-      Promise.all([
-        registrarAgendamento(
-          agendamentoDetectado.nome,
-          numero,
-          agendamentoDetectado.data,
-          agendamentoDetectado.horario,
-          agendamentoDetectado.professionalId,
-          patientId
-        ),
-        criarLeadCRM(agendamentoDetectado.nome, numero),
-      ]).then(([gestaoOk, crmOk]) => {
-        supabase.from("logs_decisao").insert({
-          evento: "agendamento_whatsapp_confirmado",
-          decisao: `gestao=${gestaoOk ? "ok" : "falha"}, crm=${crmOk ? "ok" : "falha"}`,
-          regra_aplicada: "whatsapp_maria_agendamento_auto",
-          dados_entrada: {
-            nome: agendamentoDetectado.nome,
-            telefone: numero,
-            data: agendamentoDetectado.data,
-            horario: agendamentoDetectado.horario,
-            professional_id: agendamentoDetectado.professionalId,
-            patient_id: patientId,
-          },
-          confianca: 1.0,
+      console.log(`[whatsapp] 📋 ${agendamentos.length} agendamento(s) detectado(s)`);
+
+      // Processar TODOS os agendamentos em paralelo
+      const promises = agendamentos.map((ag, idx) => {
+        console.log(`[whatsapp] Agendamento ${idx + 1}/${agendamentos.length}: ${ag.nome} | ${ag.data} ${ag.horario} | prof=${ag.professionalId}`);
+        return Promise.all([
+          registrarAgendamento(ag.nome, numero, ag.data, ag.horario, ag.professionalId, patientId),
+          idx === 0 ? criarLeadCRM(ag.nome, numero) : Promise.resolve(true), // CRM lead só 1x
+        ]).then(([gestaoOk, crmOk]) => {
+          supabase.from("logs_decisao").insert({
+            evento: "agendamento_whatsapp_confirmado",
+            decisao: `gestao=${gestaoOk ? "ok" : "falha"}, crm=${crmOk ? "ok" : "falha"}`,
+            regra_aplicada: "whatsapp_maria_agendamento_auto",
+            dados_entrada: {
+              nome: ag.nome, telefone: numero, data: ag.data, horario: ag.horario,
+              professional_id: ag.professionalId, patient_id: patientId, indice: idx + 1, total: agendamentos.length,
+            },
+            confianca: 1.0,
+          });
+          console.log(`[whatsapp] ✅ Agendamento ${idx + 1}: Gestão=${gestaoOk}, CRM=${crmOk}`);
+          return { gestaoOk, crmOk };
         });
-        console.log(`[whatsapp] ✅ Agendamento: Gestão=${gestaoOk}, CRM=${crmOk}`);
-      }).catch(err => console.error("[whatsapp] Erro agendamento:", err));
+      });
+
+      Promise.all(promises).catch(err => console.error("[whatsapp] Erro agendamentos:", err));
     }
 
     // =============================
