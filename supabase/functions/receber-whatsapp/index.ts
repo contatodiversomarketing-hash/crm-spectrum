@@ -173,13 +173,13 @@ Quando o paciente CONFIRMAR um agendamento, inclua ao FINAL da sua resposta:
 // =============================
 // BUSCAR PROFISSIONAIS NO SISTEMA DE GESTÃO
 // =============================
-async function buscarProfissionais(): Promise<string> {
+async function buscarProfissionais(): Promise<{ texto: string; raw: any[] }> {
   try {
     const gestaoUrl = Deno.env.get("GESTAO_API_URL");
     const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
     if (!gestaoUrl || !gestaoToken) {
       console.log("[whatsapp] GESTAO_API não configurada para profissionais");
-      return "";
+      return { texto: "", raw: [] };
     }
 
     const res = await fetch(`${gestaoUrl}/functions/v1/internal-api`, {
@@ -194,7 +194,7 @@ async function buscarProfissionais(): Promise<string> {
 
     if (!res.ok) {
       console.log(`[whatsapp] Profissionais API falhou: ${res.status}`);
-      return "\n\nPROFISSIONAIS: Erro ao consultar. Diga que vai confirmar com a equipe.";
+      return { texto: "\n\nPROFISSIONAIS: Erro ao consultar. Diga que vai confirmar com a equipe.", raw: [] };
     }
 
     const data = await res.json();
@@ -202,7 +202,7 @@ async function buscarProfissionais(): Promise<string> {
     
     if (!Array.isArray(profissionais) || profissionais.length === 0) {
       console.log("[whatsapp] Lista de profissionais vazia");
-      return "\n\nPROFISSIONAIS: Lista vazia. Diga que vai confirmar com a equipe.";
+      return { texto: "\n\nPROFISSIONAIS: Lista vazia. Diga que vai confirmar com a equipe.", raw: [] };
     }
 
     // Filtrar APENAS profissionais ativos COM especialidade definida
@@ -214,7 +214,7 @@ async function buscarProfissionais(): Promise<string> {
 
     if (comEspecialidade.length === 0) {
       console.log("[whatsapp] Nenhum profissional com especialidade");
-      return "\n\nPROFISSIONAIS: Nenhum com especialidade definida. Diga que vai confirmar com a equipe.";
+      return { texto: "\n\nPROFISSIONAIS: Nenhum com especialidade definida. Diga que vai confirmar com a equipe.", raw: profissionais };
     }
 
     const lista = comEspecialidade.map((p: any) => {
@@ -227,48 +227,137 @@ async function buscarProfissionais(): Promise<string> {
 
     console.log(`[whatsapp] ✅ ${comEspecialidade.length} profissionais com especialidade carregados`);
 
-    return `\n\n## PROFISSIONAIS REAIS DA CLÍNICA LA VITTA (USE ESTES NOMES):
+    return { texto: `\n\n## PROFISSIONAIS REAIS DA CLÍNICA LA VITTA (USE ESTES NOMES):
 ${lista}
 
-REGRA ABSOLUTA: Quando o paciente perguntar qual profissional atende determinada especialidade, CONSULTE esta lista e responda com o NOME EXATO. Por exemplo:
-- Psiquiatra → "Dra. Amélia Carvalho" ou "Dra. Mylena Moraes Carneiro"
-- Nutrição → "Natália Antunes Xavier" ou "Tarciane Borges da Costa"
-- Dentista → "Isadora Navega Capobiango" ou "Dalila de Paula Polido"
-NUNCA diga "vou confirmar com a equipe" se a especialidade está na lista acima!`;
+REGRA ABSOLUTA: Quando o paciente perguntar qual profissional atende determinada especialidade, CONSULTE esta lista e responda com o NOME EXATO.
+NUNCA diga "vou confirmar com a equipe" se a especialidade está na lista acima!`, raw: profissionais };
   } catch (err) {
     console.error("[whatsapp] Erro ao buscar profissionais:", err);
-    return "\n\nPROFISSIONAIS: Erro ao consultar. Diga que vai confirmar com a equipe.";
+    return { texto: "\n\nPROFISSIONAIS: Erro ao consultar. Diga que vai confirmar com a equipe.", raw: [] };
   }
 }
 
 // =============================
-// GERAR HORÁRIOS DISPONÍVEIS
+// BUSCAR HORÁRIOS DISPONÍVEIS VIA API DE GESTÃO
 // =============================
-function gerarHorariosDisponiveis(turnoPreferido?: string): string {
-  const hoje = new Date();
-  const nomes: Record<number, string> = { 1: "segunda-feira", 2: "terça-feira", 3: "quarta-feira", 4: "quinta-feira", 5: "sexta-feira" };
-  const horariosManha = ["08:00", "09:00", "10:00", "11:00"];
-  const horariosTarde = ["13:00", "14:00", "15:00", "16:00", "17:00"];
-  
-  const diasDisponiveis: string[] = [];
-  for (let i = 1; i <= 10 && diasDisponiveis.length < 5; i++) {
-    const d = new Date(hoje.getTime() + i * 86400000);
-    const dow = d.getDay();
-    if (dow >= 1 && dow <= 5) {
-      const dtStr = d.toISOString().split("T")[0];
-      const dia = dtStr.split("-").reverse().join("/");
-      diasDisponiveis.push(`${nomes[dow]} (${dia}): manhã ${horariosManha.join(", ")} | tarde ${horariosTarde.join(", ")}`);
+async function buscarHorariosDisponiveis(profissionais: any[]): Promise<string> {
+  try {
+    const gestaoUrl = Deno.env.get("GESTAO_API_URL");
+    const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
+    if (!gestaoUrl || !gestaoToken) {
+      console.log("[whatsapp] GESTAO_API não configurada para agenda");
+      return gerarHorariosLocais();
     }
-  }
 
-  return `\n\nHORÁRIOS DISPONÍVEIS DA CLÍNICA:
-${diasDisponiveis.join("\n")}
+    const hoje = new Date();
+    const diasParaConsultar: string[] = [];
+    for (let i = 1; i <= 10 && diasParaConsultar.length < 5; i++) {
+      const d = new Date(hoje.getTime() + i * 86400000);
+      if (d.getDay() >= 1 && d.getDay() <= 5) {
+        diasParaConsultar.push(d.toISOString().split("T")[0]);
+      }
+    }
+
+    // Pegar IDs de profissionais ativos para consultar slots
+    const profIds = profissionais
+      .filter((p: any) => p.id || p.professional_id)
+      .slice(0, 3)
+      .map((p: any) => p.id || p.professional_id);
+
+    if (profIds.length === 0) {
+      console.log("[whatsapp] Sem profissionais com ID para consultar slots");
+      return gerarHorariosLocais();
+    }
+
+    // Consultar slots disponíveis para os próximos dias
+    const slotsPromises = diasParaConsultar.flatMap(date =>
+      profIds.map((profId: string) =>
+        fetch(`${gestaoUrl}/functions/v1/internal-api`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${gestaoToken}`,
+            "apikey": gestaoToken,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "get_available_slots",
+            params: { professional_id: profId, date },
+          }),
+        }).then(r => r.ok ? r.json() : null).catch(() => null)
+      )
+    );
+
+    const resultados = await Promise.all(slotsPromises);
+
+    const nomes: Record<number, string> = { 1: "segunda-feira", 2: "terça-feira", 3: "quarta-feira", 4: "quinta-feira", 5: "sexta-feira" };
+    const slotsMap: Record<string, Set<string>> = {};
+
+    for (const res of resultados) {
+      if (!res) continue;
+      const slots = res?.slots || res?.available_slots || res?.data || [];
+      if (!Array.isArray(slots)) continue;
+      for (const slot of slots) {
+        const date = slot.date || slot.appointment_date || "";
+        const time = slot.time || slot.start_time || slot.appointment_time || "";
+        if (date && time) {
+          if (!slotsMap[date]) slotsMap[date] = new Set();
+          slotsMap[date].add(time.slice(0, 5));
+        }
+      }
+    }
+
+    const datas = Object.keys(slotsMap).sort();
+    if (datas.length === 0) {
+      console.log("[whatsapp] get_available_slots retornou vazio, usando fallback local");
+      return gerarHorariosLocais();
+    }
+
+    const linhas = datas.map(dt => {
+      const d = new Date(dt + "T12:00:00Z");
+      const dow = d.getDay();
+      const dia = dt.split("-").reverse().join("/");
+      const horarios = [...slotsMap[dt]].sort();
+      const manha = horarios.filter(h => h < "12:00");
+      const tarde = horarios.filter(h => h >= "12:00");
+      let desc = `${nomes[dow] || dt} (${dia}):`;
+      if (manha.length > 0) desc += ` manhã ${manha.join(", ")}`;
+      if (tarde.length > 0) desc += ` | tarde ${tarde.join(", ")}`;
+      return desc;
+    });
+
+    console.log(`[whatsapp] ✅ Agenda real carregada: ${datas.length} dias com slots`);
+
+    return `\n\nHORÁRIOS DISPONÍVEIS DA CLÍNICA (AGENDA REAL):
+${linhas.join("\n")}
 
 REGRA CRÍTICA DE ESCASSEZ:
 - Quando o paciente disser o turno (manhã/tarde), ofereça EXATAMENTE 2 horários desse turno
 - NUNCA liste todos os horários. Escolha 2 e apresente como se fossem os únicos disponíveis
 - Exemplo: "Consegui encaixar para você [dia] às [hora1] ou às [hora2]. Qual fica melhor? 😊"
 - NÃO diga "a agenda está concorrida" - apenas apresente as 2 opções naturalmente`;
+  } catch (err) {
+    console.error("[whatsapp] Erro ao buscar agenda real:", err);
+    return gerarHorariosLocais();
+  }
+}
+
+function gerarHorariosLocais(): string {
+  const hoje = new Date();
+  const nomes: Record<number, string> = { 1: "segunda-feira", 2: "terça-feira", 3: "quarta-feira", 4: "quinta-feira", 5: "sexta-feira" };
+  const diasDisponiveis: string[] = [];
+  for (let i = 1; i <= 10 && diasDisponiveis.length < 5; i++) {
+    const d = new Date(hoje.getTime() + i * 86400000);
+    const dow = d.getDay();
+    if (dow >= 1 && dow <= 5) {
+      const dia = d.toISOString().split("T")[0].split("-").reverse().join("/");
+      diasDisponiveis.push(`${nomes[dow]} (${dia}): manhã 8h-11h, tarde 13h-17h`);
+    }
+  }
+  return `\n\nHORÁRIOS DISPONÍVEIS (horário comercial):
+${diasDisponiveis.join("\n")}
+
+REGRA: Ofereça EXATAMENTE 2 opções do turno pedido. NUNCA liste todos.`;
 }
 
 // =============================
@@ -457,11 +546,10 @@ serve(async (req) => {
       .order("criado_em", { ascending: false })
       .limit(10);
 
-    // SEMPRE buscar profissionais e agenda (são dados essenciais para Maria)
-    const [contextProfissionais, contextAgenda] = await Promise.all([
-      buscarProfissionais(),
-      Promise.resolve(gerarHorariosDisponiveis()),
-    ]);
+    // SEMPRE buscar profissionais primeiro, depois agenda com IDs reais
+    const profResult = await buscarProfissionais();
+    const contextAgenda = await buscarHorariosDisponiveis(profResult.raw);
+    const contextProfissionais = profResult.texto;
 
     console.log(`[whatsapp] Contexto: profissionais=${contextProfissionais.length > 50 ? "OK" : "VAZIO"} agenda=${contextAgenda.length > 50 ? "OK" : "VAZIO"}`);
 

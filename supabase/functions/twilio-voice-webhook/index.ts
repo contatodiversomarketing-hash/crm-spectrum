@@ -142,11 +142,11 @@ Quando o paciente CONFIRMAR um agendamento, inclua ao FINAL:
 // =============================
 // BUSCAR PROFISSIONAIS NO SISTEMA DE GESTÃO
 // =============================
-async function buscarProfissionaisVoz(): Promise<string> {
+async function buscarProfissionaisVoz(): Promise<{ texto: string; raw: any[] }> {
   try {
     const gestaoUrl = Deno.env.get("GESTAO_API_URL");
     const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
-    if (!gestaoUrl || !gestaoToken) return "";
+    if (!gestaoUrl || !gestaoToken) return { texto: "", raw: [] };
 
     const res = await fetch(`${gestaoUrl}/functions/v1/internal-api`, {
       method: "POST",
@@ -160,14 +160,14 @@ async function buscarProfissionaisVoz(): Promise<string> {
 
     if (!res.ok) {
       console.log(`[voice] Profissionais API falhou: ${res.status}`);
-      return "\n\nPROFISSIONAIS: Erro ao consultar. NUNCA invente nomes.";
+      return { texto: "\n\nPROFISSIONAIS: Erro ao consultar. NUNCA invente nomes.", raw: [] };
     }
 
     const data = await res.json();
     const profissionais = data?.professionals || data?.data || [];
     
     if (!Array.isArray(profissionais) || profissionais.length === 0) {
-      return "\n\nPROFISSIONAIS: Lista vazia. Diga que vai confirmar com a equipe.";
+      return { texto: "\n\nPROFISSIONAIS: Lista vazia. Diga que vai confirmar com a equipe.", raw: [] };
     }
 
     const comEspecialidade = profissionais.filter((p: any) => {
@@ -177,7 +177,7 @@ async function buscarProfissionaisVoz(): Promise<string> {
     });
 
     if (comEspecialidade.length === 0) {
-      return "\n\nPROFISSIONAIS: Nenhum com especialidade definida. Diga que vai confirmar.";
+      return { texto: "\n\nPROFISSIONAIS: Nenhum com especialidade definida. Diga que vai confirmar.", raw: profissionais };
     }
 
     const lista = comEspecialidade.map((p: any) => {
@@ -189,17 +189,92 @@ async function buscarProfissionaisVoz(): Promise<string> {
 
     console.log(`[voice] ✅ ${comEspecialidade.length} profissionais carregados`);
 
-    return `\n\nPROFISSIONAIS REAIS DA CLÍNICA: ${lista}\nQuando o paciente perguntar qual profissional, use o nome EXATO da lista. NUNCA diga "vou verificar" se a especialidade está na lista.`;
+    return { texto: `\n\nPROFISSIONAIS REAIS DA CLÍNICA: ${lista}\nQuando o paciente perguntar qual profissional, use o nome EXATO da lista. NUNCA diga "vou verificar" se a especialidade está na lista.`, raw: profissionais };
   } catch (err) {
     console.error("[voice] Erro profissionais:", err);
-    return "";
+    return { texto: "", raw: [] };
   }
 }
 
 // =============================
-// GERAR HORÁRIOS DISPONÍVEIS (VOZ)
+// BUSCAR HORÁRIOS DISPONÍVEIS VIA API DE GESTÃO (VOZ)
 // =============================
-function gerarHorariosDisponiveisVoz(): string {
+async function buscarHorariosDisponiveisVoz(profissionais: any[]): Promise<string> {
+  try {
+    const gestaoUrl = Deno.env.get("GESTAO_API_URL");
+    const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
+    if (!gestaoUrl || !gestaoToken) return gerarHorariosLocaisVoz();
+
+    const hoje = new Date();
+    const diasParaConsultar: string[] = [];
+    for (let i = 1; i <= 10 && diasParaConsultar.length < 5; i++) {
+      const d = new Date(hoje.getTime() + i * 86400000);
+      if (d.getDay() >= 1 && d.getDay() <= 5) {
+        diasParaConsultar.push(d.toISOString().split("T")[0]);
+      }
+    }
+
+    const profIds = profissionais
+      .filter((p: any) => p.id || p.professional_id)
+      .slice(0, 3)
+      .map((p: any) => p.id || p.professional_id);
+
+    if (profIds.length === 0) return gerarHorariosLocaisVoz();
+
+    const slotsPromises = diasParaConsultar.flatMap(date =>
+      profIds.map((profId: string) =>
+        fetch(`${gestaoUrl}/functions/v1/internal-api`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${gestaoToken}`,
+            "apikey": gestaoToken,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "get_available_slots",
+            params: { professional_id: profId, date },
+          }),
+        }).then(r => r.ok ? r.json() : null).catch(() => null)
+      )
+    );
+
+    const resultados = await Promise.all(slotsPromises);
+    const nomes: Record<number, string> = { 1: "segunda", 2: "terça", 3: "quarta", 4: "quinta", 5: "sexta" };
+    const slotsMap: Record<string, Set<string>> = {};
+
+    for (const res of resultados) {
+      if (!res) continue;
+      const slots = res?.slots || res?.available_slots || res?.data || [];
+      if (!Array.isArray(slots)) continue;
+      for (const slot of slots) {
+        const date = slot.date || slot.appointment_date || "";
+        const time = slot.time || slot.start_time || slot.appointment_time || "";
+        if (date && time) {
+          if (!slotsMap[date]) slotsMap[date] = new Set();
+          slotsMap[date].add(time.slice(0, 5));
+        }
+      }
+    }
+
+    const datas = Object.keys(slotsMap).sort();
+    if (datas.length === 0) return gerarHorariosLocaisVoz();
+
+    const linhas = datas.map(dt => {
+      const d = new Date(dt + "T12:00:00Z");
+      const dow = d.getDay();
+      const horarios = [...slotsMap[dt]].sort();
+      return `${nomes[dow] || dt}: ${horarios.join(", ")}`;
+    });
+
+    console.log(`[voice] ✅ Agenda real: ${datas.length} dias com slots`);
+    return `\n\nHORÁRIOS DISPONÍVEIS (AGENDA REAL): ${linhas.join("; ")}\nOfereça EXATAMENTE 2 opções do turno pedido. NUNCA liste todos. Use: "Consegui encaixar pra você".`;
+  } catch (err) {
+    console.error("[voice] Erro agenda real:", err);
+    return gerarHorariosLocaisVoz();
+  }
+}
+
+function gerarHorariosLocaisVoz(): string {
   const hoje = new Date();
   const nomes: Record<number, string> = { 1: "segunda", 2: "terça", 3: "quarta", 4: "quinta", 5: "sexta" };
   const linhas: string[] = [];
@@ -210,8 +285,7 @@ function gerarHorariosDisponiveisVoz(): string {
       linhas.push(`${nomes[dow]}: manhã 8h-11h, tarde 13h-17h`);
     }
   }
-
-  return `\n\nHORÁRIOS DISPONÍVEIS: ${linhas.join("; ")}\nOfereça EXATAMENTE 2 opções do turno pedido. NUNCA liste todos. Use: "Consegui encaixar pra você".`;
+  return `\n\nHORÁRIOS DISPONÍVEIS: ${linhas.join("; ")}\nOfereça EXATAMENTE 2 opções do turno pedido. NUNCA liste todos.`;
 }
 
 // =============================
@@ -379,11 +453,10 @@ serve(async (req) => {
     if (histResult.data) historico = histResult.data;
   }
 
-  // SEMPRE buscar profissionais e agenda (dados essenciais para Maria)
-  const [contextProfissionais, contextAgenda] = await Promise.all([
-    buscarProfissionaisVoz(),
-    Promise.resolve(gerarHorariosDisponiveisVoz()),
-  ]);
+  // SEMPRE buscar profissionais primeiro, depois agenda com IDs reais
+  const profResult = await buscarProfissionaisVoz();
+  const contextAgenda = await buscarHorariosDisponiveisVoz(profResult.raw);
+  const contextProfissionais = profResult.texto;
 
   console.log(`[voice] Contexto: profissionais=${contextProfissionais.length > 50 ? "OK" : "VAZIO"} agenda=${contextAgenda.length > 50 ? "OK" : "VAZIO"}`);
 
