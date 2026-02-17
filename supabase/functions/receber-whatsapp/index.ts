@@ -190,8 +190,17 @@ async function buscarProfissionais(): Promise<string> {
     const data = await res.json();
     const profissionais = data?.professionals || data?.data || [];
     if (Array.isArray(profissionais) && profissionais.length > 0) {
-      const lista = profissionais.map((p: any) => `${p.name || p.nome || "?"} (${p.specialty || p.especialidade || "?"})`).join("; ");
-      console.log(`[whatsapp] Profissionais encontrados: ${lista.slice(0, 200)}`);
+      // Log raw para debug dos campos
+      if (profissionais[0]) {
+        console.log(`[whatsapp] Profissional raw keys: ${Object.keys(profissionais[0]).join(", ")}`);
+        console.log(`[whatsapp] Profissional raw sample: ${JSON.stringify(profissionais[0]).slice(0, 500)}`);
+      }
+      const lista = profissionais.map((p: any) => {
+        const nome = p.full_name || p.professional_name || p.display_name || p.name || p.nome || p.first_name || "?";
+        const esp = p.specialty || p.especialidade || p.specialization || p.role || "?";
+        return `${nome} (${esp})`;
+      }).join("; ");
+      console.log(`[whatsapp] Profissionais formatados: ${lista.slice(0, 300)}`);
       return `\n\nPROFISSIONAIS DA CLÍNICA (use APENAS estes nomes): ${lista}\nNUNCA invente nomes de profissionais. Se o paciente pedir uma especialidade que não está na lista, diga que vai verificar com a equipe.`;
     }
     return "\n\nPROFISSIONAIS: Não foi possível carregar a lista. NUNCA invente nomes de profissionais. Diga que vai confirmar com a equipe.";
@@ -229,8 +238,8 @@ async function buscarAgendaGestao(): Promise<string> {
 
     console.log(`[whatsapp] Consultando agenda URL=${baseUrl} datas=${hojeStr} a ${em7diasStr}`);
 
-    // Tentativa 1: com params wrapper
-    const body1 = { action: "list_appointments", params: { start_date: hojeStr, end_date: em7diasStr } };
+    // Usar list_available_slots para obter horários DISPONÍVEIS reais
+    const body1 = { action: "list_available_slots", params: { start_date: hojeStr, end_date: em7diasStr } };
     console.log(`[whatsapp] Agenda req body: ${JSON.stringify(body1)}`);
 
     const res = await fetch(baseUrl, {
@@ -244,7 +253,7 @@ async function buscarAgendaGestao(): Promise<string> {
 
     if (!res.ok) {
       // Tentativa 2: sem wrapper params (top-level)
-      const body2 = { action: "list_appointments", start_date: hojeStr, end_date: em7diasStr };
+      const body2 = { action: "list_available_slots", start_date: hojeStr, end_date: em7diasStr };
       console.log(`[whatsapp] Agenda tentativa 2 (sem params): ${JSON.stringify(body2)}`);
       
       const res2 = await fetch(baseUrl, {
@@ -257,7 +266,7 @@ async function buscarAgendaGestao(): Promise<string> {
       
       if (!res2.ok) {
         // Tentativa 3: sem nenhum params
-        const body3 = { action: "list_appointments" };
+        const body3 = { action: "list_available_slots" };
         console.log(`[whatsapp] Agenda tentativa 3 (sem params): ${JSON.stringify(body3)}`);
         
         const res3 = await fetch(baseUrl, {
@@ -292,42 +301,58 @@ async function buscarAgendaGestao(): Promise<string> {
 }
 
 function formatarDadosAgenda(data: any): string {
-  const appointments = data?.appointments || data?.data || data || [];
+  // Log raw para debug
+  console.log(`[whatsapp] Agenda raw keys: ${JSON.stringify(Object.keys(data || {}))}`);
+  if (data?.slots) console.log(`[whatsapp] Slots sample: ${JSON.stringify(data.slots).slice(0, 300)}`);
+  if (data?.available_slots) console.log(`[whatsapp] Available_slots sample: ${JSON.stringify(data.available_slots).slice(0, 300)}`);
+  
+  // Tentar extrair slots disponíveis (list_available_slots retorna slots/available_slots)
+  const slots = data?.slots || data?.available_slots || data?.appointments || data?.data || data || [];
   const hoje = new Date();
   const hojeStr = hoje.toISOString().split("T")[0];
   
-  if (Array.isArray(appointments) && appointments.length > 0) {
-    // Filtrar APENAS agendamentos futuros (hoje em diante)
-    const futuros = appointments.filter((a: any) => {
-      const dt = a.date || a.appointment_date || a.data || "";
+  if (Array.isArray(slots) && slots.length > 0) {
+    // Filtrar APENAS slots futuros
+    const futuros = slots.filter((s: any) => {
+      const dt = s.date || s.appointment_date || s.slot_date || s.data || "";
       return dt >= hojeStr;
     });
     
     if (futuros.length > 0) {
-      const ocupados = futuros.slice(0, 30).map((a: any) => {
-        const dt = a.date || a.appointment_date || a.data || "";
-        const hr = a.time || a.appointment_time || a.horario || a.start_time || "";
-        const prof = a.professional_name || a.professional || a.profissional || "";
-        return `${dt} ${hr}${prof ? " (" + prof + ")" : ""}`;
-      }).join("; ");
-      return `\n\nHORÁRIOS OCUPADOS (próximos 7 dias): ${ocupados}\nHorário comercial: 8h às 18h, segunda a sexta. Consultas de 1h.\nSugira horários que NÃO estão nesta lista. Use ESCASSEZ: "A agenda está bem concorrida, mas consegui esses horários para você!"`;
+      // Agrupar por data
+      const porDia: Record<string, string[]> = {};
+      for (const s of futuros.slice(0, 50)) {
+        const dt = s.date || s.appointment_date || s.slot_date || s.data || "";
+        const hr = s.time || s.appointment_time || s.slot_time || s.start_time || s.horario || "";
+        const prof = s.professional_name || s.professional || s.profissional || s.full_name || "";
+        if (!porDia[dt]) porDia[dt] = [];
+        porDia[dt].push(`${hr}${prof ? " (" + prof + ")" : ""}`);
+      }
+      
+      const nomesDia: Record<number, string> = { 0: "domingo", 1: "segunda-feira", 2: "terça-feira", 3: "quarta-feira", 4: "quinta-feira", 5: "sexta-feira", 6: "sábado" };
+      const linhas = Object.entries(porDia).sort().map(([dt, hrs]) => {
+        const d = new Date(dt + "T12:00:00");
+        const dia = nomesDia[d.getDay()] || dt;
+        return `${dia} (${dt}): ${hrs.join(", ")}`;
+      });
+      
+      return `\n\nHORÁRIOS DISPONÍVEIS (reais da agenda):\n${linhas.join("\n")}\n\nUse APENAS estes horários. Pergunte preferência de dia/turno, ofereça 2-3 opções. Use ESCASSEZ: "A agenda está bem concorrida, mas consegui esses horários para você!"`;
     }
   }
   
-  // Sem agendamentos futuros = agenda TODA livre
-  // Gerar dias úteis dos próximos 5 dias para Maria oferecer
+  // Sem slots disponíveis
   const diasDisponiveis: string[] = [];
   for (let i = 0; i < 7 && diasDisponiveis.length < 5; i++) {
     const d = new Date(hoje.getTime() + i * 86400000);
     const dow = d.getDay();
-    if (dow >= 1 && dow <= 5) { // seg-sex
+    if (dow >= 1 && dow <= 5) {
       const nomes = ["", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira"];
       const dtStr = d.toISOString().split("T")[0];
       diasDisponiveis.push(`${nomes[dow]} (${dtStr}): 8h, 9h, 10h, 11h, 13h, 14h, 15h, 16h, 17h`);
     }
   }
   
-  return `\n\nHORÁRIOS DISPONÍVEIS (agenda com vagas abertas!):\n${diasDisponiveis.join("\n")}\n\nTODOS estes horários estão disponíveis. Pergunte a preferência de dia e turno do paciente, depois ofereça 2-3 opções específicas. Use ESCASSEZ mesmo assim: "Esses horários costumam ser bem procurados, vou reservar para você!"`;
+  return `\n\nHORÁRIOS DISPONÍVEIS (agenda com vagas abertas!):\n${diasDisponiveis.join("\n")}\n\nTODOS estes horários estão disponíveis. Pergunte a preferência de dia e turno do paciente, depois ofereça 2-3 opções específicas. Use ESCASSEZ: "Esses horários costumam ser bem procurados, vou reservar para você!"`;
 }
 
 // =============================
