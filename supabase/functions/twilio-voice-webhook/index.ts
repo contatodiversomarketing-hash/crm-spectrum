@@ -338,6 +338,22 @@ Você é um AGENTE AUTÔNOMO de vendas:
 Se dados de agenda forem fornecidos no contexto, USE-OS para oferecer horários reais.
 Se não houver dados, diga: "Deixa eu verificar aqui na agenda... qual dia seria melhor pra você?"
 NUNCA invente horários. NUNCA.
+
+## ═══════════════════════════════════════
+## INSTRUÇÃO CRÍTICA: CONFIRMAÇÃO DE AGENDAMENTO
+## ═══════════════════════════════════════
+Quando o paciente CONFIRMAR um agendamento (aceitar data/horário), você DEVE incluir ao FINAL da sua resposta
+(depois da resposta falada) o seguinte marcador EXATO em uma linha separada:
+##AGENDAMENTO_CONFIRMADO|nome_paciente|data_YYYY-MM-DD|horario_HH:MM##
+
+Exemplo: Se Maria Silva confirmou dia 20/02/2026 às 14:00:
+"Perfeito, Maria Silva! Tá marcado então, dia 20 de fevereiro às 14 horas. Vou te mandar uma confirmação, tá bom?
+##AGENDAMENTO_CONFIRMADO|Maria Silva|2026-02-20|14:00##"
+
+IMPORTANTE: 
+- Só inclua esse marcador quando o paciente EXPLICITAMENTE confirmar
+- Use a data no formato YYYY-MM-DD e horário HH:MM
+- Esse marcador será removido antes do áudio, o paciente NUNCA ouvirá isso
 `;
 
 // =============================
@@ -395,7 +411,7 @@ async function buscarAgendaGestao(): Promise<string> {
 }
 
 // =============================
-// REGISTRAR AGENDAMENTO NO SISTEMA
+// REGISTRAR AGENDAMENTO NO SISTEMA DE GESTÃO
 // =============================
 async function registrarAgendamento(
   nome: string,
@@ -409,7 +425,10 @@ async function registrarAgendamento(
     const gestaoUrl = Deno.env.get("GESTAO_API_URL");
     const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
 
-    if (!gestaoUrl || !gestaoToken) return false;
+    if (!gestaoUrl || !gestaoToken) {
+      console.log("[voice] Gestão API não configurada para agendamento");
+      return false;
+    }
 
     const params: Record<string, string> = {
       appointment_date: data,
@@ -434,15 +453,102 @@ async function registrarAgendamento(
 
     if (res.ok) {
       const result = await res.json();
-      console.log(`[voice] Agendamento registrado: ${nome} - ${data} ${horario}`, result);
+      console.log(`[voice] ✅ Agendamento registrado no Gestão: ${nome} - ${data} ${horario}`, result);
       return true;
     }
-    console.log(`[voice] Falha ao registrar agendamento: ${res.status}`);
+    console.log(`[voice] ❌ Falha ao registrar agendamento no Gestão: ${res.status}`);
     return false;
   } catch (err) {
     console.error("[voice] Erro ao registrar agendamento:", err);
     return false;
   }
+}
+
+// =============================
+// CRIAR LEAD NO CRM LA VITTA
+// =============================
+async function criarLeadCRM(
+  nome: string,
+  telefone: string,
+  origem: string
+): Promise<boolean> {
+  try {
+    const crmUrl = Deno.env.get("CRM_API_URL");
+    const crmToken = Deno.env.get("CRM_API_TOKEN");
+
+    if (!crmUrl || !crmToken) {
+      console.log("[voice] CRM API não configurada");
+      return false;
+    }
+
+    const res = await fetch(`${crmUrl}/functions/v1/api-leads`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${crmToken}`,
+        "apikey": crmToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        nome,
+        telefone,
+        origem: origem || "ligacao_ia_maria",
+        status: "agendado",
+      }),
+    });
+
+    if (res.ok) {
+      const result = await res.json();
+      console.log(`[voice] ✅ Lead criado no CRM: ${nome} - ${telefone}`, result);
+      return true;
+    }
+    const errText = await res.text();
+    console.log(`[voice] ❌ Falha ao criar lead no CRM: ${res.status} - ${errText}`);
+    return false;
+  } catch (err) {
+    console.error("[voice] Erro ao criar lead no CRM:", err);
+    return false;
+  }
+}
+
+// =============================
+// DETECTAR AGENDAMENTO NA RESPOSTA DA IA
+// =============================
+function extrairAgendamento(resposta: string): { nome: string; data: string; horario: string; textoLimpo: string } | null {
+  const regex = /##AGENDAMENTO_CONFIRMADO\|([^|]+)\|(\d{4}-\d{2}-\d{2})\|(\d{2}:\d{2})##/;
+  const match = resposta.match(regex);
+  if (!match) return null;
+  return {
+    nome: match[1].trim(),
+    data: match[2],
+    horario: match[3],
+    textoLimpo: resposta.replace(regex, "").trim(),
+  };
+}
+
+async function processarAgendamentoConfirmado(
+  nome: string,
+  telefone: string,
+  data: string,
+  horario: string,
+  callSid: string,
+  supabase: ReturnType<typeof createClient>
+): Promise<void> {
+  console.log(`[voice] 🎯 Agendamento detectado: ${nome} | ${data} ${horario} | Tel: ${telefone}`);
+
+  const [gestaoOk, crmOk] = await Promise.all([
+    registrarAgendamento(nome, telefone, data, horario, null, supabase),
+    criarLeadCRM(nome, telefone, "ligacao_ia_maria"),
+  ]);
+
+  await supabase.from("logs_decisao").insert({
+    evento: "agendamento_voz_confirmado",
+    decisao: `gestao=${gestaoOk ? "ok" : "falha"}, crm=${crmOk ? "ok" : "falha"}`,
+    regra_aplicada: "voice_webhook_agendamento_auto",
+    dados_entrada: { nome, telefone, data, horario, call_sid: callSid, gestao_ok: gestaoOk, crm_ok: crmOk },
+    confianca: 1.0,
+  });
+
+  console.log(`[voice] ✅ Processamento completo: Gestão=${gestaoOk}, CRM=${crmOk}`);
 }
 
 // =============================
@@ -584,7 +690,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "gpt-4o-mini",
         temperature: 0.75,
-        max_tokens: 100,
+        max_tokens: 180,
         messages,
       }),
     });
@@ -595,6 +701,26 @@ serve(async (req) => {
     }
   } catch (err) {
     console.error("[voice] Erro OpenAI:", err);
+  }
+
+  // =============================
+  // DETECTAR AGENDAMENTO CONFIRMADO
+  // =============================
+  const agendamentoDetectado = extrairAgendamento(respostaFinal);
+  if (agendamentoDetectado) {
+    // Remover o marcador da resposta antes de gerar áudio
+    respostaFinal = agendamentoDetectado.textoLimpo;
+
+    // Processar agendamento em background (não bloqueia a resposta de voz)
+    const telLimpo = fromNumber.replace(/[^\d+]/g, "");
+    processarAgendamentoConfirmado(
+      agendamentoDetectado.nome,
+      telLimpo,
+      agendamentoDetectado.data,
+      agendamentoDetectado.horario,
+      callSid,
+      supabase
+    ).catch(err => console.error("[voice] Erro ao processar agendamento:", err));
   }
 
   respostaFinal = limparTexto(respostaFinal);
