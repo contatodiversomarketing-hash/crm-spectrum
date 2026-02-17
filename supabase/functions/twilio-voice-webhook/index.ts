@@ -170,7 +170,9 @@ async function buscarAgendaGestao(): Promise<string> {
 async function registrarAgendamento(
   nome: string,
   telefone: string,
-  dataHora: string,
+  data: string,
+  horario: string,
+  patientId: string | null,
   supabase: ReturnType<typeof createClient>
 ): Promise<boolean> {
   try {
@@ -178,6 +180,14 @@ async function registrarAgendamento(
     const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
 
     if (!gestaoUrl || !gestaoToken) return false;
+
+    const params: Record<string, string> = {
+      appointment_date: data,
+      appointment_time: horario,
+      patient_name: nome,
+      patient_phone: telefone,
+    };
+    if (patientId) params.patient_id = patientId;
 
     const res = await fetch(`${gestaoUrl}/functions/v1/internal-api`, {
       method: "POST",
@@ -188,14 +198,13 @@ async function registrarAgendamento(
       },
       body: JSON.stringify({
         action: "create_appointment",
-        nome_paciente: nome,
-        telefone_paciente: telefone,
-        data_hora: dataHora,
+        params,
       }),
     });
 
     if (res.ok) {
-      console.log(`[voice] Agendamento registrado: ${nome} - ${dataHora}`);
+      const result = await res.json();
+      console.log(`[voice] Agendamento registrado: ${nome} - ${data} ${horario}`, result);
       return true;
     }
     console.log(`[voice] Falha ao registrar agendamento: ${res.status}`);
