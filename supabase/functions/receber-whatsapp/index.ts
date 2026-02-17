@@ -32,6 +32,33 @@ function fixEncoding(text: string): string {
 }
 
 // =============================
+// HELPERS GESTÃO API
+// =============================
+function gestaoHeaders() {
+  const token = Deno.env.get("GESTAO_API_TOKEN")!;
+  return {
+    "Authorization": `Bearer ${token}`,
+    "apikey": token,
+    "Content-Type": "application/json",
+  };
+}
+
+function gestaoUrl() {
+  return Deno.env.get("GESTAO_API_URL")!;
+}
+
+async function chamarGestao(action: string, params: Record<string, unknown> = {}): Promise<any> {
+  const url = gestaoUrl();
+  const res = await fetch(`${url}/functions/v1/internal-api`, {
+    method: "POST",
+    headers: gestaoHeaders(),
+    body: JSON.stringify({ action, params }),
+  });
+  const data = await res.json();
+  return { ok: res.ok, status: res.status, data };
+}
+
+// =============================
 // MOTOR DE VENDAS MARIA - WHATSAPP
 // =============================
 const SYSTEM_ENGINE_WHATSAPP = `
@@ -121,14 +148,30 @@ Você está atendendo pelo WhatsApp.
 - Você CONDUZ a conversa, nunca é passiva
 - NUNCA deixe sem próximo passo concreto
 
-## FLUXO DE AGENDAMENTO
+## FLUXO DE AGENDAMENTO (SIGA ESTA ORDEM EXATA)
 1. Se não sabe o nome: pergunte de forma natural
 2. Pergunte qual serviço/especialidade o paciente precisa
 3. Pergunte a PREFERÊNCIA de dia e turno (manhã/tarde): "Qual dia seria melhor para você? Manhã ou tarde?"
 4. SÓ DEPOIS de saber a preferência, ofereça 2 opções REAIS do turno pedido
-5. Confirme o telefone/contato
-6. Confirme: "[Nome], então fica marcado [dia] às [hora]. Vou enviar uma confirmação ✅"
+5. Quando o paciente CONFIRMAR o horário, peça o NOME COMPLETO e CPF para finalizar:
+   "Para finalizar seu agendamento, preciso do seu nome completo e CPF, por favor 📋"
+6. Com nome+CPF em mãos, confirme: "[Nome], marcado [dia] às [hora] com [profissional]. Vou enviar uma confirmação ✅"
 7. APÓS confirmar, faça CROSS-SELLING de outro serviço
+
+## COLETA DE DADOS PARA AGENDAMENTO (OBRIGATÓRIO)
+- Antes de confirmar QUALQUER agendamento, você PRECISA ter: nome completo E CPF do paciente
+- Se já tiver o cadastro do paciente (mostrado no CONTEXTO), confirme os dados
+- Se o cadastro existir MAS sem CPF, peça o CPF: "Achei seu cadastro, [Nome]! Só preciso confirmar seu CPF para finalizar 😊"
+- Se o paciente fornecer o CPF, inclua na resposta: ##ATUALIZAR_CPF|cpf_informado##
+- Se NÃO tiver cadastro, peça nome completo + CPF para criar
+
+## INSTRUÇÃO CRÍTICA: CONFIRMAÇÃO DE AGENDAMENTO
+Quando o paciente CONFIRMAR um agendamento E você já tiver nome+CPF, inclua ao FINAL da sua resposta:
+##AGENDAMENTO_CONFIRMADO|nome_paciente|data_YYYY-MM-DD|horario_HH:MM|professional_id##
+
+- O professional_id deve ser o ID do profissional correto da lista (campo "id" dos profissionais)
+- Se não souber o professional_id, use "auto"
+- NUNCA inclua o marcador sem ter nome E CPF confirmados
 
 ## CONTEXTO DA CLÍNICA LA VITTA
 - Horário: segunda a sexta, 8h às 18h
@@ -150,18 +193,13 @@ Você está atendendo pelo WhatsApp.
 - Se pediu manhã: ofereça 2 horários entre 8h-11h
 - Se pediu tarde: ofereça 2 horários entre 13h-17h
 - Se não especificou turno: ofereça 1 de manhã e 1 de tarde
-- Use escassez COERENTE: "Consegui encaixar essas opções para você" (NÃO diga "agenda concorrida" quando oferece muitos horários)
+- Use escassez COERENTE: "Consegui encaixar essas opções para você"
 - NUNCA liste mais de 2 opções de horário
 
 ## REGRAS DE PROFISSIONAIS
 - Quando tiver a lista de PROFISSIONAIS REAIS no contexto abaixo, SEMPRE use o NOME EXATO do profissional
-- Exemplo: se perguntam por psiquiatra → responda "Dra. Amélia Carvalho" ou "Dra. Mylena Moraes Carneiro"
 - NUNCA diga "vou confirmar com a equipe" se o profissional da especialidade está na lista
 - Só diga "vou verificar" se a especialidade NÃO aparece na lista de profissionais
-
-## INSTRUÇÃO CRÍTICA: CONFIRMAÇÃO DE AGENDAMENTO
-Quando o paciente CONFIRMAR um agendamento, inclua ao FINAL da sua resposta:
-##AGENDAMENTO_CONFIRMADO|nome_paciente|data_YYYY-MM-DD|horario_HH:MM##
 
 ## FORMATO DE RESPOSTA WHATSAPP
 - Mensagens curtas e diretas (máx 3-4 linhas)
@@ -171,41 +209,132 @@ Quando o paciente CONFIRMAR um agendamento, inclua ao FINAL da sua resposta:
 `;
 
 // =============================
+// BUSCAR PACIENTE POR TELEFONE NO SISTEMA DE GESTÃO
+// =============================
+async function buscarPacientePorTelefone(telefone: string): Promise<{ texto: string; paciente: any | null }> {
+  try {
+    if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) {
+      return { texto: "", paciente: null };
+    }
+
+    // Tentar diferentes formatos de telefone
+    const telLimpo = telefone.replace(/\D/g, "");
+    const tentativas = [telLimpo];
+    if (telLimpo.startsWith("55") && telLimpo.length >= 12) {
+      tentativas.push(telLimpo.slice(2)); // sem DDI
+    }
+    if (telLimpo.length === 10) {
+      tentativas.push(telLimpo.slice(0, 2) + "9" + telLimpo.slice(2)); // add 9
+    }
+
+    for (const tel of tentativas) {
+      const result = await chamarGestao("search_patients", { phone: tel });
+      if (result.ok) {
+        const pacientes = result.data?.patients || result.data?.data || [];
+        if (Array.isArray(pacientes) && pacientes.length > 0) {
+          const p = pacientes[0];
+          const nome = fixEncoding(p.full_name || p.patient_name || p.name || p.nome || "");
+          const cpf = p.cpf || p.document || p.cpf_cnpj || "";
+          const email = p.email || "";
+          const patientId = p.id || p.patient_id || "";
+          
+          console.log(`[whatsapp] ✅ Paciente encontrado: ${nome} (ID: ${patientId}, CPF: ${cpf ? "sim" : "não"})`);
+          
+          let texto = `\n\n## CADASTRO DO PACIENTE (ENCONTRADO NO SISTEMA):
+- Nome: ${nome}
+- Telefone: ${tel}
+- CPF: ${cpf || "NÃO CADASTRADO - PEÇA AO PACIENTE"}
+- Email: ${email || "não informado"}
+- ID no sistema: ${patientId}`;
+
+          if (!cpf) {
+            texto += `\n\n⚠️ ATENÇÃO: Este paciente NÃO TEM CPF no cadastro. Você DEVE pedir o CPF antes de finalizar qualquer agendamento.`;
+          }
+
+          return { texto, paciente: { id: patientId, nome, cpf, email, telefone: tel } };
+        }
+      }
+    }
+
+    // Tentar também no CRM
+    const crmUrl = Deno.env.get("CRM_API_URL");
+    const crmToken = Deno.env.get("CRM_API_TOKEN");
+    if (crmUrl && crmToken) {
+      try {
+        const crmRes = await fetch(`${crmUrl}paciente-por-telefone`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${crmToken}`, "apikey": crmToken, "Content-Type": "application/json" },
+          body: JSON.stringify({ telefone: telLimpo }),
+        });
+        if (crmRes.ok) {
+          const crmData = await crmRes.json();
+          if (crmData && (crmData.nome || crmData.name)) {
+            const nome = fixEncoding(crmData.nome || crmData.name || "");
+            console.log(`[whatsapp] ✅ Paciente encontrado no CRM: ${nome}`);
+            return {
+              texto: `\n\n## CADASTRO DO PACIENTE (ENCONTRADO NO CRM):
+- Nome: ${nome}
+- Telefone: ${telLimpo}
+- CPF: ${crmData.cpf || "NÃO CADASTRADO - PEÇA AO PACIENTE"}
+
+⚠️ Paciente encontrado no CRM mas talvez não no sistema de gestão. Colete nome completo e CPF para garantir o cadastro.`,
+              paciente: { id: "", nome, cpf: crmData.cpf || "", email: "", telefone: telLimpo },
+            };
+          }
+        }
+      } catch (e) {
+        console.log("[whatsapp] CRM paciente-por-telefone falhou:", e);
+      }
+    }
+
+    console.log(`[whatsapp] Paciente não encontrado para tel ${telLimpo}`);
+    return {
+      texto: `\n\n## CADASTRO DO PACIENTE: NÃO ENCONTRADO
+O telefone ${telLimpo} não foi encontrado no sistema.
+Você DEVE coletar: nome completo e CPF do paciente para criar o cadastro e agendar.`,
+      paciente: null,
+    };
+  } catch (err) {
+    console.error("[whatsapp] Erro buscar paciente:", err);
+    return { texto: "", paciente: null };
+  }
+}
+
+// =============================
+// ATUALIZAR CPF DO PACIENTE NO GESTÃO
+// =============================
+async function atualizarPacienteCPF(patientId: string, cpf: string): Promise<boolean> {
+  try {
+    if (!patientId || !cpf) return false;
+    const result = await chamarGestao("update_patient", { patient_id: patientId, cpf: cpf.replace(/\D/g, "") });
+    console.log(`[whatsapp] Atualizar CPF paciente ${patientId}: ${result.ok ? "OK" : "FALHA"} (${result.status})`);
+    return result.ok;
+  } catch (err) {
+    console.error("[whatsapp] Erro atualizar CPF:", err);
+    return false;
+  }
+}
+
+// =============================
 // BUSCAR PROFISSIONAIS NO SISTEMA DE GESTÃO
 // =============================
 async function buscarProfissionais(): Promise<{ texto: string; raw: any[] }> {
   try {
-    const gestaoUrl = Deno.env.get("GESTAO_API_URL");
-    const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
-    if (!gestaoUrl || !gestaoToken) {
-      console.log("[whatsapp] GESTAO_API não configurada para profissionais");
+    if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) {
       return { texto: "", raw: [] };
     }
 
-    const res = await fetch(`${gestaoUrl}/functions/v1/internal-api`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${gestaoToken}`,
-        "apikey": gestaoToken,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ action: "list_professionals", params: {} }),
-    });
-
-    if (!res.ok) {
-      console.log(`[whatsapp] Profissionais API falhou: ${res.status}`);
-      return { texto: "\n\nPROFISSIONAIS: Erro ao consultar. Diga que vai confirmar com a equipe.", raw: [] };
+    const result = await chamarGestao("list_professionals");
+    if (!result.ok) {
+      console.log(`[whatsapp] Profissionais API falhou: ${result.status}`);
+      return { texto: "\n\nPROFISSIONAIS: Erro ao consultar.", raw: [] };
     }
 
-    const data = await res.json();
-    const profissionais = data?.professionals || data?.data || [];
-    
+    const profissionais = result.data?.professionals || result.data?.data || [];
     if (!Array.isArray(profissionais) || profissionais.length === 0) {
-      console.log("[whatsapp] Lista de profissionais vazia");
-      return { texto: "\n\nPROFISSIONAIS: Lista vazia. Diga que vai confirmar com a equipe.", raw: [] };
+      return { texto: "\n\nPROFISSIONAIS: Lista vazia.", raw: [] };
     }
 
-    // Filtrar APENAS profissionais ativos COM especialidade definida
     const comEspecialidade = profissionais.filter((p: any) => {
       const esp = fixEncoding(p.specialty || p.especialidade || p.specialization || "").trim();
       const ativo = p.is_active !== false;
@@ -213,28 +342,27 @@ async function buscarProfissionais(): Promise<{ texto: string; raw: any[] }> {
     });
 
     if (comEspecialidade.length === 0) {
-      console.log("[whatsapp] Nenhum profissional com especialidade");
-      return { texto: "\n\nPROFISSIONAIS: Nenhum com especialidade definida. Diga que vai confirmar com a equipe.", raw: profissionais };
+      return { texto: "\n\nPROFISSIONAIS: Nenhum com especialidade definida.", raw: profissionais };
     }
 
     const lista = comEspecialidade.map((p: any) => {
+      const id = p.id || p.professional_id || "";
       const nome = fixEncoding(p.full_name || p.professional_name || p.display_name || p.name || p.nome || "");
       const esp = fixEncoding(p.specialty || p.especialidade || p.specialization || "").trim();
-      // Normalizar especialidade para title case
       const espNorm = esp.charAt(0).toUpperCase() + esp.slice(1).toLowerCase();
-      return `- ${nome}: ${espNorm}`;
+      return `- ${nome} (${espNorm}) [ID: ${id}]`;
     }).join("\n");
 
-    console.log(`[whatsapp] ✅ ${comEspecialidade.length} profissionais com especialidade carregados`);
+    console.log(`[whatsapp] ✅ ${comEspecialidade.length} profissionais carregados`);
 
     return { texto: `\n\n## PROFISSIONAIS REAIS DA CLÍNICA LA VITTA (USE ESTES NOMES):
 ${lista}
 
-REGRA ABSOLUTA: Quando o paciente perguntar qual profissional atende determinada especialidade, CONSULTE esta lista e responda com o NOME EXATO.
-NUNCA diga "vou confirmar com a equipe" se a especialidade está na lista acima!`, raw: profissionais };
+REGRA ABSOLUTA: Use o NOME EXATO e o ID correto ao confirmar agendamento.
+NUNCA diga "vou confirmar com a equipe" se a especialidade está na lista!`, raw: comEspecialidade };
   } catch (err) {
-    console.error("[whatsapp] Erro ao buscar profissionais:", err);
-    return { texto: "\n\nPROFISSIONAIS: Erro ao consultar. Diga que vai confirmar com a equipe.", raw: [] };
+    console.error("[whatsapp] Erro buscar profissionais:", err);
+    return { texto: "", raw: [] };
   }
 }
 
@@ -243,10 +371,7 @@ NUNCA diga "vou confirmar com a equipe" se a especialidade está na lista acima!
 // =============================
 async function buscarHorariosDisponiveis(profissionais: any[]): Promise<string> {
   try {
-    const gestaoUrl = Deno.env.get("GESTAO_API_URL");
-    const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
-    if (!gestaoUrl || !gestaoToken) {
-      console.log("[whatsapp] GESTAO_API não configurada para agenda");
+    if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) {
       return gerarHorariosLocais();
     }
 
@@ -259,85 +384,77 @@ async function buscarHorariosDisponiveis(profissionais: any[]): Promise<string> 
       }
     }
 
-    // Pegar IDs de profissionais ativos para consultar slots
     const profIds = profissionais
       .filter((p: any) => p.id || p.professional_id)
-      .slice(0, 3)
-      .map((p: any) => p.id || p.professional_id);
+      .slice(0, 5)
+      .map((p: any) => ({ id: p.id || p.professional_id, nome: fixEncoding(p.full_name || p.professional_name || p.name || "") }));
 
     if (profIds.length === 0) {
-      console.log("[whatsapp] Sem profissionais com ID para consultar slots");
       return gerarHorariosLocais();
     }
 
-    // Consultar slots disponíveis para os próximos dias
     const slotsPromises = diasParaConsultar.flatMap(date =>
-      profIds.map((profId: string) =>
-        fetch(`${gestaoUrl}/functions/v1/internal-api`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${gestaoToken}`,
-            "apikey": gestaoToken,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            action: "get_available_slots",
-            params: { professional_id: profId, date },
-          }),
-        }).then(r => r.ok ? r.json() : null).catch(() => null)
+      profIds.map(prof =>
+        chamarGestao("get_available_slots", { professional_id: prof.id, date })
+          .then(r => ({ ...r, profNome: prof.nome, profId: prof.id, date }))
+          .catch(() => null)
       )
     );
 
     const resultados = await Promise.all(slotsPromises);
 
     const nomes: Record<number, string> = { 1: "segunda-feira", 2: "terça-feira", 3: "quarta-feira", 4: "quinta-feira", 5: "sexta-feira" };
-    const slotsMap: Record<string, Set<string>> = {};
+    // Agrupar por data e profissional
+    const slotsInfo: Array<{ date: string; time: string; profNome: string; profId: string }> = [];
 
     for (const res of resultados) {
-      if (!res) continue;
-      const slots = res?.slots || res?.available_slots || res?.data || [];
+      if (!res || !res.ok) continue;
+      const slots = res.data?.slots || res.data?.available_slots || res.data?.data || [];
       if (!Array.isArray(slots)) continue;
       for (const slot of slots) {
-        const date = slot.date || slot.appointment_date || "";
         const time = slot.time || slot.start_time || slot.appointment_time || "";
-        if (date && time) {
-          if (!slotsMap[date]) slotsMap[date] = new Set();
-          slotsMap[date].add(time.slice(0, 5));
+        if (time) {
+          slotsInfo.push({ date: res.date, time: time.slice(0, 5), profNome: res.profNome, profId: res.profId });
         }
       }
     }
 
-    const datas = Object.keys(slotsMap).sort();
-    if (datas.length === 0) {
+    if (slotsInfo.length === 0) {
       console.log("[whatsapp] get_available_slots retornou vazio, usando fallback local");
       return gerarHorariosLocais();
     }
 
-    const linhas = datas.map(dt => {
+    // Agrupar por data
+    const porData: Record<string, Array<{ time: string; profNome: string; profId: string }>> = {};
+    for (const s of slotsInfo) {
+      if (!porData[s.date]) porData[s.date] = [];
+      porData[s.date].push({ time: s.time, profNome: s.profNome, profId: s.profId });
+    }
+
+    const linhas = Object.keys(porData).sort().map(dt => {
       const d = new Date(dt + "T12:00:00Z");
       const dow = d.getDay();
       const dia = dt.split("-").reverse().join("/");
-      const horarios = [...slotsMap[dt]].sort();
-      const manha = horarios.filter(h => h < "12:00");
-      const tarde = horarios.filter(h => h >= "12:00");
+      const slots = porData[dt].sort((a, b) => a.time.localeCompare(b.time));
+      const manha = slots.filter(s => s.time < "12:00").map(s => `${s.time} (${s.profNome})`);
+      const tarde = slots.filter(s => s.time >= "12:00").map(s => `${s.time} (${s.profNome})`);
       let desc = `${nomes[dow] || dt} (${dia}):`;
-      if (manha.length > 0) desc += ` manhã ${manha.join(", ")}`;
-      if (tarde.length > 0) desc += ` | tarde ${tarde.join(", ")}`;
+      if (manha.length > 0) desc += ` manhã: ${manha.join(", ")}`;
+      if (tarde.length > 0) desc += ` | tarde: ${tarde.join(", ")}`;
       return desc;
     });
 
-    console.log(`[whatsapp] ✅ Agenda real carregada: ${datas.length} dias com slots`);
+    console.log(`[whatsapp] ✅ Agenda real: ${slotsInfo.length} slots em ${Object.keys(porData).length} dias`);
 
     return `\n\nHORÁRIOS DISPONÍVEIS DA CLÍNICA (AGENDA REAL):
 ${linhas.join("\n")}
 
 REGRA CRÍTICA DE ESCASSEZ:
-- Quando o paciente disser o turno (manhã/tarde), ofereça EXATAMENTE 2 horários desse turno
-- NUNCA liste todos os horários. Escolha 2 e apresente como se fossem os únicos disponíveis
-- Exemplo: "Consegui encaixar para você [dia] às [hora1] ou às [hora2]. Qual fica melhor? 😊"
-- NÃO diga "a agenda está concorrida" - apenas apresente as 2 opções naturalmente`;
+- Ofereça EXATAMENTE 2 horários do turno pedido
+- NUNCA liste todos. Escolha 2 e apresente como únicos disponíveis
+- Exemplo: "Consegui encaixar para você [dia] às [hora1] ou às [hora2]. Qual fica melhor? 😊"`;
   } catch (err) {
-    console.error("[whatsapp] Erro ao buscar agenda real:", err);
+    console.error("[whatsapp] Erro buscar agenda:", err);
     return gerarHorariosLocais();
   }
 }
@@ -357,25 +474,31 @@ function gerarHorariosLocais(): string {
   return `\n\nHORÁRIOS DISPONÍVEIS (horário comercial):
 ${diasDisponiveis.join("\n")}
 
-REGRA: Ofereça EXATAMENTE 2 opções do turno pedido. NUNCA liste todos.`;
+REGRA: Ofereça EXATAMENTE 2 opções do turno pedido.`;
 }
 
 // =============================
-// REGISTRAR AGENDAMENTO
+// REGISTRAR AGENDAMENTO NO GESTÃO + CRM
 // =============================
-async function registrarAgendamento(nome: string, telefone: string, data: string, horario: string): Promise<boolean> {
+async function registrarAgendamento(nome: string, telefone: string, data: string, horario: string, professionalId: string, pacienteId: string): Promise<boolean> {
   try {
-    const gestaoUrl = Deno.env.get("GESTAO_API_URL");
-    const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
-    if (!gestaoUrl || !gestaoToken) return false;
+    if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) return false;
 
-    const res = await fetch(`${gestaoUrl}/functions/v1/internal-api`, {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${gestaoToken}`, "apikey": gestaoToken, "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "create_appointment", params: { appointment_date: data, appointment_time: horario, patient_name_imported: nome, patient_phone: telefone } }),
-    });
-    console.log(`[whatsapp] Agendamento gestão: ${res.status}`);
-    return res.ok;
+    const params: Record<string, unknown> = {
+      appointment_date: data,
+      appointment_time: horario,
+      patient_name_imported: nome,
+      patient_phone: telefone,
+    };
+
+    // Se temos o ID do paciente no sistema, usar
+    if (pacienteId) params.patient_id = pacienteId;
+    // Se temos o professional_id, usar
+    if (professionalId && professionalId !== "auto") params.professional_id = professionalId;
+
+    const result = await chamarGestao("create_appointment", params);
+    console.log(`[whatsapp] Agendamento gestão: ${result.status} - ${JSON.stringify(result.data).slice(0, 200)}`);
+    return result.ok;
   } catch (err) {
     console.error("[whatsapp] Erro agendamento:", err);
     return false;
@@ -401,11 +524,27 @@ async function criarLeadCRM(nome: string, telefone: string): Promise<boolean> {
   }
 }
 
-function extrairAgendamento(resposta: string): { nome: string; data: string; horario: string; textoLimpo: string } | null {
-  const regex = /##AGENDAMENTO_CONFIRMADO\|([^|]+)\|(\d{4}-\d{2}-\d{2})\|(\d{2}:\d{2})##/;
+// =============================
+// EXTRAIR MARCADORES DA RESPOSTA
+// =============================
+function extrairAgendamento(resposta: string): { nome: string; data: string; horario: string; professionalId: string; textoLimpo: string } | null {
+  const regex = /##AGENDAMENTO_CONFIRMADO\|([^|]+)\|(\d{4}-\d{2}-\d{2})\|(\d{2}:\d{2})\|?([^#]*)##/;
   const match = resposta.match(regex);
   if (!match) return null;
-  return { nome: match[1].trim(), data: match[2], horario: match[3], textoLimpo: resposta.replace(regex, "").trim() };
+  return {
+    nome: match[1].trim(),
+    data: match[2],
+    horario: match[3],
+    professionalId: (match[4] || "auto").trim(),
+    textoLimpo: resposta.replace(regex, "").trim(),
+  };
+}
+
+function extrairCPF(resposta: string): { cpf: string; textoLimpo: string } | null {
+  const regex = /##ATUALIZAR_CPF\|([^#]+)##/;
+  const match = resposta.match(regex);
+  if (!match) return null;
+  return { cpf: match[1].trim(), textoLimpo: resposta.replace(regex, "").trim() };
 }
 
 // =============================
@@ -536,43 +675,42 @@ serve(async (req) => {
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     // =============================
-    // BUSCAR HISTÓRICO + PROFISSIONAIS + AGENDA EM PARALELO
+    // BUSCAR HISTÓRICO + PACIENTE + PROFISSIONAIS + AGENDA EM PARALELO
     // =============================
-    const { data: historico } = await supabase
-      .from("interacoes_ia")
-      .select("mensagem_usuario, resposta_final, criado_em")
-      .eq("paciente_externo_id", numero)
-      .eq("canal", "whatsapp")
-      .order("criado_em", { ascending: false })
-      .limit(10);
+    const [historicoResult, pacienteResult, profResult] = await Promise.all([
+      supabase
+        .from("interacoes_ia")
+        .select("mensagem_usuario, resposta_final, criado_em")
+        .eq("paciente_externo_id", numero)
+        .eq("canal", "whatsapp")
+        .order("criado_em", { ascending: false })
+        .limit(10),
+      buscarPacientePorTelefone(numero),
+      buscarProfissionais(),
+    ]);
 
-    // SEMPRE buscar profissionais primeiro, depois agenda com IDs reais
-    const profResult = await buscarProfissionais();
-    const contextAgenda = await buscarHorariosDisponiveis(profResult.raw);
+    const historico = historicoResult.data;
+    const contextPaciente = pacienteResult.texto;
+    const pacienteEncontrado = pacienteResult.paciente;
     const contextProfissionais = profResult.texto;
 
-    console.log(`[whatsapp] Contexto: profissionais=${contextProfissionais.length > 50 ? "OK" : "VAZIO"} agenda=${contextAgenda.length > 50 ? "OK" : "VAZIO"}`);
+    // Buscar agenda com profissionais reais
+    const contextAgenda = await buscarHorariosDisponiveis(profResult.raw);
 
-    // Extrair nome do paciente do histórico
-    let nomePaciente = "";
-    if (historico && historico.length > 0) {
-      for (const h of [...historico].reverse()) {
-        if (h.mensagem_usuario) {
-          const palavras = h.mensagem_usuario.split(" ").filter((p: string) => p.length > 2);
-          if (palavras.length <= 3 && !h.mensagem_usuario.toLowerCase().includes("quero") && !h.mensagem_usuario.toLowerCase().includes("preciso")) {
-            nomePaciente = h.mensagem_usuario.trim();
-            break;
-          }
-        }
-      }
-    }
+    console.log(`[whatsapp] Contexto: paciente=${pacienteEncontrado ? "ENCONTRADO" : "NÃO"} profissionais=${profResult.raw.length > 0 ? "OK" : "VAZIO"} agenda=${contextAgenda.length > 50 ? "OK" : "VAZIO"}`);
 
     // Contexto extra
     let contextExtra = "";
+    contextExtra += contextPaciente;
     contextExtra += contextProfissionais;
     contextExtra += contextAgenda;
-    if (nomePaciente) contextExtra += `\n\nNOME DO PACIENTE: ${nomePaciente}. Use o nome dele(a).`;
+    if (pacienteEncontrado?.nome) {
+      contextExtra += `\n\nNOME DO PACIENTE: ${pacienteEncontrado.nome}. Use o nome dele(a).`;
+    }
     contextExtra += `\nTELEFONE DO PACIENTE: ${numero}`;
+    if (pacienteEncontrado?.id) {
+      contextExtra += `\nID DO PACIENTE NO SISTEMA: ${pacienteEncontrado.id}`;
+    }
 
     // Montar mensagens para IA
     const messages: { role: string; content: string }[] = [
@@ -605,7 +743,7 @@ serve(async (req) => {
         body: JSON.stringify({
           model: "gpt-4o-mini",
           temperature: 0.7,
-          max_tokens: 250,
+          max_tokens: 300,
           messages,
         }),
       });
@@ -619,20 +757,48 @@ serve(async (req) => {
     }
 
     // =============================
+    // DETECTAR ATUALIZAÇÃO DE CPF
+    // =============================
+    const cpfDetectado = extrairCPF(respostaFinal);
+    if (cpfDetectado) {
+      respostaFinal = cpfDetectado.textoLimpo;
+      if (pacienteEncontrado?.id) {
+        atualizarPacienteCPF(pacienteEncontrado.id, cpfDetectado.cpf)
+          .then(ok => console.log(`[whatsapp] CPF atualizado: ${ok}`))
+          .catch(err => console.error("[whatsapp] Erro atualizar CPF:", err));
+      }
+    }
+
+    // =============================
     // DETECTAR AGENDAMENTO CONFIRMADO
     // =============================
     const agendamentoDetectado = extrairAgendamento(respostaFinal);
     if (agendamentoDetectado) {
       respostaFinal = agendamentoDetectado.textoLimpo;
+      const patientId = pacienteEncontrado?.id || "";
       Promise.all([
-        registrarAgendamento(agendamentoDetectado.nome, numero, agendamentoDetectado.data, agendamentoDetectado.horario),
+        registrarAgendamento(
+          agendamentoDetectado.nome,
+          numero,
+          agendamentoDetectado.data,
+          agendamentoDetectado.horario,
+          agendamentoDetectado.professionalId,
+          patientId
+        ),
         criarLeadCRM(agendamentoDetectado.nome, numero),
       ]).then(([gestaoOk, crmOk]) => {
         supabase.from("logs_decisao").insert({
           evento: "agendamento_whatsapp_confirmado",
           decisao: `gestao=${gestaoOk ? "ok" : "falha"}, crm=${crmOk ? "ok" : "falha"}`,
           regra_aplicada: "whatsapp_maria_agendamento_auto",
-          dados_entrada: { nome: agendamentoDetectado.nome, telefone: numero, data: agendamentoDetectado.data, horario: agendamentoDetectado.horario },
+          dados_entrada: {
+            nome: agendamentoDetectado.nome,
+            telefone: numero,
+            data: agendamentoDetectado.data,
+            horario: agendamentoDetectado.horario,
+            professional_id: agendamentoDetectado.professionalId,
+            patient_id: patientId,
+          },
           confianca: 1.0,
         });
         console.log(`[whatsapp] ✅ Agendamento: Gestão=${gestaoOk}, CRM=${crmOk}`);
@@ -653,7 +819,6 @@ serve(async (req) => {
     // =============================
     console.log(`[whatsapp] 📤 Resposta: "${respostaFinal.slice(0, 100)}..."`);
 
-    // Delay humanizado
     const delayMs = 3000 + Math.random() * 1500;
     await new Promise(resolve => setTimeout(resolve, delayMs));
 
