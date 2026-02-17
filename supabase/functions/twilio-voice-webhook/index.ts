@@ -368,7 +368,7 @@ serve(async (req) => {
     const saudacao = getSaudacao();
 
     if (callSid && fromNumber) {
-      await supabase.from("voice_memory").insert({
+      supabase.from("voice_memory").insert({
         call_sid: callSid,
         phone_number: fromNumber,
         role: "system",
@@ -385,25 +385,24 @@ serve(async (req) => {
   // INTERAÇÕES SEGUINTES
   // =============================
 
-  if (callSid && fromNumber) {
-    await supabase.from("voice_memory").insert({
-      call_sid: callSid,
-      phone_number: fromNumber,
-      role: "user",
-      message: speech,
-    }).then(() => {});
-  }
-
-  // Buscar histórico da conversa
+  // Salvar fala do usuário e buscar histórico EM PARALELO
   let historico: { role: string; message: string }[] = [];
-  if (callSid) {
-    const { data } = await supabase
-      .from("voice_memory")
-      .select("role, message")
-      .eq("call_sid", callSid)
-      .order("created_at", { ascending: true })
-      .limit(20);
-    if (data) historico = data;
+  if (callSid && fromNumber) {
+    const [_, histResult] = await Promise.all([
+      supabase.from("voice_memory").insert({
+        call_sid: callSid,
+        phone_number: fromNumber,
+        role: "user",
+        message: speech,
+      }),
+      supabase
+        .from("voice_memory")
+        .select("role, message")
+        .eq("call_sid", callSid)
+        .order("created_at", { ascending: true })
+        .limit(12),
+    ]);
+    if (histResult.data) historico = histResult.data;
   }
 
   // Detectar intenção de agendamento
@@ -473,8 +472,8 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
-        temperature: 0.75,
-        max_tokens: 180,
+        temperature: 0.7,
+        max_tokens: 120,
         messages,
       }),
     });
@@ -509,9 +508,9 @@ serve(async (req) => {
 
   respostaFinal = limparTexto(respostaFinal);
 
-  // Salvar resposta
+  // Salvar resposta em background (não bloqueia)
   if (callSid && fromNumber) {
-    await supabase.from("voice_memory").insert({
+    supabase.from("voice_memory").insert({
       call_sid: callSid,
       phone_number: fromNumber,
       role: "assistant",
