@@ -136,7 +136,15 @@ Vendedora de elite treinada pelo "Mestre das Vendas" + AWSales.
 
 ## INSTRUÇÃO CRÍTICA: CONFIRMAÇÃO DE AGENDAMENTO
 Quando o paciente CONFIRMAR um agendamento, inclua ao FINAL:
-##AGENDAMENTO_CONFIRMADO|nome_paciente|data_YYYY-MM-DD|horario_HH:MM##
+##AGENDAMENTO_CONFIRMADO|nome_paciente|data_YYYY-MM-DD|horario_HH:MM|professional_id##
+
+- O professional_id deve ser o ID do profissional correto da lista (campo "id")
+- Se não souber, use "auto"
+
+## MÚLTIPLOS AGENDAMENTOS (MUITO IMPORTANTE!)
+- Se o paciente pedir 2+ agendamentos, inclua UM marcador para CADA
+- Exemplo: ##AGENDAMENTO_CONFIRMADO|João|2025-06-19|14:00|uuid1## ##AGENDAMENTO_CONFIRMADO|João|2025-06-19|16:00|uuid2##
+- Cada profissional = 1 marcador. Se faltar algum, o agendamento NÃO será registrado
 `;
 
 // =============================
@@ -342,11 +350,20 @@ async function criarLeadCRM(nome: string, telefone: string, origem: string): Pro
   }
 }
 
-function extrairAgendamento(resposta: string): { nome: string; data: string; horario: string; textoLimpo: string } | null {
-  const regex = /##AGENDAMENTO_CONFIRMADO\|([^|]+)\|(\d{4}-\d{2}-\d{2})\|(\d{2}:\d{2})##/;
-  const match = resposta.match(regex);
-  if (!match) return null;
-  return { nome: match[1].trim(), data: match[2], horario: match[3], textoLimpo: resposta.replace(regex, "").trim() };
+function extrairAgendamentos(resposta: string): { agendamentos: Array<{ nome: string; data: string; horario: string; professionalId: string }>; textoLimpo: string } {
+  const regex = /##AGENDAMENTO_CONFIRMADO\|([^|]+)\|(\d{4}-\d{2}-\d{2})\|(\d{2}:\d{2})\|?([^#]*)##/g;
+  const agendamentos: Array<{ nome: string; data: string; horario: string; professionalId: string }> = [];
+  let match;
+  while ((match = regex.exec(resposta)) !== null) {
+    agendamentos.push({
+      nome: match[1].trim(),
+      data: match[2],
+      horario: match[3],
+      professionalId: (match[4] || "auto").trim(),
+    });
+  }
+  const textoLimpo = resposta.replace(/##AGENDAMENTO_CONFIRMADO\|[^#]*##/g, "").trim();
+  return { agendamentos, textoLimpo };
 }
 
 async function processarAgendamentoConfirmado(
@@ -522,17 +539,20 @@ serve(async (req) => {
   }
 
   // =============================
-  // DETECTAR AGENDAMENTO CONFIRMADO
-  // =============================
-  const agendamentoDetectado = extrairAgendamento(respostaFinal);
-  if (agendamentoDetectado) {
-    respostaFinal = agendamentoDetectado.textoLimpo;
-    const telLimpo = fromNumber.replace(/[^\d+]/g, "");
-    processarAgendamentoConfirmado(
-      agendamentoDetectado.nome, telLimpo, agendamentoDetectado.data,
-      agendamentoDetectado.horario, callSid, supabase
-    ).catch(err => console.error("[voice] Erro ao processar agendamento:", err));
-  }
+    // DETECTAR AGENDAMENTOS CONFIRMADOS (suporta múltiplos)
+    // =============================
+    const { agendamentos, textoLimpo: textoSemAg } = extrairAgendamentos(respostaFinal);
+    if (agendamentos.length > 0) {
+      respostaFinal = textoSemAg;
+      const telLimpo = fromNumber.replace(/[^\d+]/g, "");
+      console.log(`[voice] 📋 ${agendamentos.length} agendamento(s) detectado(s)`);
+      agendamentos.forEach((ag, idx) => {
+        console.log(`[voice] Agendamento ${idx + 1}/${agendamentos.length}: ${ag.nome} | ${ag.data} ${ag.horario} | prof=${ag.professionalId}`);
+        processarAgendamentoConfirmado(
+          ag.nome, telLimpo, ag.data, ag.horario, callSid, supabase
+        ).catch(err => console.error(`[voice] Erro agendamento ${idx + 1}:`, err));
+      });
+    }
 
   // =============================
   // DETECTAR TRANSFERÊNCIA PARA HUMANO
