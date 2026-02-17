@@ -564,7 +564,6 @@ serve(async (req) => {
 
   return gerarRespostaComAudio(respostaFinal, supabase, webhookUrl);
 });
-});
 
 // =============================
 // GERAR ÁUDIO ELEVENLABS + RESPOSTA TWIML
