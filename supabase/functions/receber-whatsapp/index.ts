@@ -34,16 +34,27 @@ Você está atendendo pelo WhatsApp.
 - Interjeições educadas: "Que bom!", "Maravilha!", "Perfeito!", "Ótimo!"
 - Use 1-2 emojis por mensagem, de forma natural (😊, 🦷, 💙, ✅, 📋)
 - Seja simpática, educada e acolhedora, como uma profissional exemplar
-- PROIBIDO usar frases como "como posso ajudá-lo?", "como posso ajudar?", "em que posso ser útil?", "posso ajudar em algo?"
-- Em vez disso, seja DIRETIVA: "O que você está buscando hoje?", "Qual especialidade você precisa?", "Conte-me, o que está sentindo?"
-- Use 1-2 emojis por mensagem, de forma natural (😊, 🦷, 💙, ✅, 📋)
-- Seja simpática, educada e acolhedora, como uma profissional exemplar
+
+## FLUXO DE PRIMEIRA INTERAÇÃO (OBRIGATÓRIO - siga esta ORDEM EXATA)
+1. **Mensagem 1 (apresentação)**: Se apresente com nome, cumprimente e pergunte o nome do paciente:
+   "${getSaudacao()}! Aqui é a Maria, da Clínica La Vitta 😊 Como você está? Qual é o seu nome?"
+2. **Mensagem 2 (após receber o nome)**: Agradeça, repita o nome, diga que TAMBÉM está bem (se perguntarem), e pergunte o que a pessoa está buscando:
+   "Que bom falar com você, [Nome]! Eu estou ótima, obrigada por perguntar 😊 Me conta, o que você está buscando hoje?"
+3. **A partir da mensagem 3**: Siga o fluxo normal de atendimento/agendamento
+
+## INTERAÇÃO SOCIAL HUMANIZADA (REGRAS CRÍTICAS)
+- Se o paciente perguntar "como você está?", "tudo bem?", "e você?" → SEMPRE responda de forma calorosa: "Estou ótima, obrigada por perguntar! 😊" ou "Tudo maravilhoso por aqui, obrigada! 💙"
+- Se o paciente disser "bom dia", "boa tarde", "boa noite" → Retribua a saudação ANTES de qualquer outra coisa
+- Se o paciente agradecer → Responda com carinho: "Eu que agradeço, [Nome]! É um prazer atender você 😊"
+- Se o paciente fizer um elogio → Agradeça genuinamente: "Que gentileza sua, [Nome]! Fico muito feliz 💙"
+- NUNCA ignore saudações ou perguntas sociais. Responda SEMPRE de forma humana e calorosa
+- Converse de forma NATURAL, como uma pessoa real faria, não como um robô que só quer vender
+- NUNCA pule direto para o assunto sem antes responder à saudação/pergunta social do paciente
 
 ## APRESENTAÇÃO OBRIGATÓRIA
-- Na PRIMEIRA mensagem da conversa, SEMPRE se apresente:
-  "Olá! Aqui é a Maria, da Clínica La Vitta 😊 Qual é o seu nome, por favor?"
-- Se o paciente disser o nome dele, responda: "[Saudação], [Nome]! Prazer em falar com você! Eu sou a Maria, responsável pelo atendimento aqui na La Vitta 😊"
-- NUNCA pule a apresentação. O paciente precisa saber COM QUEM está falando.
+- Na PRIMEIRA mensagem da conversa (sem histórico), SEMPRE se apresente
+- NUNCA pule a apresentação. O paciente precisa saber COM QUEM está falando
+- Após se apresentar, pergunte o nome do paciente de forma natural
 
 ## REGRAS ABSOLUTAS
 - NUNCA diga que é IA/robô/assistente virtual/chatbot
@@ -204,70 +215,95 @@ async function buscarAgendaGestao(): Promise<string> {
       "apikey": gestaoToken,
       "Content-Type": "application/json",
     };
-    const baseUrl = `${gestaoUrl}/functions/v1/internal-api`;
+    
+    // Construir URL - GESTAO_API_URL pode ser base ou URL completa
+    let baseUrl = gestaoUrl;
+    if (!gestaoUrl.includes("/functions/v1/internal-api")) {
+      baseUrl = `${gestaoUrl}/functions/v1/internal-api`;
+    }
 
-    // Buscar agendamentos dos próximos 7 dias para calcular horários ocupados
     const hoje = new Date();
     const em7dias = new Date(hoje.getTime() + 7 * 24 * 60 * 60 * 1000);
     const hojeStr = hoje.toISOString().split("T")[0];
     const em7diasStr = em7dias.toISOString().split("T")[0];
 
-    console.log(`[whatsapp] Consultando agendamentos: ${hojeStr} a ${em7diasStr}`);
+    console.log(`[whatsapp] Consultando agenda URL=${baseUrl} datas=${hojeStr} a ${em7diasStr}`);
+
+    // Tentativa 1: com params wrapper
+    const body1 = { action: "list_appointments", params: { start_date: hojeStr, end_date: em7diasStr } };
+    console.log(`[whatsapp] Agenda req body: ${JSON.stringify(body1)}`);
 
     const res = await fetch(baseUrl, {
       method: "POST",
       headers,
-      body: JSON.stringify({ 
-        action: "list_appointments", 
-        params: { 
-          start_date: hojeStr, 
-          end_date: em7diasStr 
-        } 
-      }),
+      body: JSON.stringify(body1),
     });
 
     const responseText = await res.text();
-    console.log(`[whatsapp] Agenda resposta status=${res.status} body=${responseText.slice(0, 500)}`);
+    console.log(`[whatsapp] Agenda resp status=${res.status} body=${responseText.slice(0, 500)}`);
 
     if (!res.ok) {
-      // Tentar sem params como fallback
+      // Tentativa 2: sem wrapper params (top-level)
+      const body2 = { action: "list_appointments", start_date: hojeStr, end_date: em7diasStr };
+      console.log(`[whatsapp] Agenda tentativa 2 (sem params): ${JSON.stringify(body2)}`);
+      
       const res2 = await fetch(baseUrl, {
         method: "POST",
         headers,
-        body: JSON.stringify({ action: "list_appointments" }),
+        body: JSON.stringify(body2),
       });
       const text2 = await res2.text();
-      console.log(`[whatsapp] Agenda fallback status=${res2.status} body=${text2.slice(0, 500)}`);
+      console.log(`[whatsapp] Agenda resp2 status=${res2.status} body=${text2.slice(0, 500)}`);
       
       if (!res2.ok) {
-        return "\n\nAGENDA: Não foi possível consultar a agenda agora. Pergunte ao paciente a preferência de dia e turno (manhã/tarde), e diga: 'Vou confirmar os horários disponíveis com a equipe e já retorno para você, combinado? 😊'. NUNCA invente horários.";
+        // Tentativa 3: sem nenhum params
+        const body3 = { action: "list_appointments" };
+        console.log(`[whatsapp] Agenda tentativa 3 (sem params): ${JSON.stringify(body3)}`);
+        
+        const res3 = await fetch(baseUrl, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(body3),
+        });
+        const text3 = await res3.text();
+        console.log(`[whatsapp] Agenda resp3 status=${res3.status} body=${text3.slice(0, 500)}`);
+        
+        if (!res3.ok) {
+          return "\n\nAGENDA: Não foi possível consultar a agenda agora. Pergunte ao paciente a preferência de dia e turno (manhã/tarde), e diga: 'Vou confirmar os horários disponíveis com a equipe e já retorno para você, combinado? 😊'. NUNCA invente horários.";
+        }
+        
+        let data3;
+        try { data3 = JSON.parse(text3); } catch { return "\n\nAGENDA: Resposta inválida. NUNCA invente horários."; }
+        return formatarDadosAgenda(data3);
       }
       
       let data2;
       try { data2 = JSON.parse(text2); } catch { return "\n\nAGENDA: Resposta inválida. NUNCA invente horários."; }
-      return `\n\nDADOS DA AGENDA (agendamentos existentes): ${JSON.stringify(data2).slice(0, 1000)}\nIMPORTANTE: Derive horários LIVRES a partir dos ocupados. NUNCA invente. Horário comercial: 8h-18h, seg-sex.`;
+      return formatarDadosAgenda(data2);
     }
 
     let data;
     try { data = JSON.parse(responseText); } catch { return "\n\nAGENDA: Resposta inválida. NUNCA invente horários."; }
-
-    // Processar agendamentos para encontrar horários livres
-    const appointments = data?.appointments || data?.data || data || [];
-    if (Array.isArray(appointments) && appointments.length > 0) {
-      const ocupados = appointments.slice(0, 30).map((a: any) => {
-        const dt = a.date || a.appointment_date || a.data || "";
-        const hr = a.time || a.appointment_time || a.horario || a.start_time || "";
-        const prof = a.professional_name || a.professional || a.profissional || "";
-        return `${dt} ${hr}${prof ? " (" + prof + ")" : ""}`;
-      }).join("; ");
-      return `\n\nAGENDAMENTOS JÁ MARCADOS (horários OCUPADOS): ${ocupados}\nHorário comercial: 8h-18h, seg-sex. Consultas de 1h. Sugira horários que NÃO estão nesta lista de ocupados. NUNCA invente. Use ESCASSEZ ao apresentar.`;
-    }
-    
-    return `\n\nAGENDA: ${JSON.stringify(data).slice(0, 800)}\nIMPORTANTE: Use APENAS dados reais. NUNCA invente horários.`;
+    return formatarDadosAgenda(data);
   } catch (err) {
     console.error("[whatsapp] Erro agenda:", err);
     return "\n\nAGENDA: Erro ao consultar. Pergunte preferência de dia/turno e diga que vai confirmar com a equipe. NUNCA invente horários.";
   }
+}
+
+function formatarDadosAgenda(data: any): string {
+  const appointments = data?.appointments || data?.data || data || [];
+  if (Array.isArray(appointments) && appointments.length > 0) {
+    const ocupados = appointments.slice(0, 30).map((a: any) => {
+      const dt = a.date || a.appointment_date || a.data || "";
+      const hr = a.time || a.appointment_time || a.horario || a.start_time || "";
+      const prof = a.professional_name || a.professional || a.profissional || "";
+      return `${dt} ${hr}${prof ? " (" + prof + ")" : ""}`;
+    }).join("; ");
+    return `\n\nAGENDAMENTOS JÁ MARCADOS (horários OCUPADOS): ${ocupados}\nHorário comercial: 8h-18h, seg-sex. Consultas de 1h. Sugira horários que NÃO estão nesta lista de ocupados. NUNCA invente. Use ESCASSEZ ao apresentar.`;
+  }
+  
+  return `\n\nAGENDA: ${JSON.stringify(data).slice(0, 800)}\nIMPORTANTE: Use APENAS dados reais. NUNCA invente horários.`;
 }
 
 // =============================
