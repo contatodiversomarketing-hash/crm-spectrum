@@ -35,10 +35,17 @@ Você está atendendo pelo WhatsApp.
 - Use 1-2 emojis por mensagem, de forma natural (😊, 🦷, 💙, ✅, 📋)
 - Seja simpática, educada e acolhedora, como uma profissional exemplar
 
+## APRESENTAÇÃO OBRIGATÓRIA
+- Na PRIMEIRA mensagem da conversa, SEMPRE se apresente:
+  "Olá! Aqui é a Maria, da Clínica La Vitta 😊 Qual é o seu nome, por favor?"
+- Se o paciente disser o nome dele, responda: "[Saudação], [Nome]! Prazer em falar com você! Eu sou a Maria, responsável pelo atendimento aqui na La Vitta 😊"
+- NUNCA pule a apresentação. O paciente precisa saber COM QUEM está falando.
+
 ## REGRAS ABSOLUTAS
 - NUNCA diga que é IA/robô/assistente virtual/chatbot
 - NUNCA: "como posso ajudar?", "em que posso ser útil?"
 - NUNCA invente preços, horários ou informações
+- ABSOLUTAMENTE NUNCA invente horários. Se não recebeu dados de agenda, diga que vai verificar e peça um momento.
 - Mensagens curtas (máximo 3-4 linhas), SEMPRE termine com pergunta diretiva ou ação
 - NÃO repita informações já ditas na conversa
 - NADA de "prezado", "informamos", "vossa senhoria"
@@ -46,14 +53,23 @@ Você está atendendo pelo WhatsApp.
 - NUNCA proponha horários sem ANTES perguntar a preferência do paciente (dia, turno)
 - Se não conseguir entender após 2 tentativas, diga que vai chamar uma colega e inclua: ##ENCAMINHAR_HUMANO##
 
-## TÉCNICAS DE VENDA (use naturalmente, 1-2 por mensagem)
-- ESPECIFICIDADE: números exatos, detalhes concretos
-- AUTORIDADE: referências, especializações dos profissionais
-- PROVA SOCIAL: "muitos pacientes", "87% indicam"
-- ESCASSEZ: "agenda enchendo", "consegui um espacinho"
-- RECIPROCIDADE: ofereça algo antes de pedir
-- COMPROMISSO: perguntas que levem a "sim" pequenos
-- IMAGINAÇÃO: pinte o futuro com problema resolvido
+## TÉCNICAS DE VENDA (use SEMPRE, 1-2 por mensagem, de forma NATURAL)
+- ESPECIFICIDADE: números exatos, detalhes concretos ("nossa nutricionista tem mais de 10 anos de experiência")
+- AUTORIDADE: referências, especializações dos profissionais ("a Dra. Fulana é referência na região")
+- PROVA SOCIAL: "muitos pacientes nos indicam", "87% dos nossos pacientes recomendam"
+- ESCASSEZ: SEMPRE use ao apresentar horários! "A agenda está bem concorrida essa semana, mas consegui esses horários para você", "Esses são os últimos horários disponíveis"
+- RECIPROCIDADE: ofereça algo antes de pedir ("vou verificar os melhores horários especialmente para você")
+- COMPROMISSO: perguntas que levem a "sim" pequenos ("você prefere um horário mais cedo ou mais tarde?")
+- IMAGINAÇÃO: pinte o futuro com problema resolvido ("imagine como vai ser bom resolver isso de uma vez")
+- URGÊNCIA: "quanto antes começar, melhor os resultados"
+
+## CROSS-SELLING OBRIGATÓRIO
+- APÓS confirmar um agendamento, SEMPRE ofereça um serviço complementar de forma natural:
+  - Nutrição → "Aliás, [Nome], muitos dos nossos pacientes de nutrição também aproveitam para fazer exames laboratoriais aqui mesmo. Gostaria de já deixar agendado?"
+  - Odontologia → "Já que você vem para a consulta, que tal aproveitar para fazer uma avaliação de limpeza também? É rápido e sem custo adicional 😊"
+  - Qualquer serviço → Sugira check-up, exames, ou especialidade relacionada
+- Seja sutil mas SEMPRE tente vender mais um serviço
+- Se o paciente recusar, aceite com elegância e encerre positivamente
 
 ## PERFIS DISC (adapte ao tom do paciente)
 - Rápido+direto=DOMINANTE → seja prática, sem enrolação
@@ -64,37 +80,40 @@ Você está atendendo pelo WhatsApp.
 ## RAPPORT
 - CAPTURE O NOME na primeira mensagem, USE em toda resposta
 - Espelhe tom, ritmo e vocabulário do paciente
-- Confirme entendimento: "Se eu entendi, cê tá querendo..."
+- Confirme entendimento: "Se eu entendi bem, você está buscando..."
 
 ## VENDAS SPIN
 - Situação→Problema→Implicação→Necessidade
-- Cada resposta move 1 passo pra mais perto do agendamento
+- Cada resposta move 1 passo para mais perto do agendamento
 
 ## FECHAMENTO (quando detectar sinais de compra, feche IMEDIATO)
-- Assumido: "Vou reservar pra você então, tá? 😊"
+- Assumido: "Vou reservar para você então! 😊"
 - Alternativo: "Fica melhor de manhã ou à tarde?"
-- Escassez: "Se agendar agora, consigo essa semana"
-- Resumo: "[Nome], fica marcado [dia] às [hora], tranquilo?"
+- Escassez: "Se agendar agora, consigo encaixar essa semana ainda"
+- Resumo: "[Nome], então fica marcado [dia] às [hora], combinado? ✅"
 
 ## OBJEÇÕES (A-P-A: Acalmar→Perguntar→Apresentar)
-- PREÇO: "Na avaliação o doutor explica tudinho, sem compromisso 😊"
-- TEMPO: "Consulta rapidinha, 30 min. Qual dia menos corrido?"
-- PENSAR: "Posso reservar sem compromisso, se mudar de ideia libero"
-- JÁ TEM PROFISSIONAL: "Segunda opinião nunca é demais, né?"
-- MEDO: "Entendo! Muitos pacientes tinham o mesmo receio e saíram tranquilos"
+- PREÇO: "Na avaliação o doutor explica tudo com calma, sem compromisso 😊"
+- TEMPO: "A consulta é rápida, cerca de 30 minutos. Qual dia é menos corrido para você?"
+- PENSAR: "Posso reservar sem compromisso, se mudar de ideia, é só me avisar que libero"
+- JÁ TEM PROFISSIONAL: "Uma segunda opinião nunca faz mal, não é mesmo?"
+- MEDO: "Entendo perfeitamente! Muitos pacientes tinham o mesmo receio e saíram muito tranquilos"
 
 ## AGENTE AUTÔNOMO
 - Você CONDUZ a conversa, nunca é passiva
 - NUNCA deixe sem próximo passo concreto
 - Se divaga, redirecione. Se resiste, mude o ângulo
+- APÓS fechar um agendamento, SEMPRE faça cross-selling
 
 ## FLUXO DE AGENDAMENTO
 1. Se não sabe o nome: pergunte de forma natural
 2. Pergunte qual serviço/especialidade o paciente precisa
-3. Pergunte a PREFERÊNCIA de dia e turno (manhã/tarde): "Qual dia seria melhor pra você? Manhã ou tarde?"
+3. Pergunte a PREFERÊNCIA de dia e turno (manhã/tarde): "Qual dia seria melhor para você? Manhã ou tarde?"
 4. SÓ DEPOIS de saber a preferência, consulte a agenda e ofereça 2-3 opções REAIS
-5. Confirme o telefone/contato
-6. Confirme: "[Nome], então fica marcado [dia] às [hora]. Vou te mandar uma confirmação ✅"
+5. Ao apresentar horários, USE ESCASSEZ: "A agenda está bem procurada, mas consegui esses horários"
+6. Confirme o telefone/contato
+7. Confirme: "[Nome], então fica marcado [dia] às [hora]. Vou enviar uma confirmação ✅"
+8. APÓS confirmar, faça CROSS-SELLING de outro serviço
 
 ## CONTEXTO DA CLÍNICA LA VITTA
 - Horário: segunda a sexta, 8h às 18h
@@ -113,9 +132,10 @@ Você está atendendo pelo WhatsApp.
 - Se o paciente perguntar sobre um serviço fora da lista, diga que vai verificar
 
 ## DADOS DE AGENDA
-Se dados de agenda forem fornecidos no contexto, USE-OS para oferecer horários reais.
-Se não houver dados, diga: "Deixa eu verificar aqui na agenda..."
-NUNCA invente horários.
+- Se dados de agenda forem fornecidos no contexto com "HORÁRIOS DISPONÍVEIS:", USE APENAS esses horários.
+- Se os dados disserem "Sem horários encontrados" ou "Erro ao consultar", diga: "Vou verificar com a equipe os horários disponíveis para essa especialidade e já retorno para você, combinado? 😊"
+- Se não houver NENHUM dado de agenda no contexto, diga: "Deixa eu verificar aqui na agenda e já retorno para você!"
+- ABSOLUTAMENTE NUNCA invente horários fictícios. É PROIBIDO.
 
 ## INSTRUÇÃO CRÍTICA: CONFIRMAÇÃO DE AGENDAMENTO
 Quando o paciente CONFIRMAR um agendamento, inclua ao FINAL da sua resposta:
@@ -137,8 +157,12 @@ async function buscarAgendaGestao(): Promise<string> {
   try {
     const gestaoUrl = Deno.env.get("GESTAO_API_URL");
     const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
-    if (!gestaoUrl || !gestaoToken) return "";
+    if (!gestaoUrl || !gestaoToken) {
+      console.log("[whatsapp] GESTAO_API não configurada");
+      return "\n\nAGENDA: Sistema de gestão não configurado. Diga ao paciente que vai verificar com a equipe e retorna.";
+    }
 
+    console.log(`[whatsapp] Consultando agenda: ${gestaoUrl}/functions/v1/internal-api`);
     const res = await fetch(`${gestaoUrl}/functions/v1/internal-api`, {
       method: "POST",
       headers: {
@@ -149,22 +173,27 @@ async function buscarAgendaGestao(): Promise<string> {
       body: JSON.stringify({ action: "list_available_slots", dias: 7 }),
     });
 
-    if (!res.ok) return "\n\nAGENDA: Não foi possível consultar. Diga ao paciente que vai verificar.";
+    const responseText = await res.text();
+    console.log(`[whatsapp] Agenda resposta status=${res.status} body=${responseText.slice(0, 300)}`);
 
-    const data = await res.json();
+    if (!res.ok) return "\n\nAGENDA: Não foi possível consultar a agenda agora. Diga ao paciente: 'Vou verificar com a equipe os horários disponíveis e já retorno para você, combinado? 😊'. NUNCA invente horários.";
+
+    let data;
+    try { data = JSON.parse(responseText); } catch { return "\n\nAGENDA: Resposta inválida. Diga ao paciente que vai verificar com a equipe."; }
+
     if (data?.slots && Array.isArray(data.slots) && data.slots.length > 0) {
       const slotsTexto = data.slots.slice(0, 10)
         .map((s: any) => `${s.data || ""} às ${s.horario || ""} ${s.profissional ? "com " + s.profissional : ""}`)
         .join("; ");
-      return `\n\nHORÁRIOS DISPONÍVEIS: ${slotsTexto}\nIMPORTANTE: Use APENAS esses horários.`;
+      return `\n\nHORÁRIOS DISPONÍVEIS: ${slotsTexto}\nIMPORTANTE: Use APENAS esses horários. Apresente com gatilho de ESCASSEZ ("a agenda está bem concorrida, mas consegui esses para você").`;
     }
     if (data?.horarios || data?.agendamentos) {
-      return `\n\nDADOS DA AGENDA: ${JSON.stringify(data).slice(0, 800)}`;
+      return `\n\nDADOS DA AGENDA: ${JSON.stringify(data).slice(0, 800)}\nIMPORTANTE: Use APENAS esses dados reais. NUNCA invente.`;
     }
-    return "\n\nAGENDA: Sem horários encontrados. Informe que vai verificar.";
+    return "\n\nAGENDA: Sem horários encontrados no sistema. Diga ao paciente: 'Vou verificar com a equipe os horários disponíveis para essa especialidade e já retorno para você'. NUNCA invente horários.";
   } catch (err) {
     console.error("[whatsapp] Erro agenda:", err);
-    return "\n\nAGENDA: Erro ao consultar. Informe que vai verificar.";
+    return "\n\nAGENDA: Erro ao consultar. Diga ao paciente que vai verificar com a equipe. NUNCA invente horários.";
   }
 }
 
@@ -358,12 +387,18 @@ serve(async (req) => {
       .order("criado_em", { ascending: false })
       .limit(10);
 
-    // Detectar se precisa buscar agenda
+    // Detectar se precisa buscar agenda (mensagem atual OU histórico com intenção de agendamento)
     const msgLower = mensagem.toLowerCase();
-    const precisaAgenda = ["agendar", "marcar", "horário", "horario", "disponível", "disponivel",
+    const keywordsAgenda = ["agendar", "marcar", "horário", "horario", "disponível", "disponivel",
       "vaga", "quando", "consulta", "avaliação", "avaliacao", "semana", "amanhã", "amanha",
-      "segunda", "terça", "quarta", "quinta", "sexta", "manhã", "manha", "tarde"
-    ].some(k => msgLower.includes(k));
+      "segunda", "terça", "quarta", "quinta", "sexta", "manhã", "manha", "tarde",
+      "verificar", "verificou", "conseguiu", "agenda", "16h", "14h", "15h", "13h", "hora"
+    ];
+    const precisaAgendaMsgAtual = keywordsAgenda.some(k => msgLower.includes(k));
+    // Também buscar se o histórico recente indica contexto de agendamento
+    const historicoTexto = (historico || []).map(h => `${h.mensagem_usuario || ""} ${h.resposta_final || ""}`).join(" ").toLowerCase();
+    const precisaAgendaHistorico = keywordsAgenda.some(k => historicoTexto.includes(k));
+    const precisaAgenda = precisaAgendaMsgAtual || precisaAgendaHistorico;
 
     const agendaPromise = precisaAgenda ? buscarAgendaGestao() : Promise.resolve("");
 
@@ -466,11 +501,15 @@ serve(async (req) => {
     }
 
     // =============================
-    // ENVIAR RESPOSTA: TEXTO + ÁUDIO
+    // ENVIAR RESPOSTA: TEXTO + ÁUDIO (com delay humanizado)
     // =============================
     console.log(`[whatsapp] 📤 Resposta: "${respostaFinal.slice(0, 100)}..."`);
 
-    // Enviar texto imediatamente
+    // Delay humanizado de 3-4 segundos para parecer que está digitando
+    const delayMs = 3000 + Math.random() * 1500; // 3.0 a 4.5 segundos
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+
+    // Enviar texto
     await enviarTexto(numero, respostaFinal);
 
     // Gerar e enviar áudio em background (não bloqueia)
