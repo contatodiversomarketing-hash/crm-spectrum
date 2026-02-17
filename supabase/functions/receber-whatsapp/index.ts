@@ -46,6 +46,8 @@ Você está atendendo pelo WhatsApp.
 - NUNCA: "como posso ajudar?", "em que posso ser útil?"
 - NUNCA invente preços, horários ou informações
 - ABSOLUTAMENTE NUNCA invente horários. Se não recebeu dados de agenda, diga que vai verificar e peça um momento.
+- ABSOLUTAMENTE NUNCA invente nomes de profissionais (médicos, dentistas, psicólogos, etc). Se não recebeu a lista de PROFISSIONAIS DA CLÍNICA no contexto, diga que vai confirmar com a equipe qual profissional atende essa especialidade.
+- Se o paciente perguntar "quem é o profissional?" ou "qual é o doutor(a)?", e você NÃO tem a lista de profissionais no contexto, responda: "Vou confirmar com a equipe qual profissional atende essa especialidade e já retorno para você!"
 - Mensagens curtas (máximo 3-4 linhas), SEMPRE termine com pergunta diretiva ou ação
 - NÃO repita informações já ditas na conversa
 - NADA de "prezado", "informamos", "vossa senhoria"
@@ -153,6 +155,37 @@ Quando o paciente CONFIRMAR um agendamento, inclua ao FINAL da sua resposta:
 // =============================
 // BUSCAR AGENDA NO SISTEMA DE GESTÃO
 // =============================
+async function buscarProfissionais(): Promise<string> {
+  try {
+    const gestaoUrl = Deno.env.get("GESTAO_API_URL");
+    const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
+    if (!gestaoUrl || !gestaoToken) return "";
+
+    const res = await fetch(`${gestaoUrl}/functions/v1/internal-api`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${gestaoToken}`,
+        "apikey": gestaoToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ action: "list_professionals", params: {} }),
+    });
+
+    if (!res.ok) return "";
+    const data = await res.json();
+    const profissionais = data?.professionals || data?.data || [];
+    if (Array.isArray(profissionais) && profissionais.length > 0) {
+      const lista = profissionais.map((p: any) => `${p.name || p.nome || "?"} (${p.specialty || p.especialidade || "?"})`).join("; ");
+      console.log(`[whatsapp] Profissionais encontrados: ${lista.slice(0, 200)}`);
+      return `\n\nPROFISSIONAIS DA CLÍNICA (use APENAS estes nomes): ${lista}\nNUNCA invente nomes de profissionais. Se o paciente pedir uma especialidade que não está na lista, diga que vai verificar com a equipe.`;
+    }
+    return "\n\nPROFISSIONAIS: Não foi possível carregar a lista. NUNCA invente nomes de profissionais. Diga que vai confirmar com a equipe.";
+  } catch (err) {
+    console.error("[whatsapp] Erro profissionais:", err);
+    return "\n\nPROFISSIONAIS: Erro ao consultar. NUNCA invente nomes. Diga que vai confirmar com a equipe.";
+  }
+}
+
 async function buscarAgendaGestao(): Promise<string> {
   try {
     const gestaoUrl = Deno.env.get("GESTAO_API_URL");
@@ -170,24 +203,31 @@ async function buscarAgendaGestao(): Promise<string> {
         "apikey": gestaoToken,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ action: "list_available_slots", dias: 7 }),
+      body: JSON.stringify({ action: "list_available_slots", params: { dias: 7 } }),
     });
 
     const responseText = await res.text();
-    console.log(`[whatsapp] Agenda resposta status=${res.status} body=${responseText.slice(0, 300)}`);
+    console.log(`[whatsapp] Agenda resposta status=${res.status} body=${responseText.slice(0, 500)}`);
 
     if (!res.ok) return "\n\nAGENDA: Não foi possível consultar a agenda agora. Diga ao paciente: 'Vou verificar com a equipe os horários disponíveis e já retorno para você, combinado? 😊'. NUNCA invente horários.";
 
     let data;
     try { data = JSON.parse(responseText); } catch { return "\n\nAGENDA: Resposta inválida. Diga ao paciente que vai verificar com a equipe."; }
 
-    if (data?.slots && Array.isArray(data.slots) && data.slots.length > 0) {
-      const slotsTexto = data.slots.slice(0, 10)
-        .map((s: any) => `${s.data || ""} às ${s.horario || ""} ${s.profissional ? "com " + s.profissional : ""}`)
+    // Tentar múltiplos formatos de resposta
+    const slots = data?.slots || data?.data?.slots || data?.available_slots || [];
+    if (Array.isArray(slots) && slots.length > 0) {
+      const slotsTexto = slots.slice(0, 15)
+        .map((s: any) => {
+          const dataSlot = s.date || s.data || "";
+          const horario = s.time || s.horario || s.start_time || "";
+          const prof = s.professional_name || s.profissional || s.professional || "";
+          return `${dataSlot} às ${horario}${prof ? " com " + prof : ""}`;
+        })
         .join("; ");
-      return `\n\nHORÁRIOS DISPONÍVEIS: ${slotsTexto}\nIMPORTANTE: Use APENAS esses horários. Apresente com gatilho de ESCASSEZ ("a agenda está bem concorrida, mas consegui esses para você").`;
+      return `\n\nHORÁRIOS DISPONÍVEIS: ${slotsTexto}\nIMPORTANTE: Use APENAS esses horários. NUNCA invente outros. Apresente com gatilho de ESCASSEZ ("a agenda está bem concorrida, mas consegui esses para você").`;
     }
-    if (data?.horarios || data?.agendamentos) {
+    if (data?.horarios || data?.agendamentos || data?.appointments) {
       return `\n\nDADOS DA AGENDA: ${JSON.stringify(data).slice(0, 800)}\nIMPORTANTE: Use APENAS esses dados reais. NUNCA invente.`;
     }
     return "\n\nAGENDA: Sem horários encontrados no sistema. Diga ao paciente: 'Vou verificar com a equipe os horários disponíveis para essa especialidade e já retorno para você'. NUNCA invente horários.";
@@ -209,7 +249,7 @@ async function registrarAgendamento(nome: string, telefone: string, data: string
     const res = await fetch(`${gestaoUrl}/functions/v1/internal-api`, {
       method: "POST",
       headers: { "Authorization": `Bearer ${gestaoToken}`, "apikey": gestaoToken, "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "create_appointment", params: { appointment_date: data, appointment_time: horario, patient_name: nome, patient_phone: telefone } }),
+      body: JSON.stringify({ action: "create_appointment", params: { appointment_date: data, appointment_time: horario, patient_name_imported: nome, patient_phone: telefone } }),
     });
     console.log(`[whatsapp] Agendamento gestão: ${res.status}`);
     return res.ok;
@@ -401,6 +441,7 @@ serve(async (req) => {
     const precisaAgenda = precisaAgendaMsgAtual || precisaAgendaHistorico;
 
     const agendaPromise = precisaAgenda ? buscarAgendaGestao() : Promise.resolve("");
+    const profissionaisPromise = precisaAgenda ? buscarProfissionais() : Promise.resolve("");
 
     // Extrair nome do paciente do histórico
     let nomePaciente = "";
@@ -417,10 +458,11 @@ serve(async (req) => {
       }
     }
 
-    const contextAgenda = await agendaPromise;
+    const [contextAgenda, contextProfissionais] = await Promise.all([agendaPromise, profissionaisPromise]);
 
     // Contexto extra
     let contextExtra = "";
+    contextExtra += contextProfissionais;
     if (nomePaciente) contextExtra += `\n\nNOME DO PACIENTE: ${nomePaciente}. Use o nome dele(a).`;
     contextExtra += `\nTELEFONE DO PACIENTE: ${numero}`;
 
