@@ -4,6 +4,7 @@ import { StatusCard } from "@/components/StatusCard";
 import { SystemStatusBadge } from "@/components/SystemStatusBadge";
 import { RecentInteractions } from "@/components/RecentInteractions";
 import { AutomationQueue } from "@/components/AutomationQueue";
+import { ChannelToggles } from "@/components/ChannelToggles";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDadosIntegrados } from "@/hooks/useDadosIntegrados";
 
@@ -31,6 +32,8 @@ const Index = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <ChannelToggles />
+            <div className="w-px h-6 bg-border" />
             <SystemStatusBadge status={systemStatus} label={`${dados.systems.filter(s => s.status === "online").length}/${dados.systems.length} sistemas`} />
             <button
               onClick={dados.refresh}
