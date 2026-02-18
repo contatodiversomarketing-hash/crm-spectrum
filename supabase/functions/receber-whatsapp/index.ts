@@ -379,7 +379,8 @@ NUNCA diga "vou confirmar com a equipe" se a especialidade está na lista!`, raw
 // DETECTAR ESPECIALIDADE E FILTRAR PROFISSIONAIS
 // =============================
 const MAPA_ESPECIALIDADE: Array<{ termos: string[]; especialidades: string[] }> = [
-  { termos: ["dentista", "dente", "dor de dente", "cárie", "canal", "extração", "limpeza", "clareamento", "odontologia", "odontológica", "odontológico", "avaliação odontológica"], especialidades: ["odontologia", "cirurgião dentista", "cirurgia dentista", "clinico geral odontologico", "clínico geral odontológico", "dentista", "odontopediatra", "periodontista", "endodontista", "protesista"] },
+  { termos: ["dentista", "dente", "dor de dente", "cárie", "canal", "extração", "limpeza dental", "clareamento", "odontologia", "odontológica", "odontológico", "avaliação odontológica"], especialidades: ["odontologia", "cirurgião dentista", "cirurgia dentista", "clinico geral odontologico", "clínico geral odontológico", "clínico geral", "dentista", "odontopediatra", "periodontista", "endodontista", "protesista"] },
+  { termos: ["dentística", "restauração", "restauração dentária"], especialidades: ["dentística", "dentistica"] },
   { termos: ["aparelho", "ortodontia", "alinhador", "ortodontista"], especialidades: ["ortodontia", "ortodontista"] },
   { termos: ["implante", "implante dentário", "implantodontista"], especialidades: ["implantodontia", "implantodontista"] },
   { termos: ["psicólogo", "psicóloga", "psicologia", "terapia", "ansiedade", "depressão"], especialidades: ["psicologia", "psicólogo", "psicóloga"] },
@@ -418,11 +419,32 @@ function filtrarProfissionaisPorEspecialidade(profissionais: any[], especialidad
   const normsPermitidas = especialidadesPermitidas.map(e => e.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
 
   const filtrados = profissionais.filter((p: any) => {
-    const esp = fixEncoding(p.specialty || p.especialidade || p.specialization || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    return normsPermitidas.some(perm => esp.includes(perm) || perm.includes(esp));
+    const espRaw = fixEncoding(p.specialty || p.especialidade || p.specialization || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    
+    // Correspondência mais precisa: verificar se a especialidade do profissional 
+    // corresponde exatamente a alguma especialidade permitida (palavra completa)
+    return normsPermitidas.some(perm => {
+      // Correspondência exata
+      if (espRaw === perm) return true;
+      // A especialidade do profissional contém a permitida como palavra completa
+      const regex = new RegExp(`\\b${perm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+      if (regex.test(espRaw)) return true;
+      // A permitida contém a especialidade do profissional como palavra completa
+      const regex2 = new RegExp(`\\b${espRaw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+      if (regex2.test(perm)) return true;
+      return false;
+    });
   });
 
   console.log(`[whatsapp] 🔍 Filtro: ${profissionais.length} profissionais → ${filtrados.length} da especialidade`);
+  
+  // Log dos profissionais filtrados para debug
+  filtrados.forEach((p: any) => {
+    const nome = fixEncoding(p.full_name || p.name || "");
+    const esp = fixEncoding(p.specialty || p.especialidade || "");
+    console.log(`[whatsapp]   → ${nome} (${esp})`);
+  });
+  
   return filtrados;
 }
 
