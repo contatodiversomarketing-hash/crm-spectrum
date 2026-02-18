@@ -378,18 +378,20 @@ NUNCA diga "vou confirmar com a equipe" se a especialidade está na lista!`, raw
 // =============================
 // DETECTAR ESPECIALIDADE E FILTRAR PROFISSIONAIS
 // =============================
+// Érika Coimbra Almeida (cadastrada como "ORTODONTISTA") atua em: dentista clínico geral, ortodontia, botox e harmonização
+// Por isso "ortodontista" aparece em múltiplas categorias
 const MAPA_ESPECIALIDADE: Array<{ termos: string[]; especialidades: string[] }> = [
-  { termos: ["dentista", "dente", "dor de dente", "cárie", "canal", "extração", "limpeza dental", "clareamento", "odontologia", "odontológica", "odontológico", "avaliação odontológica"], especialidades: ["odontologia", "cirurgião dentista", "cirurgia dentista", "clinico geral odontologico", "clínico geral odontológico", "clínico geral", "dentista", "odontopediatra", "periodontista", "endodontista", "protesista"] },
-  { termos: ["dentística", "restauração", "restauração dentária"], especialidades: ["dentística", "dentistica"] },
+  { termos: ["dentista", "dente", "dor de dente", "cárie", "canal", "extração", "limpeza dental", "clareamento", "odontologia", "odontológica", "odontológico", "avaliação odontológica"], especialidades: ["odontologia", "cirurgião dentista", "cirurgia dentista", "clinico geral odontologico", "clínico geral odontológico", "dentista clinico geral", "dentista", "odontopediatra", "periodontista", "endodontista", "protesista", "ortodontista", "ortodontia", "implantodontista", "implantodontia"] },
+  { termos: ["dentística", "restauração", "restauração dentária"], especialidades: ["dentística", "dentistica", "cirurgiao dentista especialista em dentistica"] },
   { termos: ["aparelho", "ortodontia", "alinhador", "ortodontista"], especialidades: ["ortodontia", "ortodontista"] },
   { termos: ["implante", "implante dentário", "implantodontista"], especialidades: ["implantodontia", "implantodontista"] },
-  { termos: ["psicólogo", "psicóloga", "psicologia", "terapia", "ansiedade", "depressão"], especialidades: ["psicologia", "psicólogo", "psicóloga"] },
+  { termos: ["psicólogo", "psicóloga", "psicologia", "terapia", "ansiedade", "depressão"], especialidades: ["psicologia", "psicólogo", "psicóloga", "psicologa clinica", "psicologo clinico", "psicologa infantil"] },
   { termos: ["nutricionista", "nutrição", "dieta", "emagrecer", "alimentação"], especialidades: ["nutrição", "nutricionista"] },
-  { termos: ["fono", "fonoaudiólogo", "fonoaudióloga", "fonoaudiologia", "fala", "linguagem"], especialidades: ["fonoaudiologia", "fonoaudiólogo", "fonoaudióloga"] },
+  { termos: ["fono", "fonoaudiólogo", "fonoaudióloga", "fonoaudiologia", "fala", "linguagem"], especialidades: ["fonoaudiologia", "fonoaudiólogo", "fonoaudióloga", "fonoaudiologa"] },
   { termos: ["dermatologista", "dermatologia", "pele", "acne"], especialidades: ["dermatologia", "dermatologista"] },
   { termos: ["cardiologista", "cardiologia", "coração"], especialidades: ["cardiologia", "cardiologista"] },
-  { termos: ["botox", "harmonização", "estética"], especialidades: ["estética", "harmonização"] },
-  { termos: ["médico", "clínico", "clínico geral"], especialidades: ["clínico geral", "médico", "medicina"] },
+  { termos: ["botox", "harmonização", "estética", "harmonização facial"], especialidades: ["estética", "estetica", "harmonização", "ortodontista"] },
+  { termos: ["médico", "clínico", "clínico geral"], especialidades: ["clínico geral", "clinico geral", "médico", "medicina"] },
 ];
 
 function detectarEspecialidade(mensagemAtual: string, historico: Array<{ mensagem_usuario?: string | null; resposta_final?: string | null }> | null): string[] | null {
