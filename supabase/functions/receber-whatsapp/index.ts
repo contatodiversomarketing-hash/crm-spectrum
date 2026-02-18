@@ -376,6 +376,57 @@ NUNCA diga "vou confirmar com a equipe" se a especialidade está na lista!`, raw
 }
 
 // =============================
+// DETECTAR ESPECIALIDADE E FILTRAR PROFISSIONAIS
+// =============================
+const MAPA_ESPECIALIDADE: Array<{ termos: string[]; especialidades: string[] }> = [
+  { termos: ["dentista", "dente", "dor de dente", "cárie", "canal", "extração", "limpeza", "clareamento", "odontologia", "odontológica", "odontológico", "avaliação odontológica"], especialidades: ["odontologia", "cirurgião dentista", "cirurgia dentista", "clinico geral odontologico", "clínico geral odontológico", "dentista", "odontopediatra", "periodontista", "endodontista", "protesista"] },
+  { termos: ["aparelho", "ortodontia", "alinhador", "ortodontista"], especialidades: ["ortodontia", "ortodontista"] },
+  { termos: ["implante", "implante dentário", "implantodontista"], especialidades: ["implantodontia", "implantodontista"] },
+  { termos: ["psicólogo", "psicóloga", "psicologia", "terapia", "ansiedade", "depressão"], especialidades: ["psicologia", "psicólogo", "psicóloga"] },
+  { termos: ["nutricionista", "nutrição", "dieta", "emagrecer", "alimentação"], especialidades: ["nutrição", "nutricionista"] },
+  { termos: ["fono", "fonoaudiólogo", "fonoaudióloga", "fonoaudiologia", "fala", "linguagem"], especialidades: ["fonoaudiologia", "fonoaudiólogo", "fonoaudióloga"] },
+  { termos: ["dermatologista", "dermatologia", "pele", "acne"], especialidades: ["dermatologia", "dermatologista"] },
+  { termos: ["cardiologista", "cardiologia", "coração"], especialidades: ["cardiologia", "cardiologista"] },
+  { termos: ["botox", "harmonização", "estética"], especialidades: ["estética", "harmonização"] },
+  { termos: ["médico", "clínico", "clínico geral"], especialidades: ["clínico geral", "médico", "medicina"] },
+];
+
+function detectarEspecialidade(mensagemAtual: string, historico: Array<{ mensagem_usuario?: string | null; resposta_final?: string | null }> | null): string[] | null {
+  // Junta mensagem atual + últimas 4 mensagens do histórico para contexto
+  const textos = [mensagemAtual];
+  if (historico) {
+    for (const h of historico.slice(0, 4)) {
+      if (h.mensagem_usuario) textos.push(h.mensagem_usuario);
+      if (h.resposta_final) textos.push(h.resposta_final);
+    }
+  }
+  const textoCompleto = textos.join(" ").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  for (const mapa of MAPA_ESPECIALIDADE) {
+    for (const termo of mapa.termos) {
+      const termoNorm = termo.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      if (textoCompleto.includes(termoNorm)) {
+        console.log(`[whatsapp] 🔍 Especialidade detectada: "${termo}" → filtrar por: ${mapa.especialidades.join(", ")}`);
+        return mapa.especialidades;
+      }
+    }
+  }
+  return null; // Sem especialidade detectada, mostrar todos
+}
+
+function filtrarProfissionaisPorEspecialidade(profissionais: any[], especialidadesPermitidas: string[]): any[] {
+  const normsPermitidas = especialidadesPermitidas.map(e => e.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+
+  const filtrados = profissionais.filter((p: any) => {
+    const esp = fixEncoding(p.specialty || p.especialidade || p.specialization || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return normsPermitidas.some(perm => esp.includes(perm) || perm.includes(esp));
+  });
+
+  console.log(`[whatsapp] 🔍 Filtro: ${profissionais.length} profissionais → ${filtrados.length} da especialidade`);
+  return filtrados;
+}
+
+// =============================
 // BUSCAR HORÁRIOS DISPONÍVEIS VIA API DE GESTÃO
 // =============================
 async function buscarHorariosDisponiveis(profissionais: any[]): Promise<string> {
@@ -710,13 +761,48 @@ serve(async (req) => {
     const historico = historicoResult.data;
     const contextPaciente = pacienteResult.texto;
     const pacienteEncontrado = pacienteResult.paciente;
-    const contextProfissionais = profResult.texto;
     const treinamentos = treinamentoResult.data || [];
 
-    // Buscar agenda com profissionais reais
-    const contextAgenda = await buscarHorariosDisponiveis(profResult.raw);
+    // Detectar especialidade e filtrar profissionais ANTES de enviar ao prompt
+    const especialidadesDetectadas = detectarEspecialidade(mensagem, historico);
+    let profissionaisParaContexto = profResult.raw;
+    let profissionaisParaAgenda = profResult.raw;
 
-    console.log(`[whatsapp] Contexto: paciente=${pacienteEncontrado ? "ENCONTRADO" : "NÃO"} profissionais=${profResult.raw.length > 0 ? "OK" : "VAZIO"} agenda=${contextAgenda.length > 50 ? "OK" : "VAZIO"} treinamento=${treinamentos.length} instruções`);
+    if (especialidadesDetectadas && profResult.raw.length > 0) {
+      const filtrados = filtrarProfissionaisPorEspecialidade(profResult.raw, especialidadesDetectadas);
+      if (filtrados.length > 0) {
+        profissionaisParaContexto = filtrados;
+        profissionaisParaAgenda = filtrados;
+        console.log(`[whatsapp] ✅ Profissionais filtrados: ${filtrados.map((p: any) => fixEncoding(p.full_name || p.name || "")).join(", ")}`);
+      } else {
+        console.log(`[whatsapp] ⚠️ Nenhum profissional encontrado para especialidade, mostrando todos`);
+      }
+    }
+
+    // Gerar contexto de profissionais filtrados
+    let contextProfissionais = "";
+    if (profissionaisParaContexto.length > 0) {
+      const lista = profissionaisParaContexto.map((p: any) => {
+        const id = p.id || p.professional_id || "";
+        const nome = fixEncoding(p.full_name || p.professional_name || p.display_name || p.name || p.nome || "");
+        const esp = fixEncoding(p.specialty || p.especialidade || p.specialization || "").trim();
+        const espNorm = esp.charAt(0).toUpperCase() + esp.slice(1).toLowerCase();
+        return `- ${nome} (${espNorm}) [ID: ${id}]`;
+      }).join("\n");
+
+      contextProfissionais = `\n\n## PROFISSIONAIS DISPONÍVEIS PARA ESTA ESPECIALIDADE (USE SOMENTE ESTES):
+${lista}
+
+REGRA ABSOLUTA: Use SOMENTE os profissionais listados acima. NÃO sugira outros profissionais.
+${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectadas.join(", ")}. Ofereça APENAS profissionais desta área.` : ""}`;
+    } else {
+      contextProfissionais = profResult.texto;
+    }
+
+    // Buscar agenda com profissionais FILTRADOS
+    const contextAgenda = await buscarHorariosDisponiveis(profissionaisParaAgenda);
+
+    console.log(`[whatsapp] Contexto: paciente=${pacienteEncontrado ? "ENCONTRADO" : "NÃO"} profissionais=${profissionaisParaContexto.length}/${profResult.raw.length} agenda=${contextAgenda.length > 50 ? "OK" : "VAZIO"} treinamento=${treinamentos.length} especialidade=${especialidadesDetectadas?.join(",") || "nenhuma"}`);
 
     // Contexto extra
     let contextExtra = "";
