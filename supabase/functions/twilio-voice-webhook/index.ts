@@ -388,6 +388,22 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
+  // Verificar se o canal Telefone está ativo
+  const { data: configCanal } = await supabase
+    .from("configuracoes_sistema")
+    .select("telefone_ativo")
+    .order("criado_em", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (configCanal && configCanal.telefone_ativo === false) {
+    console.log("[voice] Canal Telefone DESATIVADO - rejeitando chamada");
+    const twiml = `<?xml version="1.0" encoding="UTF-8"?><Response><Say language="pt-BR" voice="Polly.Camila">Nosso atendimento por telefone está temporariamente indisponível. Por favor, entre em contato pelo WhatsApp. Obrigada!</Say><Hangup/></Response>`;
+    return new Response(twiml, {
+      headers: { "Content-Type": "text/xml; charset=utf-8" },
+    });
+  }
+
   let speech = "";
   let callSid = "";
   let fromNumber = "";

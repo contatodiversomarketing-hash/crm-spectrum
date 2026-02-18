@@ -779,6 +779,25 @@ serve(async (req) => {
       return new Response("ok");
     }
 
+    // Verificar se o canal WhatsApp está ativo
+    const supabaseCheck = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+    const { data: configCanal } = await supabaseCheck
+      .from("configuracoes_sistema")
+      .select("whatsapp_ativo")
+      .order("criado_em", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (configCanal && configCanal.whatsapp_ativo === false) {
+      console.log("[whatsapp] Canal WhatsApp DESATIVADO - ignorando mensagem");
+      return new Response(JSON.stringify({ status: "canal_desativado" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (numero.includes("-") || numero.length < 10) {
       console.log("[whatsapp] Ignorando: número inválido");
       return new Response("ok");

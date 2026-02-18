@@ -336,6 +336,8 @@ export type Database = {
           id: string
           modo_supervisao_ativo: boolean
           nivel_autonomia: number
+          telefone_ativo: boolean
+          whatsapp_ativo: boolean
         }
         Insert: {
           criado_em?: string
@@ -345,6 +347,8 @@ export type Database = {
           id?: string
           modo_supervisao_ativo?: boolean
           nivel_autonomia?: number
+          telefone_ativo?: boolean
+          whatsapp_ativo?: boolean
         }
         Update: {
           criado_em?: string
@@ -354,6 +358,8 @@ export type Database = {
           id?: string
           modo_supervisao_ativo?: boolean
           nivel_autonomia?: number
+          telefone_ativo?: boolean
+          whatsapp_ativo?: boolean
         }
         Relationships: []
       }
