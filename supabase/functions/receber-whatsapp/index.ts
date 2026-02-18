@@ -427,6 +427,33 @@ function filtrarProfissionaisPorEspecialidade(profissionais: any[], especialidad
 }
 
 // =============================
+// DETECTAR PROFISSIONAL MENCIONADO PELO NOME
+// =============================
+function detectarProfissionalPorNome(mensagem: string, profissionais: any[]): any | null {
+  const msgNorm = mensagem.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  
+  for (const p of profissionais) {
+    const nomeCompleto = fixEncoding(p.full_name || p.professional_name || p.display_name || p.name || p.nome || "");
+    if (!nomeCompleto) continue;
+    
+    // Extrair primeiro nome e sobrenome
+    const partes = nomeCompleto.split(/\s+/).filter((s: string) => s.length > 2);
+    for (const parte of partes) {
+      const parteNorm = parte.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      // Ignorar títulos comuns
+      if (["dra", "dr", "dra.", "dr."].includes(parteNorm)) continue;
+      if (parteNorm.length < 4) continue;
+      
+      if (msgNorm.includes(parteNorm)) {
+        console.log(`[whatsapp] 👤 Profissional detectado pelo nome: "${parte}" → ${nomeCompleto}`);
+        return p;
+      }
+    }
+  }
+  return null;
+}
+
+// =============================
 // BUSCAR HORÁRIOS DISPONÍVEIS VIA API DE GESTÃO
 // =============================
 async function buscarHorariosDisponiveis(profissionais: any[]): Promise<string> {
@@ -763,12 +790,22 @@ serve(async (req) => {
     const pacienteEncontrado = pacienteResult.paciente;
     const treinamentos = treinamentoResult.data || [];
 
+    // Detectar profissional mencionado pelo NOME na mensagem atual
+    const profMencionado = detectarProfissionalPorNome(mensagem, profResult.raw);
+    
     // Detectar especialidade e filtrar profissionais ANTES de enviar ao prompt
     const especialidadesDetectadas = detectarEspecialidade(mensagem, historico);
     let profissionaisParaContexto = profResult.raw;
     let profissionaisParaAgenda = profResult.raw;
 
-    if (especialidadesDetectadas && profResult.raw.length > 0) {
+    if (profMencionado) {
+      // Se o paciente mencionou um profissional pelo nome, priorizar esse profissional
+      profissionaisParaContexto = [profMencionado];
+      profissionaisParaAgenda = [profMencionado];
+      const nomeMencionado = fixEncoding(profMencionado.full_name || profMencionado.name || "");
+      const espMencionado = fixEncoding(profMencionado.specialty || profMencionado.especialidade || "");
+      console.log(`[whatsapp] ✅ Paciente perguntou por profissional específico: ${nomeMencionado} (${espMencionado})`);
+    } else if (especialidadesDetectadas && profResult.raw.length > 0) {
       const filtrados = filtrarProfissionaisPorEspecialidade(profResult.raw, especialidadesDetectadas);
       if (filtrados.length > 0) {
         profissionaisParaContexto = filtrados;
@@ -790,10 +827,15 @@ serve(async (req) => {
         return `- ${nome} (${espNorm}) [ID: ${id}]`;
       }).join("\n");
 
-      contextProfissionais = `\n\n## PROFISSIONAIS DISPONÍVEIS PARA ESTA ESPECIALIDADE (USE SOMENTE ESTES):
+      const headerProfissionais = profMencionado
+        ? `## PROFISSIONAL SOLICITADO PELO PACIENTE (USE EXATAMENTE ESTE):`
+        : `## PROFISSIONAIS DISPONÍVEIS PARA ESTA ESPECIALIDADE (USE SOMENTE ESTES):`;
+
+      contextProfissionais = `\n\n${headerProfissionais}
 ${lista}
 
-REGRA ABSOLUTA: Use SOMENTE os profissionais listados acima. NÃO sugira outros profissionais.
+REGRA ABSOLUTA: Use SOMENTE os profissionais listados acima. NÃO sugira outros profissionais. NÃO confunda nomes.
+${profMencionado ? `⚠️ O paciente PERGUNTOU ESPECIFICAMENTE por ${fixEncoding(profMencionado.full_name || profMencionado.name || "")}. Responda sobre ESTE profissional, não outro.` : ""}
 ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectadas.join(", ")}. Ofereça APENAS profissionais desta área.` : ""}`;
     } else {
       contextProfissionais = profResult.texto;
@@ -957,8 +999,8 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       sistema_origem: "megaapi",
       mensagem_usuario: mensagem.slice(0, 5000),
       resposta_final: respostaFinal.slice(0, 5000),
-      intencao_detectada: agendamentoDetectado ? "agendamento" : (encaminharHumano ? "encaminhar_humano" : null),
-      estado_conversa: agendamentoDetectado ? "finalizado" : "em_andamento",
+      intencao_detectada: agendamentos.length > 0 ? "agendamento" : (encaminharHumano ? "encaminhar_humano" : null),
+      estado_conversa: agendamentos.length > 0 ? "finalizado" : "em_andamento",
       supervisionado: false,
     }).then(({ error }) => {
       if (error) console.error("[whatsapp] Erro salvar interação:", error);
