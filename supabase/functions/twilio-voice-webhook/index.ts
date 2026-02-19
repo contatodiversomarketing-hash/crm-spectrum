@@ -388,13 +388,23 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  // Verificar se o canal Telefone está ativo (só bloqueia chamadas INBOUND)
+  // Verificar se o canal Telefone está ativo (só bloqueia chamadas INBOUND da IA)
   // Chamadas outbound (feitas pelos atendentes via CRM) sempre passam
   const bodyPeek = await req.clone().text();
   const peekParams = new URLSearchParams(bodyPeek);
   const callDirection = peekParams.get("Direction") || "";
+  const callerNumber = peekParams.get("From") || "";
+  const calledNumber = peekParams.get("To") || "";
+  const twilioPhoneNumber = Deno.env.get("TWILIO_PHONE_NUMBER") || "";
 
-  if (callDirection !== "outbound-api" && callDirection !== "outbound-dial") {
+  console.log(`[voice] Direction="${callDirection}" From="${callerNumber}" To="${calledNumber}" TwilioPhone="${twilioPhoneNumber}"`);
+
+  // É inbound quando: sem direction, direction="inbound", ou o "From" é um número externo chamando o número Twilio
+  // É outbound quando: direction contém "outbound", ou o "From" é o próprio número Twilio (atendente ligando para paciente)
+  const isOutbound = callDirection.includes("outbound") || 
+    (callerNumber && twilioPhoneNumber && callerNumber.replace(/\D/g, "").includes(twilioPhoneNumber.replace(/\D/g, "")));
+  
+  if (!isOutbound) {
     const { data: configCanal } = await supabase
       .from("configuracoes_sistema")
       .select("telefone_ativo")
@@ -410,7 +420,7 @@ serve(async (req) => {
       });
     }
   } else {
-    console.log(`[voice] Chamada outbound (${callDirection}) - bypass do toggle`);
+    console.log(`[voice] Chamada outbound/atendente (${callDirection}) - bypass do toggle`);
   }
 
   let speech = "";
