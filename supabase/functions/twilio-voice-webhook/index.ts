@@ -399,16 +399,22 @@ serve(async (req) => {
 
   console.log(`[voice] Direction="${callDirection}" From="${callerNumber}" To="${calledNumber}" TwilioPhone="${twilioPhoneNumber}"`);
 
-  // É outbound/humano quando:
-  // 1. direction contém "outbound" (chamada via API)
-  // 2. From começa com "client:" = atendente usando Twilio Client SDK (CRM/browser)
-  // 3. From é o próprio número Twilio (atendente ligando via número)
-  const isHumanOrOutbound = 
-    callDirection.includes("outbound") || 
-    callerNumber.startsWith("client:") ||
-    (callerNumber && twilioPhoneNumber && callerNumber.replace(/\D/g, "").includes(twilioPhoneNumber.replace(/\D/g, "")));
-  
-  if (!isHumanOrOutbound) {
+  // Chamada de atendente humana via Twilio Client SDK (CRM/browser)
+  // From começa com "client:" → atendente ligando para paciente → conectar direto, sem Maria
+  if (callerNumber.startsWith("client:")) {
+    console.log(`[voice] Chamada humana via Client SDK (From="${callerNumber}" To="${calledNumber}") - conectando direto ao número destino`);
+    const twiml = `<?xml version="1.0" encoding="UTF-8"?><Response><Dial callerId="${twilioPhoneNumber}">${calledNumber}</Dial></Response>`;
+    return new Response(twiml, {
+      headers: { "Content-Type": "text/xml; charset=utf-8" },
+    });
+  }
+
+  // Chamada outbound-api (ex: reativação automática da IA) → Maria atende normalmente
+  // Chamada inbound (cliente ligando para a clínica) → verificar toggle e Maria atende
+  const isInboundAI = !callDirection.includes("outbound") || callDirection === "outbound-api";
+
+  if (!callDirection.includes("outbound")) {
+    // Inbound: cliente ligou para a clínica — verificar se canal está ativo
     const { data: configCanal } = await supabase
       .from("configuracoes_sistema")
       .select("telefone_ativo")
@@ -423,9 +429,10 @@ serve(async (req) => {
         headers: { "Content-Type": "text/xml; charset=utf-8" },
       });
     }
-  } else {
-    console.log(`[voice] Chamada humana/outbound (Direction="${callDirection}" From="${callerNumber}") - bypass do toggle`);
   }
+
+  console.log(`[voice] Chamada para Maria (Direction="${callDirection}" From="${callerNumber}")`);
+  void isInboundAI; // usado só para clareza lógica
 
   let speech = "";
   let callSid = "";
