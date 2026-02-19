@@ -399,12 +399,16 @@ serve(async (req) => {
 
   console.log(`[voice] Direction="${callDirection}" From="${callerNumber}" To="${calledNumber}" TwilioPhone="${twilioPhoneNumber}"`);
 
-  // É inbound quando: sem direction, direction="inbound", ou o "From" é um número externo chamando o número Twilio
-  // É outbound quando: direction contém "outbound", ou o "From" é o próprio número Twilio (atendente ligando para paciente)
-  const isOutbound = callDirection.includes("outbound") || 
+  // É outbound/humano quando:
+  // 1. direction contém "outbound" (chamada via API)
+  // 2. From começa com "client:" = atendente usando Twilio Client SDK (CRM/browser)
+  // 3. From é o próprio número Twilio (atendente ligando via número)
+  const isHumanOrOutbound = 
+    callDirection.includes("outbound") || 
+    callerNumber.startsWith("client:") ||
     (callerNumber && twilioPhoneNumber && callerNumber.replace(/\D/g, "").includes(twilioPhoneNumber.replace(/\D/g, "")));
   
-  if (!isOutbound) {
+  if (!isHumanOrOutbound) {
     const { data: configCanal } = await supabase
       .from("configuracoes_sistema")
       .select("telefone_ativo")
@@ -420,7 +424,7 @@ serve(async (req) => {
       });
     }
   } else {
-    console.log(`[voice] Chamada outbound/atendente (${callDirection}) - bypass do toggle`);
+    console.log(`[voice] Chamada humana/outbound (Direction="${callDirection}" From="${callerNumber}") - bypass do toggle`);
   }
 
   let speech = "";
