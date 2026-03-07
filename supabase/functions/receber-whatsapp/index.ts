@@ -917,7 +917,7 @@ serve(async (req) => {
 
     // Extrair mensagem e número (formato MegaAPI)
     const msg = body.message || {};
-    const mensagem = msg.conversation || msg.text || msg.extendedTextMessage?.text || body.text?.message || body.data?.message?.conversation || "";
+    const mensagemTexto = msg.conversation || msg.text || msg.extendedTextMessage?.text || body.text?.message || body.data?.message?.conversation || "";
     
     const senderPn = body.key?.senderPn || "";
     const jid = body.jid || "";
@@ -927,12 +927,47 @@ serve(async (req) => {
     const isFromMe = body.key?.fromMe || body.data?.key?.fromMe || false;
     const isGroup = body.isGroup || false;
 
-    console.log(`[whatsapp] Parsed: msg="${mensagem.slice(0,50)}" num="${numero}" fromMe=${isFromMe} group=${isGroup}`);
+    // Detectar mídia (imagem, áudio, documento)
+    const midia = detectarMidia(body);
+    const temMidia = midia !== null;
+    const temTexto = !!mensagemTexto;
 
-    // Ignorar mensagens vazias, do próprio bot, ou de grupo
-    if (!mensagem || !numero || isFromMe || isGroup) {
+    console.log(`[whatsapp] Parsed: msg="${mensagemTexto.slice(0,50)}" num="${numero}" fromMe=${isFromMe} group=${isGroup} midia=${midia?.type || "nenhuma"}`);
+
+    // Ignorar mensagens vazias (sem texto NEM mídia), do próprio bot, ou de grupo
+    if ((!temTexto && !temMidia) || !numero || isFromMe || isGroup) {
       console.log("[whatsapp] Ignorando: vazio/fromMe/grupo");
       return new Response("ok");
+    }
+
+    // Processar mídia se presente
+    let mensagem = mensagemTexto;
+    let imagemBase64ParaIA: string | null = null;
+    let imagemMimetype: string | null = null;
+
+    if (midia) {
+      console.log(`[whatsapp] 📎 Mídia recebida: ${midia.type} (${midia.mimetype})`);
+      const base64 = await downloadMidiaBase64(midia);
+
+      if (base64) {
+        if (midia.type === "audio") {
+          // Transcrever áudio e usar como mensagem
+          const transcricao = await transcreverAudio(base64, midia.mimetype);
+          mensagem = transcricao + (mensagemTexto ? `\n\n(Texto acompanhando: ${mensagemTexto})` : "");
+          console.log(`[whatsapp] 🎤 Áudio processado: "${transcricao.slice(0, 80)}"`);
+        } else if (midia.type === "image" || midia.type === "document") {
+          // Guardar imagem/doc para enviar ao GPT-4o com vision
+          imagemBase64ParaIA = base64;
+          imagemMimetype = midia.mimetype;
+          mensagem = midia.caption || mensagemTexto || "[Paciente enviou " + (midia.type === "image" ? "uma imagem" : `um documento: ${midia.fileName || "arquivo"}`) + "]";
+          console.log(`[whatsapp] 🖼️ ${midia.type} salva para análise visual`);
+        }
+      } else {
+        console.warn(`[whatsapp] ⚠️ Não foi possível baixar a mídia ${midia.type}`);
+        if (!temTexto) {
+          mensagem = `[Paciente enviou ${midia.type === "image" ? "uma imagem" : midia.type === "audio" ? "um áudio" : "um documento"}, mas não foi possível processar. Peça para enviar novamente ou descrever em texto.]`;
+        }
+      }
     }
 
     // Verificar se o canal WhatsApp está ativo
@@ -959,7 +994,7 @@ serve(async (req) => {
       return new Response("ok");
     }
 
-    console.log(`[whatsapp] 📩 De ${numero}: "${mensagem.slice(0, 100)}"`);
+    console.log(`[whatsapp] 📩 De ${numero}: "${mensagem.slice(0, 100)}"${imagemBase64ParaIA ? " [+imagem]" : ""}`);
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
