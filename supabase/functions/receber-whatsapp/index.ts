@@ -215,6 +215,12 @@ Quando o paciente CONFIRMAR um agendamento E você já tiver nome+CPF, inclua ao
 - Mensagens curtas e diretas (máx 3-4 linhas)
 - Pode usar *negrito* para destacar
 - 1-2 emojis por mensagem
+
+## MÍDIAS RECEBIDAS
+- Quando o paciente enviar IMAGEM: analise o conteúdo visual e responda adequadamente. Se for exame, receita ou documento, extraia informações e oriente.
+- Quando o paciente enviar ÁUDIO: a transcrição será fornecida no texto. Responda normalmente ao conteúdo falado.
+- Quando o paciente enviar DOCUMENTO/PDF: analise o conteúdo e responda. Se for exame ou receita, oriente sobre próximos passos.
+- NUNCA diga que não consegue ver imagens ou ouvir áudios. Você CONSEGUE.
 `;
 
 // =============================
