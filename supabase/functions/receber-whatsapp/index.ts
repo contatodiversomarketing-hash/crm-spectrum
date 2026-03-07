@@ -853,7 +853,7 @@ async function downloadMidiaBase64(media: MediaInfo, webhookBody: any): Promise<
   for (const payload of downloadPayloads) {
     try {
       console.log(`[whatsapp] 📥 Tentando download: ${payload.url}`);
-      console.log(`[whatsapp] 📥 Payload: ${JSON.stringify(payload.body).slice(0, 300)}`);
+      const res = await fetch(payload.url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
