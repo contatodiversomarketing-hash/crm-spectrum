@@ -738,6 +738,8 @@ function detectarMidia(body: any): MediaInfo | null {
   // Imagem
   if (msg.imageMessage || messageType === "imageMessage") {
     const img = msg.imageMessage || {};
+    console.log(`[whatsapp] 🔍 imageMessage keys: ${Object.keys(img).join(", ")}`);
+    console.log(`[whatsapp] 🔍 body.base64 present: ${!!body.base64}, img.base64 present: ${!!img.base64}`);
     return {
       type: "image",
       mimetype: img.mimetype || "image/jpeg",
@@ -750,6 +752,7 @@ function detectarMidia(body: any): MediaInfo | null {
   // Áudio (inclui PTT - push to talk / áudio gravado)
   if (msg.audioMessage || messageType === "audioMessage" || messageType === "pttMessage") {
     const aud = msg.audioMessage || {};
+    console.log(`[whatsapp] 🔍 audioMessage keys: ${Object.keys(aud).join(", ")}`);
     return {
       type: "audio",
       mimetype: aud.mimetype || "audio/ogg; codecs=opus",
@@ -761,6 +764,7 @@ function detectarMidia(body: any): MediaInfo | null {
   // Documento (PDF, etc)
   if (msg.documentMessage || messageType === "documentMessage") {
     const doc = msg.documentMessage || {};
+    console.log(`[whatsapp] 🔍 documentMessage keys: ${Object.keys(doc).join(", ")}`);
     return {
       type: "document",
       mimetype: doc.mimetype || "application/pdf",
@@ -768,6 +772,19 @@ function detectarMidia(body: any): MediaInfo | null {
       url: doc.url || doc.directPath || undefined,
       fileName: doc.fileName || doc.title || "documento",
       caption: doc.caption || "",
+    };
+  }
+
+  // Vídeo
+  if (msg.videoMessage || messageType === "videoMessage") {
+    const vid = msg.videoMessage || {};
+    console.log(`[whatsapp] 🔍 videoMessage keys: ${Object.keys(vid).join(", ")}`);
+    return {
+      type: "image", // Tratar como imagem para thumbnail/análise
+      mimetype: vid.mimetype || "video/mp4",
+      base64: body.base64 || vid.base64 || undefined,
+      url: vid.url || vid.directPath || undefined,
+      caption: vid.caption || "",
     };
   }
 
