@@ -855,7 +855,18 @@ async function downloadMidiaBase64(media: MediaInfo, webhookBody: any): Promise<
         }
       }
     },
-    // Formato 2: messageType fora de messageKeys (variação)
+    // Formato 2: Atributos FLAT (sem wrapper messageKeys - versões antigas)
+    {
+      url: `${restBase}/instance/downloadMediaMessage/${instanceKey}`,
+      body: {
+        mediaKey: mediaFields.mediaKey,
+        directPath: mediaFields.directPath,
+        url: mediaFields.url,
+        mimetype: mediaFields.mimetype,
+        messageType: messageType,
+      }
+    },
+    // Formato 3: messageType fora de messageKeys (variação)
     {
       url: `${restBase}/instance/downloadMediaMessage/${instanceKey}`,
       body: {
