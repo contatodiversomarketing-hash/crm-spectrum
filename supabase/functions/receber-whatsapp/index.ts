@@ -812,26 +812,44 @@ async function downloadMidiaBase64(media: MediaInfo, webhookBody: any): Promise<
 
   console.log(`[whatsapp] 📥 Media fields: mediaKey=${mediaFields.mediaKey ? "SIM" : "NÃO"}, directPath=${mediaFields.directPath ? "SIM" : "NÃO"}, url=${mediaFields.url ? mediaFields.url.slice(0, 60) : "NÃO"}`);
 
+  // Determinar messageType para a MegaAPI (NUNCA usar o messageType do webhook)
+  const mediaTypeMap: Record<string, string> = {
+    "image": "image",
+    "audio": "audio",
+    "document": "document",
+    "video": "video",
+  };
+  const messageType = mediaTypeMap[media.type] || "image";
+
+  // Formato OFICIAL da MegaAPI: messageKeys com mediaKey, directPath, url, mimetype E messageType DENTRO
+  // Docs: https://doc.mega-api.app.br/api-10983731
+  // curl example mostra messageType DENTRO de messageKeys
   const downloadPayloads = [
-    // Formato 1: MegaAPI documentado - /rest/instance/downloadMediaMessage/{instance_key}
+    // Formato 1: MegaAPI OFICIAL - messageType DENTRO de messageKeys
     {
       url: `${restBase}/instance/downloadMediaMessage/${instanceKey}`,
-      body: mediaFields
+      body: {
+        messageKeys: {
+          mediaKey: mediaFields.mediaKey,
+          directPath: mediaFields.directPath,
+          url: mediaFields.url,
+          mimetype: mediaFields.mimetype,
+          messageType: messageType,
+        }
+      }
     },
-    // Formato 2: com message wrapper (Evolution API style)
+    // Formato 2: messageType fora de messageKeys (variação)
     {
       url: `${restBase}/instance/downloadMediaMessage/${instanceKey}`,
-      body: { message: { key: messageKey, message: messageObj } }
-    },
-    // Formato 3: Evolution API - chat/getBase64FromMediaMessage
-    {
-      url: `${restBase.replace('/rest', '')}/chat/getBase64FromMediaMessage/${instanceKey}`,
-      body: { message: { key: messageKey, message: messageObj }, convertToMp4: false }
-    },
-    // Formato 4: sem /instance/
-    {
-      url: `${restBase}/downloadMediaMessage/${instanceKey}`,
-      body: mediaFields
+      body: {
+        messageKeys: {
+          mediaKey: mediaFields.mediaKey,
+          directPath: mediaFields.directPath,
+          url: mediaFields.url,
+          mimetype: mediaFields.mimetype,
+        },
+        messageType: messageType,
+      }
     },
   ];
 
