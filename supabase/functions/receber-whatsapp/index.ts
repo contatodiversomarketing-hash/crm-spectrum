@@ -801,26 +801,37 @@ async function downloadMidiaBase64(media: MediaInfo, webhookBody: any): Promise<
   const messageKey = webhookBody.key || webhookBody.data?.key || {};
   const messageObj = webhookBody.message || webhookBody.data?.message || {};
 
+  // Extrair mediaKey, directPath, url, mimetype da mensagem do tipo de mídia
+  const mediaMsg = messageObj.imageMessage || messageObj.audioMessage || messageObj.documentMessage || {};
+  const mediaFields = {
+    mediaKey: mediaMsg.mediaKey || "",
+    directPath: mediaMsg.directPath || "",
+    url: mediaMsg.url || "",
+    mimetype: mediaMsg.mimetype || media.mimetype || "",
+  };
+
+  console.log(`[whatsapp] 📥 Media fields: mediaKey=${mediaFields.mediaKey ? "SIM" : "NÃO"}, directPath=${mediaFields.directPath ? "SIM" : "NÃO"}, url=${mediaFields.url ? mediaFields.url.slice(0, 60) : "NÃO"}`);
+
   const downloadPayloads = [
-    // Formato 1: MegaAPI correto - /rest/downloadMediaMessage/{instance}
+    // Formato 1: MegaAPI documentado - /rest/instance/downloadMediaMessage/{instance_key}
     {
-      url: `${restBase}/downloadMediaMessage/${instanceKey}`,
+      url: `${restBase}/instance/downloadMediaMessage/${instanceKey}`,
+      body: mediaFields
+    },
+    // Formato 2: com message wrapper (Evolution API style)
+    {
+      url: `${restBase}/instance/downloadMediaMessage/${instanceKey}`,
       body: { message: { key: messageKey, message: messageObj } }
     },
-    // Formato 2: caminho alternativo sem /rest
-    {
-      url: `${restBase.replace('/rest', '')}/rest/downloadMediaMessage/${instanceKey}`,
-      body: { message: { key: messageKey, message: messageObj } }
-    },
-    // Formato 3: Evolution API style - chat/getBase64FromMediaMessage/{instance}
+    // Formato 3: Evolution API - chat/getBase64FromMediaMessage
     {
       url: `${restBase.replace('/rest', '')}/chat/getBase64FromMediaMessage/${instanceKey}`,
       body: { message: { key: messageKey, message: messageObj }, convertToMp4: false }
     },
-    // Formato 4: só com messageId
+    // Formato 4: sem /instance/
     {
       url: `${restBase}/downloadMediaMessage/${instanceKey}`,
-      body: { messageId: messageKey.id }
+      body: mediaFields
     },
   ];
 
@@ -839,7 +850,7 @@ async function downloadMidiaBase64(media: MediaInfo, webhookBody: any): Promise<
 
       const contentType = res.headers.get("content-type") || "";
       
-      // Se retornou binário (imagem/áudio), converter para base64
+      // Se retornou binário, converter para base64
       if (res.ok && (contentType.startsWith("image/") || contentType.startsWith("audio/") || contentType.startsWith("application/octet-stream"))) {
         const buffer = await res.arrayBuffer();
         const bytes = new Uint8Array(buffer);
@@ -860,7 +871,6 @@ async function downloadMidiaBase64(media: MediaInfo, webhookBody: any): Promise<
       if (res.ok || res.status === 200) {
         try {
           const data = JSON.parse(responseText);
-          // Verificar se não é um erro disfarçado de 200
           if (data.error === true || data.statusCode === 404) {
             console.log(`[whatsapp] ⚠️ Endpoint retornou erro lógico, tentando próximo`);
             continue;
@@ -881,10 +891,6 @@ async function downloadMidiaBase64(media: MediaInfo, webhookBody: any): Promise<
       console.warn(`[whatsapp] ⚠️ Endpoint ${payload.url} falhou:`, err);
     }
   }
-
-  // NOTA: NÃO tentar download direto da URL do WhatsApp (mmg.whatsapp.net)
-  // pois o conteúdo é criptografado e requer mediaKey para descriptografar.
-  // Sem descriptografia, o GPT-4o recebe dados inválidos.
 
   console.error(`[whatsapp] ❌ Todas as tentativas de download de mídia falharam`);
   return null;
