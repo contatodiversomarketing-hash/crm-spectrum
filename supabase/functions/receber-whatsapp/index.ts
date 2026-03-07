@@ -1071,7 +1071,9 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    console.log("[whatsapp] Webhook recebido:", JSON.stringify(body).slice(0, 500));
+    console.log("[whatsapp] Webhook recebido:", JSON.stringify(body).slice(0, 800));
+    console.log("[whatsapp] Webhook top-level keys:", Object.keys(body).join(", "));
+    if (body.message) console.log("[whatsapp] message keys:", Object.keys(body.message).join(", "));
 
     // Extrair mensagem e número (formato MegaAPI)
     const msg = body.message || {};
