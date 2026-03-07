@@ -1141,7 +1141,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         body: JSON.stringify({
           model: "gpt-4o-mini",
           temperature: 0.7,
-          max_tokens: 300,
+          max_tokens: imagemBase64ParaIA ? 500 : 300,
           messages,
         }),
       });
