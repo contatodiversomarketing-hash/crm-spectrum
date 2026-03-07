@@ -714,6 +714,162 @@ async function gerarAudioElevenLabs(texto: string, supabase: ReturnType<typeof c
 }
 
 // =============================
+// PROCESSAR MÍDIAS (IMAGEM, ÁUDIO, PDF)
+// =============================
+interface MediaInfo {
+  type: "image" | "audio" | "document";
+  mimetype: string;
+  base64?: string;
+  url?: string;
+  fileName?: string;
+  caption?: string;
+}
+
+function detectarMidia(body: any): MediaInfo | null {
+  const msg = body.message || {};
+  const messageType = body.messageType || "";
+
+  // Imagem
+  if (msg.imageMessage || messageType === "imageMessage") {
+    const img = msg.imageMessage || {};
+    return {
+      type: "image",
+      mimetype: img.mimetype || "image/jpeg",
+      base64: body.base64 || img.base64 || undefined,
+      url: img.url || img.directPath || undefined,
+      caption: img.caption || "",
+    };
+  }
+
+  // Áudio (inclui PTT - push to talk / áudio gravado)
+  if (msg.audioMessage || messageType === "audioMessage" || messageType === "pttMessage") {
+    const aud = msg.audioMessage || {};
+    return {
+      type: "audio",
+      mimetype: aud.mimetype || "audio/ogg; codecs=opus",
+      base64: body.base64 || aud.base64 || undefined,
+      url: aud.url || aud.directPath || undefined,
+    };
+  }
+
+  // Documento (PDF, etc)
+  if (msg.documentMessage || messageType === "documentMessage") {
+    const doc = msg.documentMessage || {};
+    return {
+      type: "document",
+      mimetype: doc.mimetype || "application/pdf",
+      base64: body.base64 || doc.base64 || undefined,
+      url: doc.url || doc.directPath || undefined,
+      fileName: doc.fileName || doc.title || "documento",
+      caption: doc.caption || "",
+    };
+  }
+
+  return null;
+}
+
+async function downloadMidiaBase64(media: MediaInfo): Promise<string | null> {
+  // Se já temos base64, retornar direto
+  if (media.base64) return media.base64;
+
+  // Tentar baixar via MegaAPI download endpoint
+  if (media.url) {
+    try {
+      const MEGA_API_URL = Deno.env.get("MEGA_API_URL") || "";
+      const MEGA_API_TOKEN = Deno.env.get("MEGA_API_TOKEN") || "";
+      
+      // MegaAPI geralmente fornece um endpoint de download de mídia
+      // A URL pode ser direta ou precisar do endpoint /downloadMediaMessage
+      const downloadUrl = MEGA_API_URL.replace(/\/text$/, "").replace(/\/sendText$/, "") + "/downloadMediaMessage";
+      
+      const res = await fetch(downloadUrl, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json", 
+          "Authorization": `Bearer ${MEGA_API_TOKEN}` 
+        },
+        body: JSON.stringify({ message: { key: media.url } }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.base64) return data.base64;
+      }
+
+      // Fallback: tentar download direto da URL
+      const directRes = await fetch(media.url);
+      if (directRes.ok) {
+        const buffer = await directRes.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary);
+      }
+    } catch (err) {
+      console.error("[whatsapp] Erro download mídia:", err);
+    }
+  }
+  return null;
+}
+
+async function transcreverAudio(base64Audio: string, mimetype: string): Promise<string> {
+  try {
+    const apiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!apiKey) return "[Áudio recebido - transcrição indisponível]";
+
+    // Converter base64 para blob
+    const binaryStr = atob(base64Audio);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
+    }
+
+    const ext = mimetype.includes("ogg") ? "ogg" : mimetype.includes("mp4") ? "mp4" : mimetype.includes("mpeg") ? "mp3" : "ogg";
+    const blob = new Blob([bytes], { type: mimetype });
+
+    const formData = new FormData();
+    formData.append("file", blob, `audio.${ext}`);
+    formData.append("model", "whisper-1");
+    formData.append("language", "pt");
+
+    const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${apiKey}` },
+      body: formData,
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      console.log(`[whatsapp] 🎤 Áudio transcrito: "${(data.text || "").slice(0, 100)}"`);
+      return data.text || "[Áudio inaudível]";
+    }
+    console.error(`[whatsapp] Whisper falhou: ${res.status}`);
+    return "[Áudio recebido - não foi possível transcrever]";
+  } catch (err) {
+    console.error("[whatsapp] Erro transcrição:", err);
+    return "[Áudio recebido - erro na transcrição]";
+  }
+}
+
+async function descreverImagemOuDocumento(base64: string, mimetype: string, caption?: string): Promise<{ texto: string; imageContent: any }> {
+  const imageUrl = `data:${mimetype};base64,${base64}`;
+  
+  const descPrompt = caption 
+    ? `O paciente enviou esta imagem/documento com a legenda: "${caption}". Descreva o conteúdo de forma objetiva para que você possa responder adequadamente.`
+    : `O paciente enviou esta imagem/documento pelo WhatsApp. Descreva o conteúdo de forma objetiva para que você possa responder adequadamente. Se for um exame, receita ou documento médico, extraia as informações relevantes.`;
+
+  return {
+    texto: caption || "[Paciente enviou uma imagem/documento]",
+    imageContent: {
+      type: "image_url",
+      image_url: { url: imageUrl, detail: "low" },
+    },
+  };
+}
+
+// =============================
 // ENVIAR MENSAGEM VIA MEGAAPI
 // =============================
 async function enviarTexto(numero: string, texto: string): Promise<void> {
