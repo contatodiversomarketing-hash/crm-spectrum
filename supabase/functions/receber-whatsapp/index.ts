@@ -882,29 +882,9 @@ async function downloadMidiaBase64(media: MediaInfo, webhookBody: any): Promise<
     }
   }
 
-  // Fallback: tentar download direto da URL do WhatsApp (geralmente requer auth)
-  if (media.url && media.url.startsWith("http")) {
-    try {
-      console.log(`[whatsapp] 📥 Tentando download direto: ${media.url.slice(0, 80)}`);
-      const directRes = await fetch(media.url);
-      if (directRes.ok) {
-        const buffer = await directRes.arrayBuffer();
-        const bytes = new Uint8Array(buffer);
-        let binary = "";
-        for (let i = 0; i < bytes.length; i++) {
-          binary += String.fromCharCode(bytes[i]);
-        }
-        const b64 = btoa(binary);
-        console.log(`[whatsapp] ✅ Mídia baixada diretamente (${b64.length} chars)`);
-        return b64;
-      } else {
-        console.warn(`[whatsapp] ❌ Download direto falhou: ${directRes.status}`);
-        await directRes.text(); // consume body
-      }
-    } catch (err) {
-      console.error("[whatsapp] ❌ Erro download direto:", err);
-    }
-  }
+  // NOTA: NÃO tentar download direto da URL do WhatsApp (mmg.whatsapp.net)
+  // pois o conteúdo é criptografado e requer mediaKey para descriptografar.
+  // Sem descriptografia, o GPT-4o recebe dados inválidos.
 
   console.error(`[whatsapp] ❌ Todas as tentativas de download de mídia falharam`);
   return null;
