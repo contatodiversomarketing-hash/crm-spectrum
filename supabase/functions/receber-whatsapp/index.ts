@@ -1101,8 +1101,8 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       }
     }
 
-    // Montar mensagens para IA
-    const messages: { role: string; content: string }[] = [
+    // Montar mensagens para IA (suporte multimodal com vision)
+    const messages: Array<{ role: string; content: any }> = [
       { role: "system", content: SYSTEM_ENGINE_WHATSAPP + contextExtra },
     ];
 
@@ -1113,7 +1113,16 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       if (h.resposta_final) messages.push({ role: "assistant", content: h.resposta_final });
     }
 
-    if (messages[messages.length - 1]?.content !== mensagem) {
+    // Se tem imagem/documento, enviar como conteúdo multimodal (vision)
+    if (imagemBase64ParaIA && imagemMimetype) {
+      const imageDataUrl = `data:${imagemMimetype};base64,${imagemBase64ParaIA}`;
+      const userContent: any[] = [
+        { type: "text", text: mensagem || "O paciente enviou esta imagem. Analise e responda adequadamente." },
+        { type: "image_url", image_url: { url: imageDataUrl, detail: "low" } },
+      ];
+      messages.push({ role: "user", content: userContent });
+      console.log(`[whatsapp] 🖼️ Enviando imagem para GPT-4o vision`);
+    } else if (messages[messages.length - 1]?.content !== mensagem) {
       messages.push({ role: "user", content: mensagem });
     }
 
