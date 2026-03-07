@@ -1017,7 +1017,7 @@ serve(async (req) => {
 
     if (midia) {
       console.log(`[whatsapp] 📎 Mídia recebida: ${midia.type} (${midia.mimetype})`);
-      const base64 = await downloadMidiaBase64(midia);
+      const base64 = await downloadMidiaBase64(midia, body);
 
       if (base64) {
         if (midia.type === "audio") {
