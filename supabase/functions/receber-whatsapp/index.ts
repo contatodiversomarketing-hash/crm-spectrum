@@ -215,6 +215,12 @@ Quando o paciente CONFIRMAR um agendamento E você já tiver nome+CPF, inclua ao
 - Mensagens curtas e diretas (máx 3-4 linhas)
 - Pode usar *negrito* para destacar
 - 1-2 emojis por mensagem
+
+## MÍDIAS RECEBIDAS
+- Quando o paciente enviar IMAGEM: analise o conteúdo visual e responda adequadamente. Se for exame, receita ou documento, extraia informações e oriente.
+- Quando o paciente enviar ÁUDIO: a transcrição será fornecida no texto. Responda normalmente ao conteúdo falado.
+- Quando o paciente enviar DOCUMENTO/PDF: analise o conteúdo e responda. Se for exame ou receita, oriente sobre próximos passos.
+- NUNCA diga que não consegue ver imagens ou ouvir áudios. Você CONSEGUE.
 `;
 
 // =============================
@@ -714,6 +720,162 @@ async function gerarAudioElevenLabs(texto: string, supabase: ReturnType<typeof c
 }
 
 // =============================
+// PROCESSAR MÍDIAS (IMAGEM, ÁUDIO, PDF)
+// =============================
+interface MediaInfo {
+  type: "image" | "audio" | "document";
+  mimetype: string;
+  base64?: string;
+  url?: string;
+  fileName?: string;
+  caption?: string;
+}
+
+function detectarMidia(body: any): MediaInfo | null {
+  const msg = body.message || {};
+  const messageType = body.messageType || "";
+
+  // Imagem
+  if (msg.imageMessage || messageType === "imageMessage") {
+    const img = msg.imageMessage || {};
+    return {
+      type: "image",
+      mimetype: img.mimetype || "image/jpeg",
+      base64: body.base64 || img.base64 || undefined,
+      url: img.url || img.directPath || undefined,
+      caption: img.caption || "",
+    };
+  }
+
+  // Áudio (inclui PTT - push to talk / áudio gravado)
+  if (msg.audioMessage || messageType === "audioMessage" || messageType === "pttMessage") {
+    const aud = msg.audioMessage || {};
+    return {
+      type: "audio",
+      mimetype: aud.mimetype || "audio/ogg; codecs=opus",
+      base64: body.base64 || aud.base64 || undefined,
+      url: aud.url || aud.directPath || undefined,
+    };
+  }
+
+  // Documento (PDF, etc)
+  if (msg.documentMessage || messageType === "documentMessage") {
+    const doc = msg.documentMessage || {};
+    return {
+      type: "document",
+      mimetype: doc.mimetype || "application/pdf",
+      base64: body.base64 || doc.base64 || undefined,
+      url: doc.url || doc.directPath || undefined,
+      fileName: doc.fileName || doc.title || "documento",
+      caption: doc.caption || "",
+    };
+  }
+
+  return null;
+}
+
+async function downloadMidiaBase64(media: MediaInfo): Promise<string | null> {
+  // Se já temos base64, retornar direto
+  if (media.base64) return media.base64;
+
+  // Tentar baixar via MegaAPI download endpoint
+  if (media.url) {
+    try {
+      const MEGA_API_URL = Deno.env.get("MEGA_API_URL") || "";
+      const MEGA_API_TOKEN = Deno.env.get("MEGA_API_TOKEN") || "";
+      
+      // MegaAPI geralmente fornece um endpoint de download de mídia
+      // A URL pode ser direta ou precisar do endpoint /downloadMediaMessage
+      const downloadUrl = MEGA_API_URL.replace(/\/text$/, "").replace(/\/sendText$/, "") + "/downloadMediaMessage";
+      
+      const res = await fetch(downloadUrl, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json", 
+          "Authorization": `Bearer ${MEGA_API_TOKEN}` 
+        },
+        body: JSON.stringify({ message: { key: media.url } }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.base64) return data.base64;
+      }
+
+      // Fallback: tentar download direto da URL
+      const directRes = await fetch(media.url);
+      if (directRes.ok) {
+        const buffer = await directRes.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary);
+      }
+    } catch (err) {
+      console.error("[whatsapp] Erro download mídia:", err);
+    }
+  }
+  return null;
+}
+
+async function transcreverAudio(base64Audio: string, mimetype: string): Promise<string> {
+  try {
+    const apiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!apiKey) return "[Áudio recebido - transcrição indisponível]";
+
+    // Converter base64 para blob
+    const binaryStr = atob(base64Audio);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
+    }
+
+    const ext = mimetype.includes("ogg") ? "ogg" : mimetype.includes("mp4") ? "mp4" : mimetype.includes("mpeg") ? "mp3" : "ogg";
+    const blob = new Blob([bytes], { type: mimetype });
+
+    const formData = new FormData();
+    formData.append("file", blob, `audio.${ext}`);
+    formData.append("model", "whisper-1");
+    formData.append("language", "pt");
+
+    const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${apiKey}` },
+      body: formData,
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      console.log(`[whatsapp] 🎤 Áudio transcrito: "${(data.text || "").slice(0, 100)}"`);
+      return data.text || "[Áudio inaudível]";
+    }
+    console.error(`[whatsapp] Whisper falhou: ${res.status}`);
+    return "[Áudio recebido - não foi possível transcrever]";
+  } catch (err) {
+    console.error("[whatsapp] Erro transcrição:", err);
+    return "[Áudio recebido - erro na transcrição]";
+  }
+}
+
+async function descreverImagemOuDocumento(base64: string, mimetype: string, caption?: string): Promise<{ texto: string; imageContent: any }> {
+  const imageUrl = `data:${mimetype};base64,${base64}`;
+  
+  const descPrompt = caption 
+    ? `O paciente enviou esta imagem/documento com a legenda: "${caption}". Descreva o conteúdo de forma objetiva para que você possa responder adequadamente.`
+    : `O paciente enviou esta imagem/documento pelo WhatsApp. Descreva o conteúdo de forma objetiva para que você possa responder adequadamente. Se for um exame, receita ou documento médico, extraia as informações relevantes.`;
+
+  return {
+    texto: caption || "[Paciente enviou uma imagem/documento]",
+    imageContent: {
+      type: "image_url",
+      image_url: { url: imageUrl, detail: "low" },
+    },
+  };
+}
+
+// =============================
 // ENVIAR MENSAGEM VIA MEGAAPI
 // =============================
 async function enviarTexto(numero: string, texto: string): Promise<void> {
@@ -761,7 +923,7 @@ serve(async (req) => {
 
     // Extrair mensagem e número (formato MegaAPI)
     const msg = body.message || {};
-    const mensagem = msg.conversation || msg.text || msg.extendedTextMessage?.text || body.text?.message || body.data?.message?.conversation || "";
+    const mensagemTexto = msg.conversation || msg.text || msg.extendedTextMessage?.text || body.text?.message || body.data?.message?.conversation || "";
     
     const senderPn = body.key?.senderPn || "";
     const jid = body.jid || "";
@@ -771,12 +933,47 @@ serve(async (req) => {
     const isFromMe = body.key?.fromMe || body.data?.key?.fromMe || false;
     const isGroup = body.isGroup || false;
 
-    console.log(`[whatsapp] Parsed: msg="${mensagem.slice(0,50)}" num="${numero}" fromMe=${isFromMe} group=${isGroup}`);
+    // Detectar mídia (imagem, áudio, documento)
+    const midia = detectarMidia(body);
+    const temMidia = midia !== null;
+    const temTexto = !!mensagemTexto;
 
-    // Ignorar mensagens vazias, do próprio bot, ou de grupo
-    if (!mensagem || !numero || isFromMe || isGroup) {
+    console.log(`[whatsapp] Parsed: msg="${mensagemTexto.slice(0,50)}" num="${numero}" fromMe=${isFromMe} group=${isGroup} midia=${midia?.type || "nenhuma"}`);
+
+    // Ignorar mensagens vazias (sem texto NEM mídia), do próprio bot, ou de grupo
+    if ((!temTexto && !temMidia) || !numero || isFromMe || isGroup) {
       console.log("[whatsapp] Ignorando: vazio/fromMe/grupo");
       return new Response("ok");
+    }
+
+    // Processar mídia se presente
+    let mensagem = mensagemTexto;
+    let imagemBase64ParaIA: string | null = null;
+    let imagemMimetype: string | null = null;
+
+    if (midia) {
+      console.log(`[whatsapp] 📎 Mídia recebida: ${midia.type} (${midia.mimetype})`);
+      const base64 = await downloadMidiaBase64(midia);
+
+      if (base64) {
+        if (midia.type === "audio") {
+          // Transcrever áudio e usar como mensagem
+          const transcricao = await transcreverAudio(base64, midia.mimetype);
+          mensagem = transcricao + (mensagemTexto ? `\n\n(Texto acompanhando: ${mensagemTexto})` : "");
+          console.log(`[whatsapp] 🎤 Áudio processado: "${transcricao.slice(0, 80)}"`);
+        } else if (midia.type === "image" || midia.type === "document") {
+          // Guardar imagem/doc para enviar ao GPT-4o com vision
+          imagemBase64ParaIA = base64;
+          imagemMimetype = midia.mimetype;
+          mensagem = midia.caption || mensagemTexto || "[Paciente enviou " + (midia.type === "image" ? "uma imagem" : `um documento: ${midia.fileName || "arquivo"}`) + "]";
+          console.log(`[whatsapp] 🖼️ ${midia.type} salva para análise visual`);
+        }
+      } else {
+        console.warn(`[whatsapp] ⚠️ Não foi possível baixar a mídia ${midia.type}`);
+        if (!temTexto) {
+          mensagem = `[Paciente enviou ${midia.type === "image" ? "uma imagem" : midia.type === "audio" ? "um áudio" : "um documento"}, mas não foi possível processar. Peça para enviar novamente ou descrever em texto.]`;
+        }
+      }
     }
 
     // Verificar se o canal WhatsApp está ativo
@@ -803,7 +1000,7 @@ serve(async (req) => {
       return new Response("ok");
     }
 
-    console.log(`[whatsapp] 📩 De ${numero}: "${mensagem.slice(0, 100)}"`);
+    console.log(`[whatsapp] 📩 De ${numero}: "${mensagem.slice(0, 100)}"${imagemBase64ParaIA ? " [+imagem]" : ""}`);
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
@@ -910,8 +1107,8 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       }
     }
 
-    // Montar mensagens para IA
-    const messages: { role: string; content: string }[] = [
+    // Montar mensagens para IA (suporte multimodal com vision)
+    const messages: Array<{ role: string; content: any }> = [
       { role: "system", content: SYSTEM_ENGINE_WHATSAPP + contextExtra },
     ];
 
@@ -922,7 +1119,16 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       if (h.resposta_final) messages.push({ role: "assistant", content: h.resposta_final });
     }
 
-    if (messages[messages.length - 1]?.content !== mensagem) {
+    // Se tem imagem/documento, enviar como conteúdo multimodal (vision)
+    if (imagemBase64ParaIA && imagemMimetype) {
+      const imageDataUrl = `data:${imagemMimetype};base64,${imagemBase64ParaIA}`;
+      const userContent: any[] = [
+        { type: "text", text: mensagem || "O paciente enviou esta imagem. Analise e responda adequadamente." },
+        { type: "image_url", image_url: { url: imageDataUrl, detail: "low" } },
+      ];
+      messages.push({ role: "user", content: userContent });
+      console.log(`[whatsapp] 🖼️ Enviando imagem para GPT-4o vision`);
+    } else if (messages[messages.length - 1]?.content !== mensagem) {
       messages.push({ role: "user", content: mensagem });
     }
 
@@ -941,7 +1147,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         body: JSON.stringify({
           model: "gpt-4o-mini",
           temperature: 0.7,
-          max_tokens: 300,
+          max_tokens: imagemBase64ParaIA ? 500 : 300,
           messages,
         }),
       });
@@ -1040,7 +1246,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       paciente_externo_id: numero,
       canal: "whatsapp",
       sistema_origem: "megaapi",
-      mensagem_usuario: mensagem.slice(0, 5000),
+      mensagem_usuario: (midia ? `[${midia.type}] ` : "") + mensagem.slice(0, 5000),
       resposta_final: respostaFinal.slice(0, 5000),
       intencao_detectada: agendamentos.length > 0 ? "agendamento" : (encaminharHumano ? "encaminhar_humano" : null),
       estado_conversa: agendamentos.length > 0 ? "finalizado" : "em_andamento",
