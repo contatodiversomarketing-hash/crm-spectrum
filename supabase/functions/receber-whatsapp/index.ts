@@ -774,35 +774,92 @@ function detectarMidia(body: any): MediaInfo | null {
   return null;
 }
 
-async function downloadMidiaBase64(media: MediaInfo): Promise<string | null> {
+async function downloadMidiaBase64(media: MediaInfo, webhookBody: any): Promise<string | null> {
   // Se já temos base64, retornar direto
-  if (media.base64) return media.base64;
+  if (media.base64) {
+    console.log(`[whatsapp] ✅ Base64 já presente no webhook (${media.base64.length} chars)`);
+    return media.base64;
+  }
 
-  // Tentar baixar via MegaAPI download endpoint
-  if (media.url) {
+  const MEGA_API_URL = Deno.env.get("MEGA_API_URL") || "";
+  const MEGA_API_TOKEN = Deno.env.get("MEGA_API_TOKEN") || "";
+
+  if (!MEGA_API_URL || !MEGA_API_TOKEN) {
+    console.error("[whatsapp] ❌ MEGA_API_URL ou MEGA_API_TOKEN não configurados para download de mídia");
+    return null;
+  }
+
+  // Extrair a base URL da instância (remover /text, /sendText, etc)
+  const baseUrl = MEGA_API_URL
+    .replace(/\/message\/.*$/, "")
+    .replace(/\/text$/, "")
+    .replace(/\/sendText$/, "")
+    .replace(/\/send-text$/, "");
+
+  // Tentar múltiplos endpoints de download da MegaAPI/Evolution API
+  const messageKey = webhookBody.key || webhookBody.data?.key || {};
+  const messageObj = webhookBody.message || webhookBody.data?.message || {};
+
+  const downloadPayloads = [
+    // Formato 1: Evolution API v2 - enviar message completa com key
+    { 
+      url: `${baseUrl}/chat/downloadMediaMessage`,
+      body: { message: { key: messageKey, message: messageObj } }
+    },
+    // Formato 2: MegaAPI - enviar messageKeys
+    {
+      url: `${baseUrl}/downloadMediaMessage`, 
+      body: { message: { key: messageKey, message: messageObj } }
+    },
+    // Formato 3: apenas key
+    {
+      url: `${baseUrl}/chat/downloadMediaMessage`,
+      body: { key: messageKey }
+    },
+  ];
+
+  for (const payload of downloadPayloads) {
     try {
-      const MEGA_API_URL = Deno.env.get("MEGA_API_URL") || "";
-      const MEGA_API_TOKEN = Deno.env.get("MEGA_API_TOKEN") || "";
-      
-      // MegaAPI geralmente fornece um endpoint de download de mídia
-      // A URL pode ser direta ou precisar do endpoint /downloadMediaMessage
-      const downloadUrl = MEGA_API_URL.replace(/\/text$/, "").replace(/\/sendText$/, "") + "/downloadMediaMessage";
-      
-      const res = await fetch(downloadUrl, {
+      console.log(`[whatsapp] 📥 Tentando download: ${payload.url}`);
+      const res = await fetch(payload.url, {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json", 
-          "Authorization": `Bearer ${MEGA_API_TOKEN}` 
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${MEGA_API_TOKEN}`,
+          "apikey": MEGA_API_TOKEN,
         },
-        body: JSON.stringify({ message: { key: media.url } }),
+        body: JSON.stringify(payload.body),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.base64) return data.base64;
-      }
+      const responseText = await res.text();
+      console.log(`[whatsapp] Download response ${res.status}: ${responseText.slice(0, 200)}`);
 
-      // Fallback: tentar download direto da URL
+      if (res.ok) {
+        try {
+          const data = JSON.parse(responseText);
+          const b64 = data.base64 || data.data?.base64 || data.mediaData?.base64 || "";
+          if (b64 && b64.length > 100) {
+            console.log(`[whatsapp] ✅ Mídia baixada via API (${b64.length} chars)`);
+            // Remover prefixo data:image/...;base64, se presente
+            return b64.replace(/^data:[^;]+;base64,/, "");
+          }
+        } catch {
+          // Se a resposta não é JSON, pode ser binário direto
+          if (responseText.length > 100 && !responseText.startsWith("{") && !responseText.startsWith("<")) {
+            console.log(`[whatsapp] ✅ Mídia baixada como base64 direto (${responseText.length} chars)`);
+            return responseText;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`[whatsapp] ⚠️ Endpoint ${payload.url} falhou:`, err);
+    }
+  }
+
+  // Fallback: tentar download direto da URL do WhatsApp (geralmente requer auth)
+  if (media.url && media.url.startsWith("http")) {
+    try {
+      console.log(`[whatsapp] 📥 Tentando download direto: ${media.url.slice(0, 80)}`);
       const directRes = await fetch(media.url);
       if (directRes.ok) {
         const buffer = await directRes.arrayBuffer();
@@ -811,12 +868,19 @@ async function downloadMidiaBase64(media: MediaInfo): Promise<string | null> {
         for (let i = 0; i < bytes.length; i++) {
           binary += String.fromCharCode(bytes[i]);
         }
-        return btoa(binary);
+        const b64 = btoa(binary);
+        console.log(`[whatsapp] ✅ Mídia baixada diretamente (${b64.length} chars)`);
+        return b64;
+      } else {
+        console.warn(`[whatsapp] ❌ Download direto falhou: ${directRes.status}`);
+        await directRes.text(); // consume body
       }
     } catch (err) {
-      console.error("[whatsapp] Erro download mídia:", err);
+      console.error("[whatsapp] ❌ Erro download direto:", err);
     }
   }
+
+  console.error(`[whatsapp] ❌ Todas as tentativas de download de mídia falharam`);
   return null;
 }
 
@@ -953,7 +1017,7 @@ serve(async (req) => {
 
     if (midia) {
       console.log(`[whatsapp] 📎 Mídia recebida: ${midia.type} (${midia.mimetype})`);
-      const base64 = await downloadMidiaBase64(midia);
+      const base64 = await downloadMidiaBase64(midia, body);
 
       if (base64) {
         if (midia.type === "audio") {
