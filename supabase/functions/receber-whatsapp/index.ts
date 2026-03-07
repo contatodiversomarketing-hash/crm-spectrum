@@ -789,32 +789,38 @@ async function downloadMidiaBase64(media: MediaInfo, webhookBody: any): Promise<
     return null;
   }
 
-  // Extrair a base URL da instância (remover /text, /sendText, etc)
-  const baseUrl = MEGA_API_URL
-    .replace(/\/message\/.*$/, "")
-    .replace(/\/text$/, "")
-    .replace(/\/sendText$/, "")
-    .replace(/\/send-text$/, "");
+  // Extrair a base URL e instance key da MegaAPI URL
+  // URL típica: https://apinocode01.megaapi.com.br/rest/sendMessage/megacode-M82Emx0E8aQ/text
+  const megaUrlMatch = MEGA_API_URL.match(/^(https?:\/\/[^/]+\/rest)\/sendMessage\/([^/]+)/);
+  const restBase = megaUrlMatch ? megaUrlMatch[1] : MEGA_API_URL.replace(/\/message\/.*$/, "").replace(/\/text$/, "").replace(/\/sendText$/, "").replace(/\/send-text$/, "");
+  const instanceKey = megaUrlMatch ? megaUrlMatch[2] : (MEGA_API_URL.match(/\/([^/]+)\/text$/)?.[1] || "");
 
-  // Tentar múltiplos endpoints de download da MegaAPI/Evolution API
+  console.log(`[whatsapp] 📥 REST base: ${restBase}, instance: ${instanceKey}`);
+
+  // Tentar múltiplos endpoints de download da MegaAPI
   const messageKey = webhookBody.key || webhookBody.data?.key || {};
   const messageObj = webhookBody.message || webhookBody.data?.message || {};
 
   const downloadPayloads = [
-    // Formato 1: Evolution API v2 - enviar message completa com key
-    { 
-      url: `${baseUrl}/chat/downloadMediaMessage`,
+    // Formato 1: MegaAPI correto - /rest/downloadMediaMessage/{instance}
+    {
+      url: `${restBase}/downloadMediaMessage/${instanceKey}`,
       body: { message: { key: messageKey, message: messageObj } }
     },
-    // Formato 2: MegaAPI - enviar messageKeys
+    // Formato 2: caminho alternativo sem /rest
     {
-      url: `${baseUrl}/downloadMediaMessage`, 
+      url: `${restBase.replace('/rest', '')}/rest/downloadMediaMessage/${instanceKey}`,
       body: { message: { key: messageKey, message: messageObj } }
     },
-    // Formato 3: apenas key
+    // Formato 3: Evolution API style - chat/getBase64FromMediaMessage/{instance}
     {
-      url: `${baseUrl}/chat/downloadMediaMessage`,
-      body: { key: messageKey }
+      url: `${restBase.replace('/rest', '')}/chat/getBase64FromMediaMessage/${instanceKey}`,
+      body: { message: { key: messageKey, message: messageObj }, convertToMp4: false }
+    },
+    // Formato 4: só com messageId
+    {
+      url: `${restBase}/downloadMediaMessage/${instanceKey}`,
+      body: { messageId: messageKey.id }
     },
   ];
 
@@ -831,20 +837,40 @@ async function downloadMidiaBase64(media: MediaInfo, webhookBody: any): Promise<
         body: JSON.stringify(payload.body),
       });
 
-      const responseText = await res.text();
-      console.log(`[whatsapp] Download response ${res.status}: ${responseText.slice(0, 200)}`);
+      const contentType = res.headers.get("content-type") || "";
+      
+      // Se retornou binário (imagem/áudio), converter para base64
+      if (res.ok && (contentType.startsWith("image/") || contentType.startsWith("audio/") || contentType.startsWith("application/octet-stream"))) {
+        const buffer = await res.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const b64 = btoa(binary);
+        if (b64.length > 100) {
+          console.log(`[whatsapp] ✅ Mídia baixada como binário (${b64.length} chars base64)`);
+          return b64;
+        }
+      }
 
-      if (res.ok) {
+      const responseText = await res.text();
+      console.log(`[whatsapp] Download response ${res.status}: ${responseText.slice(0, 300)}`);
+
+      if (res.ok || res.status === 200) {
         try {
           const data = JSON.parse(responseText);
-          const b64 = data.base64 || data.data?.base64 || data.mediaData?.base64 || "";
+          // Verificar se não é um erro disfarçado de 200
+          if (data.error === true || data.statusCode === 404) {
+            console.log(`[whatsapp] ⚠️ Endpoint retornou erro lógico, tentando próximo`);
+            continue;
+          }
+          const b64 = data.base64 || data.data?.base64 || data.mediaData?.base64 || data.media || "";
           if (b64 && b64.length > 100) {
             console.log(`[whatsapp] ✅ Mídia baixada via API (${b64.length} chars)`);
-            // Remover prefixo data:image/...;base64, se presente
             return b64.replace(/^data:[^;]+;base64,/, "");
           }
         } catch {
-          // Se a resposta não é JSON, pode ser binário direto
           if (responseText.length > 100 && !responseText.startsWith("{") && !responseText.startsWith("<")) {
             console.log(`[whatsapp] ✅ Mídia baixada como base64 direto (${responseText.length} chars)`);
             return responseText;
