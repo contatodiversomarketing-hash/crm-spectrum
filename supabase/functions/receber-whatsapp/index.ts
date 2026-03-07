@@ -821,10 +821,24 @@ async function downloadMidiaBase64(media: MediaInfo, webhookBody: any): Promise<
   };
   const messageType = mediaTypeMap[media.type] || "image";
 
-  // Formato OFICIAL da MegaAPI: messageKeys + messageType
+  // Formato OFICIAL da MegaAPI: messageKeys com mediaKey, directPath, url, mimetype E messageType DENTRO
   // Docs: https://doc.mega-api.app.br/api-10983731
+  // curl example mostra messageType DENTRO de messageKeys
   const downloadPayloads = [
-    // Formato 1: MegaAPI OFICIAL documentado - messageKeys wrapper
+    // Formato 1: MegaAPI OFICIAL - messageType DENTRO de messageKeys
+    {
+      url: `${restBase}/instance/downloadMediaMessage/${instanceKey}`,
+      body: {
+        messageKeys: {
+          mediaKey: mediaFields.mediaKey,
+          directPath: mediaFields.directPath,
+          url: mediaFields.url,
+          mimetype: mediaFields.mimetype,
+          messageType: messageType,
+        }
+      }
+    },
+    // Formato 2: messageType fora de messageKeys (variação)
     {
       url: `${restBase}/instance/downloadMediaMessage/${instanceKey}`,
       body: {
@@ -834,17 +848,6 @@ async function downloadMidiaBase64(media: MediaInfo, webhookBody: any): Promise<
           url: mediaFields.url,
           mimetype: mediaFields.mimetype,
         },
-        messageType: messageType,
-      }
-    },
-    // Formato 2: Fallback - campos soltos (versões antigas da API)
-    {
-      url: `${restBase}/instance/downloadMediaMessage/${instanceKey}`,
-      body: {
-        mediaKey: mediaFields.mediaKey,
-        directPath: mediaFields.directPath,
-        url: mediaFields.url,
-        mimetype: mediaFields.mimetype,
         messageType: messageType,
       }
     },
