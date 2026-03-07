@@ -1123,8 +1123,8 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     if (imagemBase64ParaIA && imagemMimetype) {
       const imageDataUrl = `data:${imagemMimetype};base64,${imagemBase64ParaIA}`;
       const userContent: any[] = [
-        { type: "text", text: mensagem || "O paciente enviou esta imagem. Analise e responda adequadamente." },
-        { type: "image_url", image_url: { url: imageDataUrl, detail: "low" } },
+        { type: "text", text: mensagem || "O paciente enviou esta imagem. Analise o conteúdo visual com atenção: leia textos, números, datas, nomes e qualquer informação visível. Responda de forma útil." },
+        { type: "image_url", image_url: { url: imageDataUrl, detail: "high" } },
       ];
       messages.push({ role: "user", content: userContent });
       console.log(`[whatsapp] 🖼️ Enviando imagem para GPT-4o vision`);
@@ -1145,9 +1145,9 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: imagemBase64ParaIA ? "gpt-4o" : "gpt-4o-mini",
           temperature: 0.7,
-          max_tokens: imagemBase64ParaIA ? 500 : 300,
+          max_tokens: imagemBase64ParaIA ? 800 : 300,
           messages,
         }),
       });
