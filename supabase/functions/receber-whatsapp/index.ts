@@ -856,6 +856,7 @@ async function downloadMidiaBase64(media: MediaInfo, webhookBody: any): Promise<
   for (const payload of downloadPayloads) {
     try {
       console.log(`[whatsapp] 📥 Tentando download: ${payload.url}`);
+      console.log(`[whatsapp] 📥 Body: ${JSON.stringify(payload.body).slice(0, 500)}`);
       const res = await fetch(payload.url, {
         method: "POST",
         headers: {
@@ -866,15 +867,21 @@ async function downloadMidiaBase64(media: MediaInfo, webhookBody: any): Promise<
         body: JSON.stringify(payload.body),
       });
 
+      console.log(`[whatsapp] 📥 Response status: ${res.status}, content-type: ${res.headers.get("content-type")}`);
+
       const contentType = res.headers.get("content-type") || "";
       
-      // Se retornou binário, converter para base64
+      // Se retornou binário direto, converter para base64
       if (res.ok && (contentType.startsWith("image/") || contentType.startsWith("audio/") || contentType.startsWith("application/octet-stream"))) {
         const buffer = await res.arrayBuffer();
         const bytes = new Uint8Array(buffer);
+        const chunkSize = 8192;
         let binary = "";
-        for (let i = 0; i < bytes.length; i++) {
-          binary += String.fromCharCode(bytes[i]);
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+          for (let j = 0; j < chunk.length; j++) {
+            binary += String.fromCharCode(chunk[j]);
+          }
         }
         const b64 = btoa(binary);
         if (b64.length > 100) {
@@ -883,22 +890,45 @@ async function downloadMidiaBase64(media: MediaInfo, webhookBody: any): Promise<
         }
       }
 
+      // Ler resposta como texto/JSON
       const responseText = await res.text();
-      console.log(`[whatsapp] Download response ${res.status}: ${responseText.slice(0, 300)}`);
+      console.log(`[whatsapp] 📥 Response body (preview): ${responseText.slice(0, 500)}`);
 
       if (res.ok || res.status === 200) {
         try {
           const data = JSON.parse(responseText);
+          
+          // MegaAPI pode retornar erro lógico
           if (data.error === true || data.statusCode === 404) {
-            console.log(`[whatsapp] ⚠️ Endpoint retornou erro lógico, tentando próximo`);
+            console.log(`[whatsapp] ⚠️ Endpoint retornou erro lógico: ${data.message || JSON.stringify(data).slice(0, 200)}`);
             continue;
           }
-          const b64 = data.base64 || data.data?.base64 || data.mediaData?.base64 || data.media || "";
-          if (b64 && b64.length > 100) {
-            console.log(`[whatsapp] ✅ Mídia baixada via API (${b64.length} chars)`);
-            return b64.replace(/^data:[^;]+;base64,/, "");
+          
+          // FORMATO OFICIAL MegaAPI: { error: false, message: "...", data: "base64string" }
+          // data.data É a string base64 diretamente, NÃO um objeto
+          let b64 = "";
+          if (typeof data.data === "string" && data.data.length > 100) {
+            b64 = data.data;
+          } else if (typeof data.base64 === "string" && data.base64.length > 100) {
+            b64 = data.base64;
+          } else if (typeof data.data === "object" && data.data?.base64) {
+            b64 = data.data.base64;
+          } else if (typeof data.mediaData?.base64 === "string") {
+            b64 = data.mediaData.base64;
+          } else if (typeof data.media === "string" && data.media.length > 100) {
+            b64 = data.media;
           }
+          
+          if (b64 && b64.length > 100) {
+            // Remover prefixo data URI se presente
+            b64 = b64.replace(/^data:[^;]+;base64,/, "");
+            console.log(`[whatsapp] ✅ Mídia baixada via API (${b64.length} chars base64)`);
+            return b64;
+          }
+          
+          console.log(`[whatsapp] ⚠️ Resposta OK mas sem base64 válido. Keys: ${Object.keys(data).join(", ")}. data type: ${typeof data.data}`);
         } catch {
+          // Se não é JSON mas é longo, pode ser base64 puro
           if (responseText.length > 100 && !responseText.startsWith("{") && !responseText.startsWith("<")) {
             console.log(`[whatsapp] ✅ Mídia baixada como base64 direto (${responseText.length} chars)`);
             return responseText;
