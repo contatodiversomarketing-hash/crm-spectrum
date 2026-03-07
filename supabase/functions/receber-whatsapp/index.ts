@@ -1246,7 +1246,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       paciente_externo_id: numero,
       canal: "whatsapp",
       sistema_origem: "megaapi",
-      mensagem_usuario: mensagem.slice(0, 5000),
+      mensagem_usuario: (midia ? `[${midia.type}] ` : "") + mensagem.slice(0, 5000),
       resposta_final: respostaFinal.slice(0, 5000),
       intencao_detectada: agendamentos.length > 0 ? "agendamento" : (encaminharHumano ? "encaminhar_humano" : null),
       estado_conversa: agendamentos.length > 0 ? "finalizado" : "em_andamento",
