@@ -203,11 +203,15 @@ Quando o paciente CONFIRMAR um agendamento E você já tiver nome+CPF, inclua ao
 - Quando o paciente perguntar endereço, localização, onde fica, como chegar → forneça o endereço REAL acima
 - NUNCA invente endereços fictícios como "Rua Exemplo"
 
-## REGRAS DE HORÁRIOS
-- Ofereça EXATAMENTE 2 opções do turno pedido
-- Se pediu manhã: 2 horários entre 8h-11h
-- Se pediu tarde: 2 horários entre 13h-17h
-- Se não especificou: 1 de manhã e 1 de tarde
+## REGRAS DE HORÁRIOS (MUITO IMPORTANTE - NUNCA VIOLE)
+- SOMENTE ofereça horários que aparecem na lista "HORÁRIOS DISPONÍVEIS DA CLÍNICA" abaixo
+- Se não há lista de horários, diga que vai verificar a agenda e retorna em breve
+- NUNCA invente horários como 8h, 9h, 14h se NÃO estão na lista
+- Ofereça EXATAMENTE 2 opções do turno pedido, DA LISTA REAL
+- Se pediu manhã: 2 horários de manhã DA LISTA
+- Se pediu tarde: 2 horários de tarde DA LISTA
+- Se não especificou: 1 de manhã e 1 de tarde DA LISTA
+- Se o turno pedido não tem opções na lista, avise e ofereça do outro turno
 
 ## REGRAS DE PROFISSIONAIS
 - Use o NOME EXATO do profissional da lista
@@ -540,8 +544,10 @@ async function buscarHorariosDisponiveis(profissionais: any[]): Promise<string> 
     }
 
     if (slotsInfo.length === 0) {
-      console.log("[whatsapp] get_available_slots retornou vazio, usando fallback local");
-      return gerarHorariosLocais();
+      console.log("[whatsapp] get_available_slots retornou vazio");
+      return `\n\nHORÁRIOS DISPONÍVEIS: A agenda dos profissionais não retornou horários disponíveis no momento.
+INSTRUÇÃO: Diga ao paciente que vai VERIFICAR a disponibilidade com a equipe e retornará em breve.
+NUNCA invente horários. NUNCA ofereça horários genéricos como 8h, 9h, 10h sem ter visto na agenda real.`;
     }
 
     // Agrupar por data
@@ -566,36 +572,24 @@ async function buscarHorariosDisponiveis(profissionais: any[]): Promise<string> 
 
     console.log(`[whatsapp] ✅ Agenda real: ${slotsInfo.length} slots em ${Object.keys(porData).length} dias`);
 
-    return `\n\nHORÁRIOS DISPONÍVEIS DA CLÍNICA (AGENDA REAL):
+    return `\n\nHORÁRIOS DISPONÍVEIS DA CLÍNICA (AGENDA REAL - USE SOMENTE ESTES):
 ${linhas.join("\n")}
 
-REGRA CRÍTICA DE ESCASSEZ:
-- Ofereça EXATAMENTE 2 horários do turno pedido
-- NUNCA liste todos. Escolha 2 e apresente como únicos disponíveis
+REGRAS ABSOLUTAS DE AGENDA:
+- Ofereça EXATAMENTE 2 horários do turno pedido, escolhidos da lista ACIMA
+- NUNCA invente horários que NÃO estão nesta lista
+- NUNCA ofereça horários fora do expediente do profissional
+- Se o turno pedido não tem horários na lista, informe e sugira o outro turno
+- Use o formato: dia (data) às hora com Profissional
 - Exemplo: "Consegui encaixar para você [dia] às [hora1] ou às [hora2]. Qual fica melhor? 😊"`;
   } catch (err) {
     console.error("[whatsapp] Erro buscar agenda:", err);
-    return gerarHorariosLocais();
+    return `\n\nHORÁRIOS: Não foi possível consultar a agenda no momento.
+INSTRUÇÃO: Informe ao paciente que vai verificar a disponibilidade e retornará em breve. NUNCA invente horários.`;
   }
 }
 
-function gerarHorariosLocais(): string {
-  const hoje = new Date();
-  const nomes: Record<number, string> = { 1: "segunda-feira", 2: "terça-feira", 3: "quarta-feira", 4: "quinta-feira", 5: "sexta-feira" };
-  const diasDisponiveis: string[] = [];
-  for (let i = 1; i <= 10 && diasDisponiveis.length < 5; i++) {
-    const d = new Date(hoje.getTime() + i * 86400000);
-    const dow = d.getDay();
-    if (dow >= 1 && dow <= 5) {
-      const dia = d.toISOString().split("T")[0].split("-").reverse().join("/");
-      diasDisponiveis.push(`${nomes[dow]} (${dia}): manhã 8h-11h, tarde 13h-17h`);
-    }
-  }
-  return `\n\nHORÁRIOS DISPONÍVEIS (horário comercial):
-${diasDisponiveis.join("\n")}
-
-REGRA: Ofereça EXATAMENTE 2 opções do turno pedido.`;
-}
+// gerarHorariosLocais removida - NUNCA inventar horários fictícios
 
 // =============================
 // REGISTRAR AGENDAMENTO NO GESTÃO + CRM
@@ -1339,29 +1333,42 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       const patientId = pacienteEncontrado?.id || "";
       console.log(`[whatsapp] 📋 ${agendamentos.length} agendamento(s) detectado(s)`);
 
-      // Processar TODOS os agendamentos em paralelo
-      const promises = agendamentos.map((ag, idx) => {
+      // Processar TODOS os agendamentos em paralelo - AGUARDAR resultado antes de enviar mensagem
+      const results = await Promise.all(agendamentos.map(async (ag, idx) => {
         console.log(`[whatsapp] Agendamento ${idx + 1}/${agendamentos.length}: ${ag.nome} | ${ag.data} ${ag.horario} | prof=${ag.professionalId}`);
-        return Promise.all([
+        const [gestaoOk, crmOk] = await Promise.all([
           registrarAgendamento(ag.nome, numero, ag.data, ag.horario, ag.professionalId, patientId),
-          idx === 0 ? criarLeadCRM(ag.nome, numero) : Promise.resolve(true), // CRM lead só 1x
-        ]).then(([gestaoOk, crmOk]) => {
-          supabase.from("logs_decisao").insert({
-            evento: "agendamento_whatsapp_confirmado",
-            decisao: `gestao=${gestaoOk ? "ok" : "falha"}, crm=${crmOk ? "ok" : "falha"}`,
-            regra_aplicada: "whatsapp_maria_agendamento_auto",
-            dados_entrada: {
-              nome: ag.nome, telefone: numero, data: ag.data, horario: ag.horario,
-              professional_id: ag.professionalId, patient_id: patientId, indice: idx + 1, total: agendamentos.length,
-            },
-            confianca: 1.0,
-          });
-          console.log(`[whatsapp] ✅ Agendamento ${idx + 1}: Gestão=${gestaoOk}, CRM=${crmOk}`);
-          return { gestaoOk, crmOk };
+          idx === 0 ? criarLeadCRM(ag.nome, numero) : Promise.resolve(true),
+        ]);
+        
+        await supabase.from("logs_decisao").insert({
+          evento: "agendamento_whatsapp_confirmado",
+          decisao: `gestao=${gestaoOk ? "ok" : "FALHA"}, crm=${crmOk ? "ok" : "falha"}`,
+          regra_aplicada: "whatsapp_maria_agendamento_auto",
+          dados_entrada: {
+            nome: ag.nome, telefone: numero, data: ag.data, horario: ag.horario,
+            professional_id: ag.professionalId, patient_id: patientId, indice: idx + 1, total: agendamentos.length,
+          },
+          confianca: 1.0,
         });
-      });
+        console.log(`[whatsapp] ${gestaoOk ? "✅" : "❌"} Agendamento ${idx + 1}: Gestão=${gestaoOk}, CRM=${crmOk}`);
+        return { gestaoOk, crmOk, ag };
+      }));
 
-      Promise.all(promises).catch(err => console.error("[whatsapp] Erro agendamentos:", err));
+      // Verificar se algum agendamento FALHOU no sistema de gestão
+      const falharam = results.filter(r => !r.gestaoOk);
+      if (falharam.length > 0) {
+        console.error(`[whatsapp] ❌ ${falharam.length} agendamento(s) FALHARAM no sistema de gestão`);
+        // Adicionar aviso à resposta para o paciente saber que precisa confirmar
+        respostaFinal += `\n\n⚠️ Estou finalizando seu agendamento no sistema. Se houver qualquer ajuste, entrarei em contato para confirmar, tudo bem?`;
+        
+        // Notificar admin sobre falha
+        const adminNumber = Deno.env.get("ADMIN_WHATSAPP_NUMBER");
+        if (adminNumber) {
+          const falhaDetalhes = falharam.map(f => `${f.ag.nome} | ${f.ag.data} ${f.ag.horario}`).join("; ");
+          enviarTexto(adminNumber, `⚠️ *AGENDAMENTO FALHOU NO SISTEMA*\n📱 Paciente: ${numero}\n📋 Dados: ${falhaDetalhes}\n\n⚡ Favor registrar manualmente no sistema de gestão.`).catch(() => {});
+        }
+      }
     }
 
     // =============================
