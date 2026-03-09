@@ -585,23 +585,7 @@ INSTRUÇÃO: Informe ao paciente que vai verificar a disponibilidade e retornar�
   }
 }
 
-function gerarHorariosLocais(): string {
-  const hoje = new Date();
-  const nomes: Record<number, string> = { 1: "segunda-feira", 2: "terça-feira", 3: "quarta-feira", 4: "quinta-feira", 5: "sexta-feira" };
-  const diasDisponiveis: string[] = [];
-  for (let i = 1; i <= 10 && diasDisponiveis.length < 5; i++) {
-    const d = new Date(hoje.getTime() + i * 86400000);
-    const dow = d.getDay();
-    if (dow >= 1 && dow <= 5) {
-      const dia = d.toISOString().split("T")[0].split("-").reverse().join("/");
-      diasDisponiveis.push(`${nomes[dow]} (${dia}): manhã 8h-11h, tarde 13h-17h`);
-    }
-  }
-  return `\n\nHORÁRIOS DISPONÍVEIS (horário comercial):
-${diasDisponiveis.join("\n")}
-
-REGRA: Ofereça EXATAMENTE 2 opções do turno pedido.`;
-}
+// gerarHorariosLocais removida - NUNCA inventar horários fictícios
 
 // =============================
 // REGISTRAR AGENDAMENTO NO GESTÃO + CRM
