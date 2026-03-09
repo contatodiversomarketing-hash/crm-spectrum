@@ -203,11 +203,15 @@ Quando o paciente CONFIRMAR um agendamento E você já tiver nome+CPF, inclua ao
 - Quando o paciente perguntar endereço, localização, onde fica, como chegar → forneça o endereço REAL acima
 - NUNCA invente endereços fictícios como "Rua Exemplo"
 
-## REGRAS DE HORÁRIOS
-- Ofereça EXATAMENTE 2 opções do turno pedido
-- Se pediu manhã: 2 horários entre 8h-11h
-- Se pediu tarde: 2 horários entre 13h-17h
-- Se não especificou: 1 de manhã e 1 de tarde
+## REGRAS DE HORÁRIOS (MUITO IMPORTANTE - NUNCA VIOLE)
+- SOMENTE ofereça horários que aparecem na lista "HORÁRIOS DISPONÍVEIS DA CLÍNICA" abaixo
+- Se não há lista de horários, diga que vai verificar a agenda e retorna em breve
+- NUNCA invente horários como 8h, 9h, 14h se NÃO estão na lista
+- Ofereça EXATAMENTE 2 opções do turno pedido, DA LISTA REAL
+- Se pediu manhã: 2 horários de manhã DA LISTA
+- Se pediu tarde: 2 horários de tarde DA LISTA
+- Se não especificou: 1 de manhã e 1 de tarde DA LISTA
+- Se o turno pedido não tem opções na lista, avise e ofereça do outro turno
 
 ## REGRAS DE PROFISSIONAIS
 - Use o NOME EXATO do profissional da lista
