@@ -95,7 +95,47 @@ const SupervisaoIA = () => {
   useEffect(() => {
     carregarDados();
     const interval = setInterval(() => setHoraAtual(formatarHoraBrasil()), 30000);
-    return () => clearInterval(interval);
+
+    // Realtime subscription para atualizações ao vivo
+    const channel = supabase
+      .channel('supervisao-interacoes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'interacoes_ia',
+        },
+        (payload) => {
+          console.log('[supervisao] Realtime event:', payload.eventType);
+          if (payload.eventType === 'INSERT') {
+            const newRow = payload.new as Interacao;
+            // Adicionar ao histórico
+            setHistorico(prev => [newRow, ...prev].slice(0, 20));
+            // Se é supervisionado e sem resposta final, adicionar à fila pendente
+            if (newRow.supervisionado && !newRow.resposta_final) {
+              setFilaPendente(prev => [newRow, ...prev]);
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            const updated = payload.new as Interacao;
+            // Atualizar no histórico
+            setHistorico(prev => prev.map(i => i.id === updated.id ? updated : i));
+            // Se foi respondido, remover da fila pendente
+            if (updated.resposta_final) {
+              setFilaPendente(prev => prev.filter(i => i.id !== updated.id));
+            } else {
+              // Atualizar na fila pendente
+              setFilaPendente(prev => prev.map(i => i.id === updated.id ? updated : i));
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, [carregarDados]);
 
   const executarAcao = async (interacaoId: string, acao: "aprovar" | "editar" | "manual", respostaFinal?: string) => {
