@@ -168,26 +168,40 @@ Quando o paciente pedir um serviço ou especialidade, você DEVE:
 2. Pergunte qual serviço/especialidade o paciente precisa
 3. FILTRE os profissionais pela especialidade correta (veja regras acima)
 4. Pergunte a PREFERÊNCIA de dia e turno (manhã/tarde): "Qual dia seria melhor para você? Manhã ou tarde?"
-5. SÓ DEPOIS de saber a preferência, ofereça 2 opções REAIS do turno pedido
-6. Quando o paciente CONFIRMAR o horário, peça o NOME COMPLETO e CPF para finalizar:
-   "Para finalizar seu agendamento, preciso do seu nome completo e CPF, por favor 📋"
-7. Com nome+CPF em mãos, confirme: "[Nome], marcado [dia] às [hora] com [profissional]. Vou enviar uma confirmação ✅"
+5. SÓ DEPOIS de saber a preferência, ofereça 2 opções REAIS do turno pedido (se disponíveis na agenda)
+6. Quando o paciente CONFIRMAR o horário:
+   a) Se já tem nome completo do paciente → peça apenas o CPF se ainda não tiver
+   b) Se não tem nome → peça nome completo + CPF
+   c) Se o paciente já informou nome E CPF (ou está no cadastro) → CONFIRME IMEDIATAMENTE
+7. Com os dados, confirme: "[Nome], marcado [dia] às [hora] com [profissional]. Vou enviar uma confirmação ✅"
 8. APÓS confirmar, faça CROSS-SELLING de outro serviço
 
-## COLETA DE DADOS PARA AGENDAMENTO (OBRIGATÓRIO)
-- Antes de confirmar QUALQUER agendamento, você PRECISA ter: nome completo E CPF do paciente
+## AGENDAMENTO DIRETO (QUANDO O PACIENTE JÁ DEU TODOS OS DADOS)
+- Se o paciente já disse o PROFISSIONAL + DATA + HORÁRIO na mesma mensagem → NÃO pergunte tudo de novo
+- Confirme os dados e peça apenas o que falta (nome/CPF)
+- Se já tem o cadastro no sistema → AGENDE DIRETAMENTE sem ficar "verificando"
+
+## COLETA DE DADOS PARA AGENDAMENTO
+- Antes de confirmar, o IDEAL é ter nome completo + CPF
+- Mas se o paciente se recusar ou não tiver CPF no momento → agende mesmo assim com o nome
 - Se já tiver o cadastro do paciente (mostrado no CONTEXTO), confirme os dados
 - Se o cadastro existir MAS sem CPF, peça o CPF
 - Se o paciente fornecer o CPF, inclua na resposta: ##ATUALIZAR_CPF|cpf_informado##
-- Se NÃO tiver cadastro, peça nome completo + CPF para criar
 
 ## INSTRUÇÃO CRÍTICA: CONFIRMAÇÃO DE AGENDAMENTO
-Quando o paciente CONFIRMAR um agendamento E você já tiver nome+CPF, inclua ao FINAL da sua resposta:
+Quando o paciente CONFIRMAR um agendamento E você já tiver nome+CPF (ou pelo menos o nome), inclua ao FINAL da sua resposta:
 ##AGENDAMENTO_CONFIRMADO|nome_paciente|data_YYYY-MM-DD|horario_HH:MM|professional_id##
 
 - O professional_id deve ser o ID do profissional correto da lista (campo "id" dos profissionais)
 - Se não souber o professional_id, use "auto"
-- NUNCA inclua o marcador sem ter nome E CPF confirmados
+- NUNCA fique em loop dizendo "vou verificar" ou "aguardando confirmação da equipe"
+- Se o paciente pediu data+horário+profissional específicos → CONFIRME E AGENDE imediatamente
+- O sistema registrará no gestão automaticamente. Se houver conflito, a equipe resolverá.
+
+## REGRA ANTI-LOOP (MUITO IMPORTANTE!)
+- NUNCA repita a mesma resposta de "verificar disponibilidade" mais de 1 vez
+- Se já disse que vai verificar e o paciente insistiu → CONFIRME o agendamento diretamente
+- Prefira AGENDAR e ajustar depois do que ficar "verificando" infinitamente
 
 ## MÚLTIPLOS AGENDAMENTOS NA MESMA CONVERSA (MUITO IMPORTANTE!)
 - Se o paciente pedir 2 ou mais agendamentos na mesma mensagem, você DEVE incluir UM marcador ##AGENDAMENTO_CONFIRMADO## para CADA agendamento
@@ -496,12 +510,13 @@ function detectarProfissionalPorNome(mensagem: string, profissionais: any[]): an
 async function buscarHorariosDisponiveis(profissionais: any[]): Promise<string> {
   try {
     if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) {
-      return gerarHorariosLocais();
+      return `\n\nHORÁRIOS: Sistema de gestão não configurado.
+INSTRUÇÃO: Mesmo assim, se o paciente informou data, horário e profissional, CONFIRME o agendamento usando o marcador ##AGENDAMENTO_CONFIRMADO##. O sistema tentará registrar.`;
     }
 
     const hoje = new Date();
     const diasParaConsultar: string[] = [];
-    for (let i = 1; i <= 10 && diasParaConsultar.length < 5; i++) {
+    for (let i = 0; i <= 10 && diasParaConsultar.length < 7; i++) {
       const d = new Date(hoje.getTime() + i * 86400000);
       if (d.getDay() >= 1 && d.getDay() <= 5) {
         diasParaConsultar.push(d.toISOString().split("T")[0]);
@@ -514,7 +529,8 @@ async function buscarHorariosDisponiveis(profissionais: any[]): Promise<string> 
       .map((p: any) => ({ id: p.id || p.professional_id, nome: fixEncoding(p.full_name || p.professional_name || p.name || "") }));
 
     if (profIds.length === 0) {
-      return gerarHorariosLocais();
+      return `\n\nHORÁRIOS: Nenhum profissional com ID encontrado.
+INSTRUÇÃO: Se o paciente já informou data+horário+profissional, CONFIRME o agendamento usando ##AGENDAMENTO_CONFIRMADO##.`;
     }
 
     const slotsPromises = diasParaConsultar.flatMap(date =>
@@ -545,9 +561,17 @@ async function buscarHorariosDisponiveis(profissionais: any[]): Promise<string> 
 
     if (slotsInfo.length === 0) {
       console.log("[whatsapp] get_available_slots retornou vazio");
-      return `\n\nHORÁRIOS DISPONÍVEIS: A agenda dos profissionais não retornou horários disponíveis no momento.
-INSTRUÇÃO: Diga ao paciente que vai VERIFICAR a disponibilidade com a equipe e retornará em breve.
-NUNCA invente horários. NUNCA ofereça horários genéricos como 8h, 9h, 10h sem ter visto na agenda real.`;
+      // Gerar lista dos profissionais disponíveis para que a IA possa agendar diretamente
+      const profListaIds = profIds.map(p => `${p.nome} [ID: ${p.id}]`).join(", ");
+      return `\n\nHORÁRIOS DISPONÍVEIS: A API de agenda não retornou horários específicos no momento.
+
+INSTRUÇÃO CRÍTICA - SIGA ESTA REGRA:
+- Se o paciente JÁ INFORMOU uma data, horário E profissional específicos → NÃO diga "vou verificar". Em vez disso, CONFIRME o agendamento diretamente e inclua o marcador ##AGENDAMENTO_CONFIRMADO|nome|data_YYYY-MM-DD|horario_HH:MM|professional_id##
+- O sistema tentará registrar automaticamente e, se houver indisponibilidade, a equipe entrará em contato.
+- Se o paciente ainda NÃO informou data/horário, pergunte a preferência de dia e turno e depois confirme.
+- Profissionais disponíveis: ${profListaIds}
+- Horário de funcionamento: segunda a sexta, 8h às 18h
+- NUNCA fique em loop dizendo "vou verificar" repetidamente`;
     }
 
     // Agrupar por data
