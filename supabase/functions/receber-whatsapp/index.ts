@@ -1329,29 +1329,42 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       const patientId = pacienteEncontrado?.id || "";
       console.log(`[whatsapp] 📋 ${agendamentos.length} agendamento(s) detectado(s)`);
 
-      // Processar TODOS os agendamentos em paralelo
-      const promises = agendamentos.map((ag, idx) => {
+      // Processar TODOS os agendamentos em paralelo - AGUARDAR resultado antes de enviar mensagem
+      const results = await Promise.all(agendamentos.map(async (ag, idx) => {
         console.log(`[whatsapp] Agendamento ${idx + 1}/${agendamentos.length}: ${ag.nome} | ${ag.data} ${ag.horario} | prof=${ag.professionalId}`);
-        return Promise.all([
+        const [gestaoOk, crmOk] = await Promise.all([
           registrarAgendamento(ag.nome, numero, ag.data, ag.horario, ag.professionalId, patientId),
-          idx === 0 ? criarLeadCRM(ag.nome, numero) : Promise.resolve(true), // CRM lead só 1x
-        ]).then(([gestaoOk, crmOk]) => {
-          supabase.from("logs_decisao").insert({
-            evento: "agendamento_whatsapp_confirmado",
-            decisao: `gestao=${gestaoOk ? "ok" : "falha"}, crm=${crmOk ? "ok" : "falha"}`,
-            regra_aplicada: "whatsapp_maria_agendamento_auto",
-            dados_entrada: {
-              nome: ag.nome, telefone: numero, data: ag.data, horario: ag.horario,
-              professional_id: ag.professionalId, patient_id: patientId, indice: idx + 1, total: agendamentos.length,
-            },
-            confianca: 1.0,
-          });
-          console.log(`[whatsapp] ✅ Agendamento ${idx + 1}: Gestão=${gestaoOk}, CRM=${crmOk}`);
-          return { gestaoOk, crmOk };
+          idx === 0 ? criarLeadCRM(ag.nome, numero) : Promise.resolve(true),
+        ]);
+        
+        await supabase.from("logs_decisao").insert({
+          evento: "agendamento_whatsapp_confirmado",
+          decisao: `gestao=${gestaoOk ? "ok" : "FALHA"}, crm=${crmOk ? "ok" : "falha"}`,
+          regra_aplicada: "whatsapp_maria_agendamento_auto",
+          dados_entrada: {
+            nome: ag.nome, telefone: numero, data: ag.data, horario: ag.horario,
+            professional_id: ag.professionalId, patient_id: patientId, indice: idx + 1, total: agendamentos.length,
+          },
+          confianca: 1.0,
         });
-      });
+        console.log(`[whatsapp] ${gestaoOk ? "✅" : "❌"} Agendamento ${idx + 1}: Gestão=${gestaoOk}, CRM=${crmOk}`);
+        return { gestaoOk, crmOk, ag };
+      }));
 
-      Promise.all(promises).catch(err => console.error("[whatsapp] Erro agendamentos:", err));
+      // Verificar se algum agendamento FALHOU no sistema de gestão
+      const falharam = results.filter(r => !r.gestaoOk);
+      if (falharam.length > 0) {
+        console.error(`[whatsapp] ❌ ${falharam.length} agendamento(s) FALHARAM no sistema de gestão`);
+        // Adicionar aviso à resposta para o paciente saber que precisa confirmar
+        respostaFinal += `\n\n⚠️ Estou finalizando seu agendamento no sistema. Se houver qualquer ajuste, entrarei em contato para confirmar, tudo bem?`;
+        
+        // Notificar admin sobre falha
+        const adminNumber = Deno.env.get("ADMIN_WHATSAPP_NUMBER");
+        if (adminNumber) {
+          const falhaDetalhes = falharam.map(f => `${f.ag.nome} | ${f.ag.data} ${f.ag.horario}`).join("; ");
+          enviarTexto(adminNumber, `⚠️ *AGENDAMENTO FALHOU NO SISTEMA*\n📱 Paciente: ${numero}\n📋 Dados: ${falhaDetalhes}\n\n⚡ Favor registrar manualmente no sistema de gestão.`).catch(() => {});
+        }
+      }
     }
 
     // =============================
