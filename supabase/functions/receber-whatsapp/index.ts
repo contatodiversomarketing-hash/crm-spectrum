@@ -540,8 +540,10 @@ async function buscarHorariosDisponiveis(profissionais: any[]): Promise<string> 
     }
 
     if (slotsInfo.length === 0) {
-      console.log("[whatsapp] get_available_slots retornou vazio, usando fallback local");
-      return gerarHorariosLocais();
+      console.log("[whatsapp] get_available_slots retornou vazio");
+      return `\n\nHORÁRIOS DISPONÍVEIS: A agenda dos profissionais não retornou horários disponíveis no momento.
+INSTRUÇÃO: Diga ao paciente que vai VERIFICAR a disponibilidade com a equipe e retornará em breve.
+NUNCA invente horários. NUNCA ofereça horários genéricos como 8h, 9h, 10h sem ter visto na agenda real.`;
     }
 
     // Agrupar por data
@@ -566,16 +568,20 @@ async function buscarHorariosDisponiveis(profissionais: any[]): Promise<string> 
 
     console.log(`[whatsapp] ✅ Agenda real: ${slotsInfo.length} slots em ${Object.keys(porData).length} dias`);
 
-    return `\n\nHORÁRIOS DISPONÍVEIS DA CLÍNICA (AGENDA REAL):
+    return `\n\nHORÁRIOS DISPONÍVEIS DA CLÍNICA (AGENDA REAL - USE SOMENTE ESTES):
 ${linhas.join("\n")}
 
-REGRA CRÍTICA DE ESCASSEZ:
-- Ofereça EXATAMENTE 2 horários do turno pedido
-- NUNCA liste todos. Escolha 2 e apresente como únicos disponíveis
+REGRAS ABSOLUTAS DE AGENDA:
+- Ofereça EXATAMENTE 2 horários do turno pedido, escolhidos da lista ACIMA
+- NUNCA invente horários que NÃO estão nesta lista
+- NUNCA ofereça horários fora do expediente do profissional
+- Se o turno pedido não tem horários na lista, informe e sugira o outro turno
+- Use o formato: dia (data) às hora com Profissional
 - Exemplo: "Consegui encaixar para você [dia] às [hora1] ou às [hora2]. Qual fica melhor? 😊"`;
   } catch (err) {
     console.error("[whatsapp] Erro buscar agenda:", err);
-    return gerarHorariosLocais();
+    return `\n\nHORÁRIOS: Não foi possível consultar a agenda no momento.
+INSTRUÇÃO: Informe ao paciente que vai verificar a disponibilidade e retornará em breve. NUNCA invente horários.`;
   }
 }
 
