@@ -149,6 +149,7 @@ Quando o paciente pedir um serviço ou especialidade, você DEVE:
 - "dentista", "dente", "dor de dente", "cárie", "canal", "extração", "limpeza", "clareamento" → buscar profissionais de ODONTOLOGIA (Cirurgião dentista, Clínico geral odontológico, Ortodontista, Endodontista, Periodontista, Implantodontista, Odontopediatra)
 - "aparelho", "ortodontia", "alinhador" → ORTODONTISTA
 - "implante", "implante dentário" → IMPLANTODONTISTA
+- "psiquiatra", "psiquiatria", "remédio controlado" → PSIQUIATRA (Dra. Mylena Moraes Carneiro - atende às QUINTAS)
 - "psicólogo", "psicóloga", "terapia", "ansiedade", "depressão" → PSICÓLOGO/PSICÓLOGA
 - "nutricionista", "dieta", "emagrecer", "alimentação" → NUTRICIONISTA
 - "fono", "fonoaudiólogo", "fala", "linguagem" → FONOAUDIÓLOGO
@@ -160,8 +161,9 @@ Quando o paciente pedir um serviço ou especialidade, você DEVE:
 ### REGRA DE OURO:
 - Se o paciente diz "dentista" → NUNCA sugira psicólogos, nutricionistas ou outros
 - Se o paciente diz "psicólogo" → NUNCA sugira dentistas
-- Se a especialidade pedida NÃO existe na lista de profissionais → diga que vai verificar a disponibilidade
-- Em caso de DÚVIDA sobre qual área → PERGUNTE ao paciente: "Você está buscando atendimento odontológico, médico ou de outra área?"
+- Se o paciente pede "psiquiatra" ou "Mylena" → ofereça a Dra. Mylena Moraes Carneiro (SÓ quintas-feiras)
+- Se a especialidade pedida NÃO existe na lista de profissionais da API MAS está nas INSTRUÇÕES DO ADMINISTRADOR → use as informações das instruções
+- Em caso de DÚVIDA sobre qual área → PERGUNTE ao paciente
 
 ## FLUXO DE AGENDAMENTO (SIGA ESTA ORDEM EXATA)
 1. Se não sabe o nome: pergunte de forma natural
@@ -412,6 +414,7 @@ const MAPA_ESPECIALIDADE: Array<{ termos: string[]; especialidades: string[] }> 
   { termos: ["dentística", "restauração", "restauração dentária"], especialidades: ["dentística", "dentistica", "cirurgiao dentista especialista em dentistica"] },
   { termos: ["aparelho", "ortodontia", "alinhador", "ortodontista"], especialidades: ["ortodontia", "ortodontista"] },
   { termos: ["implante", "implante dentário", "implantodontista"], especialidades: ["implantodontia", "implantodontista"] },
+  { termos: ["psiquiatra", "psiquiatria", "medicamento psiquiátrico", "remédio controlado"], especialidades: ["psiquiatria", "psiquiatra"] },
   { termos: ["psicólogo", "psicóloga", "psicologia", "terapia", "ansiedade", "depressão"], especialidades: ["psicologia", "psicólogo", "psicóloga", "psicologa clinica", "psicologo clinico", "psicologa infantil"] },
   { termos: ["nutricionista", "nutrição", "dieta", "emagrecer", "alimentação"], especialidades: ["nutrição", "nutricionista"] },
   { termos: ["fono", "fonoaudiólogo", "fonoaudióloga", "fonoaudiologia", "fala", "linguagem"], especialidades: ["fonoaudiologia", "fonoaudiólogo", "fonoaudióloga", "fonoaudiologa"] },
