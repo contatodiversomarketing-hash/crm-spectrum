@@ -496,12 +496,13 @@ function detectarProfissionalPorNome(mensagem: string, profissionais: any[]): an
 async function buscarHorariosDisponiveis(profissionais: any[]): Promise<string> {
   try {
     if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) {
-      return gerarHorariosLocais();
+      return `\n\nHORÁRIOS: Sistema de gestão não configurado.
+INSTRUÇÃO: Mesmo assim, se o paciente informou data, horário e profissional, CONFIRME o agendamento usando o marcador ##AGENDAMENTO_CONFIRMADO##. O sistema tentará registrar.`;
     }
 
     const hoje = new Date();
     const diasParaConsultar: string[] = [];
-    for (let i = 1; i <= 10 && diasParaConsultar.length < 5; i++) {
+    for (let i = 0; i <= 10 && diasParaConsultar.length < 7; i++) {
       const d = new Date(hoje.getTime() + i * 86400000);
       if (d.getDay() >= 1 && d.getDay() <= 5) {
         diasParaConsultar.push(d.toISOString().split("T")[0]);
@@ -514,7 +515,8 @@ async function buscarHorariosDisponiveis(profissionais: any[]): Promise<string> 
       .map((p: any) => ({ id: p.id || p.professional_id, nome: fixEncoding(p.full_name || p.professional_name || p.name || "") }));
 
     if (profIds.length === 0) {
-      return gerarHorariosLocais();
+      return `\n\nHORÁRIOS: Nenhum profissional com ID encontrado.
+INSTRUÇÃO: Se o paciente já informou data+horário+profissional, CONFIRME o agendamento usando ##AGENDAMENTO_CONFIRMADO##.`;
     }
 
     const slotsPromises = diasParaConsultar.flatMap(date =>
