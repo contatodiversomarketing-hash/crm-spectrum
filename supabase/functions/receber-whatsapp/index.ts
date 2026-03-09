@@ -547,9 +547,17 @@ INSTRUÇÃO: Se o paciente já informou data+horário+profissional, CONFIRME o a
 
     if (slotsInfo.length === 0) {
       console.log("[whatsapp] get_available_slots retornou vazio");
-      return `\n\nHORÁRIOS DISPONÍVEIS: A agenda dos profissionais não retornou horários disponíveis no momento.
-INSTRUÇÃO: Diga ao paciente que vai VERIFICAR a disponibilidade com a equipe e retornará em breve.
-NUNCA invente horários. NUNCA ofereça horários genéricos como 8h, 9h, 10h sem ter visto na agenda real.`;
+      // Gerar lista dos profissionais disponíveis para que a IA possa agendar diretamente
+      const profListaIds = profIds.map(p => `${p.nome} [ID: ${p.id}]`).join(", ");
+      return `\n\nHORÁRIOS DISPONÍVEIS: A API de agenda não retornou horários específicos no momento.
+
+INSTRUÇÃO CRÍTICA - SIGA ESTA REGRA:
+- Se o paciente JÁ INFORMOU uma data, horário E profissional específicos → NÃO diga "vou verificar". Em vez disso, CONFIRME o agendamento diretamente e inclua o marcador ##AGENDAMENTO_CONFIRMADO|nome|data_YYYY-MM-DD|horario_HH:MM|professional_id##
+- O sistema tentará registrar automaticamente e, se houver indisponibilidade, a equipe entrará em contato.
+- Se o paciente ainda NÃO informou data/horário, pergunte a preferência de dia e turno e depois confirme.
+- Profissionais disponíveis: ${profListaIds}
+- Horário de funcionamento: segunda a sexta, 8h às 18h
+- NUNCA fique em loop dizendo "vou verificar" repetidamente`;
     }
 
     // Agrupar por data
