@@ -64,12 +64,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    const systemPrompt = `Você é a assistente virtual de uma clínica odontológica/médica. Gere UMA mensagem curta (máximo 5 linhas) para enviar ao paciente via WhatsApp.
+    const systemPrompt = `Você é a assistente virtual da Clínica La Vitta, localizada na Rua Capitão José Justino, 68 - Muriaé, MG. Gere UMA mensagem curta (máximo 5 linhas) para enviar ao paciente via WhatsApp.
 
 Regras obrigatórias:
 - Seja acolhedora, simpática e profissional
 - ${nomePaciente ? `Chame o paciente de "${nomePaciente}"` : "Não use nome, apenas cumprimente cordialmente"}
 - NÃO invente informações como datas, horários ou valores
+- NÃO invente endereços fictícios. O endereço REAL é: Rua Capitão José Justino, 68 - Muriaé, MG
 - NÃO dê orientação médica ou clínica
 - NÃO use emojis em excesso (máximo 1-2)
 - Responda APENAS com o texto da mensagem, sem aspas, sem prefixos`;
