@@ -1092,20 +1092,72 @@ async function transcreverAudio(base64Audio: string, mimetype: string): Promise<
   }
 }
 
-async function descreverImagemOuDocumento(base64: string, mimetype: string, caption?: string): Promise<{ texto: string; imageContent: any }> {
-  const imageUrl = `data:${mimetype};base64,${base64}`;
-  
-  const descPrompt = caption 
-    ? `O paciente enviou esta imagem/documento com a legenda: "${caption}". Descreva o conteúdo de forma objetiva para que você possa responder adequadamente.`
-    : `O paciente enviou esta imagem/documento pelo WhatsApp. Descreva o conteúdo de forma objetiva para que você possa responder adequadamente. Se for um exame, receita ou documento médico, extraia as informações relevantes.`;
+// =============================
+// EXTRAIR TEXTO DE PDF VIA GPT-4o
+// =============================
+async function extrairTextoPDF(base64PDF: string): Promise<string> {
+  try {
+    const apiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!apiKey) return "[PDF recebido - extração de texto indisponível]";
 
-  return {
-    texto: caption || "[Paciente enviou uma imagem/documento]",
-    imageContent: {
-      type: "image_url",
-      image_url: { url: imageUrl, detail: "low" },
-    },
-  };
+    // Converter PDF base64 para blob e enviar como file para extração via Assistants API
+    // Como GPT-4o não suporta PDF em vision, vamos usar uma abordagem alternativa:
+    // Enviar o conteúdo como texto pedindo para o modelo interpretar
+    const binaryStr = atob(base64PDF);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
+    }
+
+    // Tentar extrair texto puro do PDF (muitos PDFs têm texto legível nos bytes)
+    const decoder = new TextDecoder("latin1");
+    const rawText = decoder.decode(bytes);
+    
+    // Extrair strings legíveis do PDF (entre parênteses no formato PDF ou streams de texto)
+    const textFragments: string[] = [];
+    
+    // Método 1: Extrair texto entre parênteses (operador Tj/TJ do PDF)
+    const tjRegex = /\(([^)]{2,})\)/g;
+    let match;
+    while ((match = tjRegex.exec(rawText)) !== null) {
+      const fragment = match[1]
+        .replace(/\\n/g, "\n")
+        .replace(/\\r/g, "")
+        .replace(/\\\(/g, "(")
+        .replace(/\\\)/g, ")")
+        .replace(/\\\\/g, "\\");
+      if (fragment.length > 1 && /[a-zA-ZÀ-ú0-9]/.test(fragment)) {
+        textFragments.push(fragment);
+      }
+    }
+
+    // Método 2: Procurar blocos de texto entre BT e ET (Text objects do PDF)
+    const btEtRegex = /BT\s([\s\S]*?)ET/g;
+    while ((match = btEtRegex.exec(rawText)) !== null) {
+      const block = match[1];
+      const innerTj = /\(([^)]+)\)\s*Tj/g;
+      let innerMatch;
+      while ((innerMatch = innerTj.exec(block)) !== null) {
+        const frag = innerMatch[1].replace(/\\[nrt]/g, " ").trim();
+        if (frag.length > 1 && /[a-zA-ZÀ-ú0-9]/.test(frag) && !textFragments.includes(frag)) {
+          textFragments.push(frag);
+        }
+      }
+    }
+
+    const extractedText = textFragments.join(" ").replace(/\s+/g, " ").trim();
+
+    if (extractedText.length > 20) {
+      console.log(`[whatsapp] 📄 PDF texto extraído: ${extractedText.length} chars`);
+      return extractedText.slice(0, 4000);
+    }
+
+    console.log(`[whatsapp] ⚠️ PDF sem texto legível extraído (${extractedText.length} chars). PDF pode ser escaneado/imagem.`);
+    return "[PDF recebido - documento parece ser uma imagem escaneada. Peça ao paciente para descrever o conteúdo ou enviar uma foto legível.]";
+  } catch (err) {
+    console.error("[whatsapp] Erro extrair texto PDF:", err);
+    return "[PDF recebido - erro na extração de texto]";
+  }
 }
 
 // =============================
@@ -1196,8 +1248,13 @@ serve(async (req) => {
           const transcricao = await transcreverAudio(base64, midia.mimetype);
           mensagem = transcricao + (mensagemTexto ? `\n\n(Texto acompanhando: ${mensagemTexto})` : "");
           console.log(`[whatsapp] 🎤 Áudio processado: "${transcricao.slice(0, 80)}"`);
+        } else if (midia.type === "document" && midia.mimetype.includes("pdf")) {
+          // PDF: extrair texto (GPT-4o vision não suporta PDF)
+          const textoExtraido = await extrairTextoPDF(base64);
+          mensagem = (midia.caption || mensagemTexto || "") + `\n\n[CONTEÚDO DO PDF ENVIADO PELO PACIENTE]:\n${textoExtraido}`;
+          console.log(`[whatsapp] 📄 PDF processado: ${textoExtraido.slice(0, 80)}`);
         } else if (midia.type === "image" || midia.type === "document") {
-          // Guardar imagem/doc para enviar ao GPT-4o com vision
+          // Imagem ou documento não-PDF: enviar ao GPT-4o com vision
           imagemBase64ParaIA = base64;
           imagemMimetype = midia.mimetype;
           mensagem = midia.caption || mensagemTexto || "[Paciente enviou " + (midia.type === "image" ? "uma imagem" : `um documento: ${midia.fileName || "arquivo"}`) + "]";
