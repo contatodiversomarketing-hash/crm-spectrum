@@ -1248,8 +1248,13 @@ serve(async (req) => {
           const transcricao = await transcreverAudio(base64, midia.mimetype);
           mensagem = transcricao + (mensagemTexto ? `\n\n(Texto acompanhando: ${mensagemTexto})` : "");
           console.log(`[whatsapp] 🎤 Áudio processado: "${transcricao.slice(0, 80)}"`);
+        } else if (midia.type === "document" && midia.mimetype.includes("pdf")) {
+          // PDF: extrair texto (GPT-4o vision não suporta PDF)
+          const textoExtraido = await extrairTextoPDF(base64);
+          mensagem = (midia.caption || mensagemTexto || "") + `\n\n[CONTEÚDO DO PDF ENVIADO PELO PACIENTE]:\n${textoExtraido}`;
+          console.log(`[whatsapp] 📄 PDF processado: ${textoExtraido.slice(0, 80)}`);
         } else if (midia.type === "image" || midia.type === "document") {
-          // Guardar imagem/doc para enviar ao GPT-4o com vision
+          // Imagem ou documento não-PDF: enviar ao GPT-4o com vision
           imagemBase64ParaIA = base64;
           imagemMimetype = midia.mimetype;
           mensagem = midia.caption || mensagemTexto || "[Paciente enviou " + (midia.type === "image" ? "uma imagem" : `um documento: ${midia.fileName || "arquivo"}`) + "]";
