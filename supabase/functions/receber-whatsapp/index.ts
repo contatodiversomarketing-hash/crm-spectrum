@@ -567,10 +567,11 @@ INSTRUÇÃO: Se o paciente já informou data+horário+profissional, CONFIRME o a
 
     for (const res of resultados) {
       if (!res || !res.ok) continue;
-      const slots = res.data?.slots || res.data?.available_slots || res.data?.data || [];
+      const slots = res.data?.available_slots || res.data?.slots || res.data?.data || [];
       if (!Array.isArray(slots)) continue;
       for (const slot of slots) {
-        const time = slot.time || slot.start_time || slot.appointment_time || "";
+        // API returns slots as plain strings like "07:00" OR as objects with time property
+        const time = typeof slot === "string" ? slot : (slot.time || slot.start_time || slot.appointment_time || "");
         if (time) {
           slotsInfo.push({ date: res.date, time: time.slice(0, 5), profNome: res.profNome, profId: res.profId });
         }
