@@ -1496,8 +1496,12 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       sistema_origem: "megaapi",
       mensagem_usuario: (midia ? `[${midia.type}] ` : "") + mensagem.slice(0, 5000),
       resposta_final: respostaFinal.slice(0, 5000),
-      intencao_detectada: agendamentos.length > 0 ? "agendamento" : (encaminharHumano ? "encaminhar_humano" : null),
-      estado_conversa: agendamentos.length > 0 ? "finalizado" : "em_andamento",
+      intencao_detectada: agendamentos.length > 0
+        ? (agendamentosConfirmados > 0 ? "agendamento" : "agendamento_pendente")
+        : (encaminharHumano ? "encaminhar_humano" : null),
+      estado_conversa: agendamentos.length > 0 && agendamentosConfirmados === agendamentos.length
+        ? "finalizado"
+        : "em_andamento",
       supervisionado: false,
     }).then(({ error }) => {
       if (error) console.error("[whatsapp] Erro salvar interação:", error);
