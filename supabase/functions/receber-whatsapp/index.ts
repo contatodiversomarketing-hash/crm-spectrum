@@ -1058,12 +1058,27 @@ async function transcreverAudio(base64Audio: string, mimetype: string): Promise<
     const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) return "[Áudio recebido - transcrição indisponível]";
 
-    // Converter base64 para blob
-    const binaryStr = atob(base64Audio);
+    // Limpar base64: remover prefixo data URI, espaços, quebras de linha e caracteres inválidos
+    let cleanBase64 = base64Audio
+      .replace(/^data:[^;]+;base64,/, "")
+      .replace(/[\s\r\n]/g, "");
+    
+    // Garantir padding correto
+    const remainder = cleanBase64.length % 4;
+    if (remainder === 2) cleanBase64 += "==";
+    else if (remainder === 3) cleanBase64 += "=";
+    else if (remainder === 1) cleanBase64 = cleanBase64.slice(0, -1); // remove caractere extra inválido
+
+    console.log(`[whatsapp] 🎤 Base64 áudio: ${cleanBase64.length} chars (original: ${base64Audio.length})`);
+
+    // Converter base64 para bytes usando chunks para evitar stack overflow
+    const binaryStr = atob(cleanBase64);
     const bytes = new Uint8Array(binaryStr.length);
     for (let i = 0; i < binaryStr.length; i++) {
       bytes[i] = binaryStr.charCodeAt(i);
     }
+
+    console.log(`[whatsapp] 🎤 Áudio decodificado: ${bytes.length} bytes`);
 
     const ext = mimetype.includes("ogg") ? "ogg" : mimetype.includes("mp4") ? "mp4" : mimetype.includes("mpeg") ? "mp3" : "ogg";
     const blob = new Blob([bytes], { type: mimetype });
@@ -1084,7 +1099,8 @@ async function transcreverAudio(base64Audio: string, mimetype: string): Promise<
       console.log(`[whatsapp] 🎤 Áudio transcrito: "${(data.text || "").slice(0, 100)}"`);
       return data.text || "[Áudio inaudível]";
     }
-    console.error(`[whatsapp] Whisper falhou: ${res.status}`);
+    const errText = await res.text();
+    console.error(`[whatsapp] Whisper falhou: ${res.status} - ${errText.slice(0, 300)}`);
     return "[Áudio recebido - não foi possível transcrever]";
   } catch (err) {
     console.error("[whatsapp] Erro transcrição:", err);
