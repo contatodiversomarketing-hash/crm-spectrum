@@ -637,25 +637,59 @@ INSTRUÇÃO: Informe ao paciente que vai verificar a disponibilidade e retornar�
 // =============================
 // REGISTRAR AGENDAMENTO NO GESTÃO + CRM
 // =============================
+function isAppointmentCreatedResponse(data: any): boolean {
+  if (!data || typeof data !== "object") return false;
+
+  const possibleIds = [
+    data.id,
+    data.appointment_id,
+    data?.appointment?.id,
+    data?.appointment?.appointment_id,
+    data?.data?.id,
+    data?.data?.appointment_id,
+    data?.data?.appointment?.id,
+  ];
+
+  if (possibleIds.some((v) => typeof v === "string" && v.trim().length > 0)) {
+    return true;
+  }
+
+  const msg = String(data.message || data.msg || data.detail || "");
+  if (!msg) return false;
+
+  const pareceSucesso = /(agendad|created|criad|sucesso|success)/i.test(msg);
+  const pareceErro = /(erro|error|falh|invalid|inválid)/i.test(msg);
+  return pareceSucesso && !pareceErro;
+}
+
 async function registrarAgendamento(nome: string, telefone: string, data: string, horario: string, professionalId: string, pacienteId: string): Promise<boolean> {
   try {
     if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) return false;
+
+    if (!professionalId || professionalId === "auto") {
+      console.warn(`[whatsapp] professional_id inválido para create_appointment: "${professionalId}"`);
+      return false;
+    }
 
     const params: Record<string, unknown> = {
       appointment_date: data,
       appointment_time: horario,
       patient_name_imported: nome,
       patient_phone: telefone,
+      professional_id: professionalId,
     };
 
-    // Se temos o ID do paciente no sistema, usar
     if (pacienteId) params.patient_id = pacienteId;
-    // Se temos o professional_id, usar
-    if (professionalId && professionalId !== "auto") params.professional_id = professionalId;
 
     const result = await chamarGestao("create_appointment", params);
-    console.log(`[whatsapp] Agendamento gestão: ${result.status} - ${JSON.stringify(result.data).slice(0, 200)}`);
-    return result.ok;
+    const payload = result.data || {};
+    const logicalError = payload?.error === true || payload?.success === false || Number(payload?.statusCode || 0) >= 400;
+    const created = isAppointmentCreatedResponse(payload);
+    const ok = result.ok && !logicalError && created;
+
+    console.log(`[whatsapp] Agendamento gestão: status=${result.status} http_ok=${result.ok} logical_error=${logicalError} created=${created} payload=${JSON.stringify(payload).slice(0, 300)}`);
+
+    return ok;
   } catch (err) {
     console.error("[whatsapp] Erro agendamento:", err);
     return false;
