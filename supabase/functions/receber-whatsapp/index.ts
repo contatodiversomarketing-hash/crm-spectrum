@@ -195,12 +195,12 @@ Quando o paciente pedir um serviço ou especialidade, você DEVE:
 Quando o paciente CONFIRMAR um agendamento E você já tiver pelo menos o NOME (CPF é opcional), inclua ao FINAL da sua resposta:
 ##AGENDAMENTO_CONFIRMADO|nome_paciente|data_YYYY-MM-DD|horario_HH:MM|professional_id##
 
-- O professional_id deve ser o ID do profissional correto da lista (campo "id" dos profissionais)
-- Se o profissional é externo (ex: Dra. Mylena) ou não tem ID na lista, use "auto"
-- NUNCA fique em loop dizendo "vou verificar" ou "aguardando confirmação da equipe"
+- O professional_id é OBRIGATÓRIO e deve ser o ID real do profissional na lista (campo "id")
+- NÃO use "auto" quando o profissional existir na lista
+- Se não houver ID válido para o profissional, NÃO confirme agendamento automaticamente; peça para a equipe confirmar e inclua ##ENCAMINHAR_HUMANO##
 - Se o paciente pediu data+horário+profissional específicos → CONFIRME E AGENDE imediatamente
 - O sistema registrará no gestão automaticamente. Se houver conflito, a equipe resolverá.
-- PRIORIDADE MÁXIMA: se já tem nome + profissional + data + horário → INCLUA O MARCADOR E CONFIRME. NÃO peça mais dados.
+- PRIORIDADE MÁXIMA: se já tem nome + profissional + data + horário + ID válido → INCLUA O MARCADOR E CONFIRME. NÃO peça mais dados.
 
 ## REGRA ANTI-LOOP (PRIORIDADE ABSOLUTA - VIOLAR ESTA REGRA É PROIBIDO!)
 - NUNCA repita a mesma resposta mais de 1 vez
@@ -637,25 +637,59 @@ INSTRUÇÃO: Informe ao paciente que vai verificar a disponibilidade e retornar�
 // =============================
 // REGISTRAR AGENDAMENTO NO GESTÃO + CRM
 // =============================
+function isAppointmentCreatedResponse(data: any): boolean {
+  if (!data || typeof data !== "object") return false;
+
+  const possibleIds = [
+    data.id,
+    data.appointment_id,
+    data?.appointment?.id,
+    data?.appointment?.appointment_id,
+    data?.data?.id,
+    data?.data?.appointment_id,
+    data?.data?.appointment?.id,
+  ];
+
+  if (possibleIds.some((v) => typeof v === "string" && v.trim().length > 0)) {
+    return true;
+  }
+
+  const msg = String(data.message || data.msg || data.detail || "");
+  if (!msg) return false;
+
+  const pareceSucesso = /(agendad|created|criad|sucesso|success)/i.test(msg);
+  const pareceErro = /(erro|error|falh|invalid|inválid)/i.test(msg);
+  return pareceSucesso && !pareceErro;
+}
+
 async function registrarAgendamento(nome: string, telefone: string, data: string, horario: string, professionalId: string, pacienteId: string): Promise<boolean> {
   try {
     if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) return false;
+
+    if (!professionalId || professionalId === "auto") {
+      console.warn(`[whatsapp] professional_id inválido para create_appointment: "${professionalId}"`);
+      return false;
+    }
 
     const params: Record<string, unknown> = {
       appointment_date: data,
       appointment_time: horario,
       patient_name_imported: nome,
       patient_phone: telefone,
+      professional_id: professionalId,
     };
 
-    // Se temos o ID do paciente no sistema, usar
     if (pacienteId) params.patient_id = pacienteId;
-    // Se temos o professional_id, usar
-    if (professionalId && professionalId !== "auto") params.professional_id = professionalId;
 
     const result = await chamarGestao("create_appointment", params);
-    console.log(`[whatsapp] Agendamento gestão: ${result.status} - ${JSON.stringify(result.data).slice(0, 200)}`);
-    return result.ok;
+    const payload = result.data || {};
+    const logicalError = payload?.error === true || payload?.success === false || Number(payload?.statusCode || 0) >= 400;
+    const created = isAppointmentCreatedResponse(payload);
+    const ok = result.ok && !logicalError && created;
+
+    console.log(`[whatsapp] Agendamento gestão: status=${result.status} http_ok=${result.ok} logical_error=${logicalError} created=${created} payload=${JSON.stringify(payload).slice(0, 300)}`);
+
+    return ok;
   } catch (err) {
     console.error("[whatsapp] Erro agendamento:", err);
     return false;
@@ -1370,6 +1404,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     // =============================
     // DETECTAR AGENDAMENTOS CONFIRMADOS (suporta múltiplos)
     // =============================
+    let agendamentosConfirmados = 0;
     const { agendamentos, textoLimpo: textoSemAgendamentos } = extrairAgendamentos(respostaFinal);
     if (agendamentos.length > 0) {
       respostaFinal = textoSemAgendamentos;
@@ -1383,7 +1418,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
           registrarAgendamento(ag.nome, numero, ag.data, ag.horario, ag.professionalId, patientId),
           idx === 0 ? criarLeadCRM(ag.nome, numero) : Promise.resolve(true),
         ]);
-        
+
         await supabase.from("logs_decisao").insert({
           evento: "agendamento_whatsapp_confirmado",
           decisao: `gestao=${gestaoOk ? "ok" : "FALHA"}, crm=${crmOk ? "ok" : "falha"}`,
@@ -1398,18 +1433,24 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         return { gestaoOk, crmOk, ag };
       }));
 
+      agendamentosConfirmados = results.filter((r) => r.gestaoOk).length;
+
       // Verificar se algum agendamento FALHOU no sistema de gestão
-      const falharam = results.filter(r => !r.gestaoOk);
+      const falharam = results.filter((r) => !r.gestaoOk);
       if (falharam.length > 0) {
         console.error(`[whatsapp] ❌ ${falharam.length} agendamento(s) FALHARAM no sistema de gestão`);
-        // Adicionar aviso à resposta para o paciente saber que precisa confirmar
-        respostaFinal += `\n\n⚠️ Estou finalizando seu agendamento no sistema. Se houver qualquer ajuste, entrarei em contato para confirmar, tudo bem?`;
-        
+
+        if (agendamentosConfirmados === 0) {
+          respostaFinal = `Recebi sua solicitação e já encaminhei para confirmação manual da nossa equipe no sistema de agenda. ✅\n\nAssim que estiver confirmado, envio para você imediatamente.`;
+        } else {
+          respostaFinal += `\n\n⚠️ Alguns horários estão em validação final no sistema. Vou confirmar tudo com você em seguida.`;
+        }
+
         // Notificar admin sobre falha
         const adminNumber = Deno.env.get("ADMIN_WHATSAPP_NUMBER");
         if (adminNumber) {
-          const falhaDetalhes = falharam.map(f => `${f.ag.nome} | ${f.ag.data} ${f.ag.horario}`).join("; ");
-          enviarTexto(adminNumber, `⚠️ *AGENDAMENTO FALHOU NO SISTEMA*\n📱 Paciente: ${numero}\n📋 Dados: ${falhaDetalhes}\n\n⚡ Favor registrar manualmente no sistema de gestão.`).catch(() => {});
+          const falhaDetalhes = falharam.map((f) => `${f.ag.nome} | ${f.ag.data} ${f.ag.horario} | prof=${f.ag.professionalId || "sem_id"}`).join("; ");
+          enviarTexto(adminNumber, `⚠️ *AGENDAMENTO FALHOU NO SISTEMA*\n📱 Paciente: ${numero}\n📋 Dados: ${falhaDetalhes}\n\n⚡ Favor registrar/validar manualmente no sistema de gestão.`).catch(() => {});
         }
       }
     }
@@ -1455,8 +1496,12 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       sistema_origem: "megaapi",
       mensagem_usuario: (midia ? `[${midia.type}] ` : "") + mensagem.slice(0, 5000),
       resposta_final: respostaFinal.slice(0, 5000),
-      intencao_detectada: agendamentos.length > 0 ? "agendamento" : (encaminharHumano ? "encaminhar_humano" : null),
-      estado_conversa: agendamentos.length > 0 ? "finalizado" : "em_andamento",
+      intencao_detectada: agendamentos.length > 0
+        ? (agendamentosConfirmados > 0 ? "agendamento" : "agendamento_pendente")
+        : (encaminharHumano ? "encaminhar_humano" : null),
+      estado_conversa: agendamentos.length > 0 && agendamentosConfirmados === agendamentos.length
+        ? "finalizado"
+        : "em_andamento",
       supervisionado: false,
     }).then(({ error }) => {
       if (error) console.error("[whatsapp] Erro salvar interação:", error);
