@@ -1404,6 +1404,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     // =============================
     // DETECTAR AGENDAMENTOS CONFIRMADOS (suporta múltiplos)
     // =============================
+    let agendamentosConfirmados = 0;
     const { agendamentos, textoLimpo: textoSemAgendamentos } = extrairAgendamentos(respostaFinal);
     if (agendamentos.length > 0) {
       respostaFinal = textoSemAgendamentos;
@@ -1417,7 +1418,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
           registrarAgendamento(ag.nome, numero, ag.data, ag.horario, ag.professionalId, patientId),
           idx === 0 ? criarLeadCRM(ag.nome, numero) : Promise.resolve(true),
         ]);
-        
+
         await supabase.from("logs_decisao").insert({
           evento: "agendamento_whatsapp_confirmado",
           decisao: `gestao=${gestaoOk ? "ok" : "FALHA"}, crm=${crmOk ? "ok" : "falha"}`,
@@ -1432,18 +1433,24 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         return { gestaoOk, crmOk, ag };
       }));
 
+      agendamentosConfirmados = results.filter((r) => r.gestaoOk).length;
+
       // Verificar se algum agendamento FALHOU no sistema de gestão
-      const falharam = results.filter(r => !r.gestaoOk);
+      const falharam = results.filter((r) => !r.gestaoOk);
       if (falharam.length > 0) {
         console.error(`[whatsapp] ❌ ${falharam.length} agendamento(s) FALHARAM no sistema de gestão`);
-        // Adicionar aviso à resposta para o paciente saber que precisa confirmar
-        respostaFinal += `\n\n⚠️ Estou finalizando seu agendamento no sistema. Se houver qualquer ajuste, entrarei em contato para confirmar, tudo bem?`;
-        
+
+        if (agendamentosConfirmados === 0) {
+          respostaFinal = `Recebi sua solicitação e já encaminhei para confirmação manual da nossa equipe no sistema de agenda. ✅\n\nAssim que estiver confirmado, envio para você imediatamente.`;
+        } else {
+          respostaFinal += `\n\n⚠️ Alguns horários estão em validação final no sistema. Vou confirmar tudo com você em seguida.`;
+        }
+
         // Notificar admin sobre falha
         const adminNumber = Deno.env.get("ADMIN_WHATSAPP_NUMBER");
         if (adminNumber) {
-          const falhaDetalhes = falharam.map(f => `${f.ag.nome} | ${f.ag.data} ${f.ag.horario}`).join("; ");
-          enviarTexto(adminNumber, `⚠️ *AGENDAMENTO FALHOU NO SISTEMA*\n📱 Paciente: ${numero}\n📋 Dados: ${falhaDetalhes}\n\n⚡ Favor registrar manualmente no sistema de gestão.`).catch(() => {});
+          const falhaDetalhes = falharam.map((f) => `${f.ag.nome} | ${f.ag.data} ${f.ag.horario} | prof=${f.ag.professionalId || "sem_id"}`).join("; ");
+          enviarTexto(adminNumber, `⚠️ *AGENDAMENTO FALHOU NO SISTEMA*\n📱 Paciente: ${numero}\n📋 Dados: ${falhaDetalhes}\n\n⚡ Favor registrar/validar manualmente no sistema de gestão.`).catch(() => {});
         }
       }
     }
