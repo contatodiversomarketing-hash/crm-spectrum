@@ -21,80 +21,77 @@ Deno.serve(async (req) => {
 
   const results: Record<string, unknown> = {};
 
-  // Test 1: list_appointments with params (current approach)
+  // Test 1: Get professionals with IDs
+  let profIds: Array<{id: string, name: string}> = [];
   try {
-    const r1 = await fetch(baseUrl, { method: "POST", headers, body: JSON.stringify({ action: "list_appointments", params: { start_date: "2026-02-17", end_date: "2026-02-24" } }) });
+    const r1 = await fetch(baseUrl, { method: "POST", headers, body: JSON.stringify({ action: "list_professionals", params: {} }) });
     const d1 = await r1.json();
-    const appointments = d1?.appointments || d1?.data || [];
-    const dates = Array.isArray(appointments) ? appointments.slice(0, 5).map((a: any) => ({ date: a.appointment_date, time: a.appointment_time, status: a.status })) : [];
-    results["test1_params_nested"] = { status: r1.status, count: Array.isArray(appointments) ? appointments.length : "not_array", sample_dates: dates, keys: Object.keys(d1 || {}) };
-  } catch (e) { results["test1"] = { error: String(e) }; }
+    const profs = d1?.professionals || d1?.data || [];
+    profIds = Array.isArray(profs) ? profs.filter((p: any) => p.is_active !== false && (p.specialty || "").trim().length > 1).slice(0, 5).map((p: any) => ({ id: p.id || p.professional_id, name: p.full_name || p.name || "" })) : [];
+    results["professionals_sample"] = profIds;
+  } catch (e) { results["professionals"] = { error: String(e) }; }
 
-  // Test 2: list_appointments with dates at top level
-  try {
-    const r2 = await fetch(baseUrl, { method: "POST", headers, body: JSON.stringify({ action: "list_appointments", start_date: "2026-02-17", end_date: "2026-02-24" }) });
-    const d2 = await r2.json();
-    const appointments = d2?.appointments || d2?.data || [];
-    const dates = Array.isArray(appointments) ? appointments.slice(0, 5).map((a: any) => ({ date: a.appointment_date, time: a.appointment_time, status: a.status })) : [];
-    results["test2_top_level"] = { status: r2.status, count: Array.isArray(appointments) ? appointments.length : "not_array", sample_dates: dates };
-  } catch (e) { results["test2"] = { error: String(e) }; }
+  // Test 2: get_available_slots with first professional + today
+  const today = new Date().toISOString().split("T")[0];
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+  
+  for (let i = 0; i < Math.min(profIds.length, 3); i++) {
+    const prof = profIds[i];
+    try {
+      // Try with date
+      const r = await fetch(baseUrl, { method: "POST", headers, body: JSON.stringify({ action: "get_available_slots", params: { professional_id: prof.id, date: tomorrow } }) });
+      const d = await r.json();
+      results[`slots_${prof.name.slice(0,20)}_${tomorrow}`] = { status: r.status, body: JSON.stringify(d).slice(0, 500) };
+    } catch (e) { results[`slots_${i}`] = { error: String(e) }; }
 
-  // Test 3: list_appointments with date_from/date_to
+    try {
+      // Try without date
+      const r2 = await fetch(baseUrl, { method: "POST", headers, body: JSON.stringify({ action: "get_available_slots", params: { professional_id: prof.id } }) });
+      const d2 = await r2.json();
+      results[`slots_nodate_${prof.name.slice(0,20)}`] = { status: r2.status, body: JSON.stringify(d2).slice(0, 500) };
+    } catch (e) { results[`slots_nodate_${i}`] = { error: String(e) }; }
+  }
+
+  // Test 3: list_schedule_blocks
   try {
-    const r3 = await fetch(baseUrl, { method: "POST", headers, body: JSON.stringify({ action: "list_appointments", params: { date_from: "2026-02-17", date_to: "2026-02-24" } }) });
+    const r3 = await fetch(baseUrl, { method: "POST", headers, body: JSON.stringify({ action: "list_schedule_blocks", params: {} }) });
     const d3 = await r3.json();
-    const appointments = d3?.appointments || d3?.data || [];
-    const dates = Array.isArray(appointments) ? appointments.slice(0, 5).map((a: any) => ({ date: a.appointment_date, time: a.appointment_time, status: a.status })) : [];
-    results["test3_date_from_to"] = { status: r3.status, count: Array.isArray(appointments) ? appointments.length : "not_array", sample_dates: dates };
-  } catch (e) { results["test3"] = { error: String(e) }; }
+    const blocks = d3?.schedule_blocks || d3?.blocks || d3?.data || [];
+    results["schedule_blocks"] = { status: r3.status, count: Array.isArray(blocks) ? blocks.length : "not_array", sample: Array.isArray(blocks) ? blocks.slice(0, 5) : d3 };
+  } catch (e) { results["schedule_blocks"] = { error: String(e) }; }
 
-  // Test 4: list_appointments no params
+  // Test 4: list_appointments for FUTURE dates with higher limit
   try {
-    const r4 = await fetch(baseUrl, { method: "POST", headers, body: JSON.stringify({ action: "list_appointments" }) });
+    const r4 = await fetch(baseUrl, { method: "POST", headers, body: JSON.stringify({ action: "list_appointments", params: { start_date: today, end_date: "2026-03-31", limit: 200 } }) });
     const d4 = await r4.json();
     const appointments = d4?.appointments || d4?.data || [];
-    const dates = Array.isArray(appointments) ? appointments.slice(0, 5).map((a: any) => ({ date: a.appointment_date, time: a.appointment_time, status: a.status })) : [];
-    results["test4_no_params"] = { status: r4.status, count: Array.isArray(appointments) ? appointments.length : "not_array", sample_dates: dates };
-  } catch (e) { results["test4"] = { error: String(e) }; }
-
-  // Test 5: list_appointments with limit and offset
-  try {
-    const r5 = await fetch(baseUrl, { method: "POST", headers, body: JSON.stringify({ action: "list_appointments", params: { start_date: "2026-02-17", end_date: "2026-02-24", limit: 500 } }) });
-    const d5 = await r5.json();
-    const appointments = d5?.appointments || d5?.data || [];
-    // Find any future appointments
-    const futureAppts = Array.isArray(appointments) ? appointments.filter((a: any) => (a.appointment_date || "") >= "2026-02-17") : [];
-    results["test5_with_limit"] = { status: r5.status, total_count: Array.isArray(appointments) ? appointments.length : "not_array", future_count: futureAppts.length, future_sample: futureAppts.slice(0, 3).map((a: any) => ({ date: a.appointment_date, time: a.appointment_time, status: a.status })) };
-  } catch (e) { results["test5"] = { error: String(e) }; }
-
-  // Test 6: list_professionals
-  try {
-    const r6 = await fetch(baseUrl, { method: "POST", headers, body: JSON.stringify({ action: "list_professionals", params: {} }) });
-    const d6 = await r6.json();
-    const profs = d6?.professionals || d6?.data || [];
-    const withSpecialty = Array.isArray(profs) ? profs.filter((p: any) => (p.specialty || "").trim().length > 1) : [];
-    results["test6_professionals"] = {
-      status: r6.status,
-      total: Array.isArray(profs) ? profs.length : "not_array",
-      with_specialty: withSpecialty.length,
-      specialty_list: withSpecialty.map((p: any) => ({ name: p.full_name || p.professional_name || p.name, specialty: p.specialty, active: p.is_active })),
+    results["future_appointments"] = { 
+      status: r4.status, 
+      count: Array.isArray(appointments) ? appointments.length : "not_array",
+      sample: Array.isArray(appointments) ? appointments.slice(0, 5).map((a: any) => ({ 
+        date: a.appointment_date, time: a.appointment_time, status: a.status, 
+        prof: a.professional_name || a.professional_id, patient: a.patient_name 
+      })) : []
     };
-  } catch (e) { results["test6"] = { error: String(e) }; }
+  } catch (e) { results["future_appointments"] = { error: String(e) }; }
 
-  // Test 7: list_available_slots (original action that was failing)
-  try {
-    const r7 = await fetch(baseUrl, { method: "POST", headers, body: JSON.stringify({ action: "list_available_slots", params: { dias: 7 } }) });
-    const d7text = await r7.text();
-    results["test7_available_slots"] = { status: r7.status, body: d7text.slice(0, 500) };
-  } catch (e) { results["test7"] = { error: String(e) }; }
-
-  // Test 8: Try getting appointments with status filter
-  try {
-    const r8 = await fetch(baseUrl, { method: "POST", headers, body: JSON.stringify({ action: "list_appointments", params: { status: "agendado", start_date: "2026-02-17" } }) });
-    const d8 = await r8.json();
-    const appointments = d8?.appointments || d8?.data || [];
-    results["test8_status_filter"] = { status: r8.status, count: Array.isArray(appointments) ? appointments.length : "not_array", sample: Array.isArray(appointments) ? appointments.slice(0, 3).map((a: any) => ({ date: a.appointment_date, time: a.appointment_time, status: a.status })) : [] };
-  } catch (e) { results["test8"] = { error: String(e) }; }
+  // Test 5: get_available_slots with date range params variations
+  if (profIds.length > 0) {
+    const profId = profIds[0].id;
+    const variations = [
+      { label: "date_only", params: { professional_id: profId, date: "2026-03-13" } },
+      { label: "start_end", params: { professional_id: profId, start_date: "2026-03-13", end_date: "2026-03-14" } },
+      { label: "dias_7", params: { professional_id: profId, dias: 7 } },
+      { label: "no_prof", params: { date: "2026-03-13" } },
+    ];
+    for (const v of variations) {
+      try {
+        const r = await fetch(baseUrl, { method: "POST", headers, body: JSON.stringify({ action: "get_available_slots", params: v.params }) });
+        const d = await r.json();
+        results[`slots_var_${v.label}`] = { status: r.status, body: JSON.stringify(d).slice(0, 500) };
+      } catch (e) { results[`slots_var_${v.label}`] = { error: String(e) }; }
+    }
+  }
 
   return new Response(JSON.stringify(results, null, 2), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
