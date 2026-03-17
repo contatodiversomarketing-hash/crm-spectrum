@@ -1255,19 +1255,23 @@ async function downloadMidiaBase64(media: MediaInfo, webhookBody: any): Promise<
 
 async function transcreverAudio(base64Audio: string, mimetype: string): Promise<string> {
   try {
-    const apiKey = Deno.env.get("OPENAI_API_KEY");
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    const openaiKey = Deno.env.get("OPENAI_API_KEY");
+    const apiKey = lovableKey || openaiKey;
+    const baseUrl = lovableKey ? "https://ai.lovable.dev" : "https://api.openai.com";
     if (!apiKey) return "[Áudio recebido - transcrição indisponível]";
 
-    // Limpar base64: remover prefixo data URI, espaços, quebras de linha e caracteres inválidos
+    // Limpar base64: remover prefixo data URI (com possíveis espaços), espaços, quebras de linha
     let cleanBase64 = base64Audio
-      .replace(/^data:[^;]+;base64,/, "")
-      .replace(/[\s\r\n]/g, "");
+      .replace(/^data:[^,]+,/, "")  // Remove qualquer prefixo data URI (incluindo com espaços tipo "data:audio/ogg; codecs=opus;base64,")
+      .replace(/[\s\r\n]/g, "")
+      .replace(/[^A-Za-z0-9+/=]/g, ""); // Remove qualquer caractere não-base64
     
     // Garantir padding correto
     const remainder = cleanBase64.length % 4;
     if (remainder === 2) cleanBase64 += "==";
     else if (remainder === 3) cleanBase64 += "=";
-    else if (remainder === 1) cleanBase64 = cleanBase64.slice(0, -1); // remove caractere extra inválido
+    else if (remainder === 1) cleanBase64 = cleanBase64.slice(0, -1);
 
     console.log(`[whatsapp] 🎤 Base64 áudio: ${cleanBase64.length} chars (original: ${base64Audio.length})`);
 
@@ -1288,7 +1292,7 @@ async function transcreverAudio(base64Audio: string, mimetype: string): Promise<
     formData.append("model", "whisper-1");
     formData.append("language", "pt");
 
-    const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    const res = await fetch(`${baseUrl}/v1/audio/transcriptions`, {
       method: "POST",
       headers: { "Authorization": `Bearer ${apiKey}` },
       body: formData,
