@@ -74,39 +74,80 @@ function ehRespostaRepetidaOuIntroducao(resposta: string, historico: HistoricoIn
 }
 
 async function gerarRespostaOpenAI(messages: Array<{ role: string; content: any }>, usarVision: boolean): Promise<string> {
-  try {
-    const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${Deno.env.get("OPENAI_API_KEY")}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: usarVision ? "gpt-4o" : "gpt-4o-mini",
-        temperature: 0.7,
-        max_tokens: usarVision ? 800 : 300,
-        messages,
-      }),
-    });
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 
-    if (!aiResp.ok) {
-      const errBody = await aiResp.text();
-      console.error(`[whatsapp] ❌ OpenAI HTTP ${aiResp.status}: ${errBody.slice(0, 500)}`);
-      return "";
+  // Tentar Lovable AI primeiro (sem depender de quota OpenAI)
+  if (LOVABLE_API_KEY) {
+    try {
+      const model = usarVision ? "openai/gpt-5" : "openai/gpt-5-mini";
+      const aiResp = await fetch("https://ai.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.7,
+          max_tokens: usarVision ? 800 : 300,
+          messages,
+        }),
+      });
+
+      if (aiResp.ok) {
+        const data = await aiResp.json();
+        const resposta = data?.choices?.[0]?.message?.content;
+        if (resposta) {
+          console.log(`[whatsapp] ✅ Resposta via Lovable AI (${model})`);
+          return resposta;
+        }
+        console.warn(`[whatsapp] ⚠️ Lovable AI sem choices: ${JSON.stringify(data).slice(0, 300)}`);
+      } else {
+        const errBody = await aiResp.text();
+        console.error(`[whatsapp] ❌ Lovable AI HTTP ${aiResp.status}: ${errBody.slice(0, 500)}`);
+      }
+    } catch (err) {
+      console.error("[whatsapp] Erro Lovable AI:", err);
     }
-
-    const data = await aiResp.json();
-    const resposta = data?.choices?.[0]?.message?.content;
-    if (!resposta) {
-      console.error(`[whatsapp] ❌ OpenAI sem choices. Response: ${JSON.stringify(data).slice(0, 500)}`);
-      return "";
-    }
-
-    return resposta;
-  } catch (err) {
-    console.error("[whatsapp] Erro OpenAI:", err);
-    return "";
   }
+
+  // Fallback para OpenAI direta
+  if (OPENAI_API_KEY) {
+    try {
+      const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: usarVision ? "gpt-4o" : "gpt-4o-mini",
+          temperature: 0.7,
+          max_tokens: usarVision ? 800 : 300,
+          messages,
+        }),
+      });
+
+      if (aiResp.ok) {
+        const data = await aiResp.json();
+        const resposta = data?.choices?.[0]?.message?.content;
+        if (resposta) {
+          console.log(`[whatsapp] ✅ Resposta via OpenAI direta`);
+          return resposta;
+        }
+        console.error(`[whatsapp] ❌ OpenAI sem choices: ${JSON.stringify(data).slice(0, 300)}`);
+      } else {
+        const errBody = await aiResp.text();
+        console.error(`[whatsapp] ❌ OpenAI HTTP ${aiResp.status}: ${errBody.slice(0, 500)}`);
+      }
+    } catch (err) {
+      console.error("[whatsapp] Erro OpenAI:", err);
+    }
+  }
+
+  console.error("[whatsapp] ❌ Nenhuma API de IA disponível ou todas falharam");
+  return "";
 }
 
 async function buscarBloqueioHumanoAtivo(supabase: any, numero: string) {
