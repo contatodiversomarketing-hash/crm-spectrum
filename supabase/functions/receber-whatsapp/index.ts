@@ -1601,12 +1601,22 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     }
 
     // Montar mensagens para IA (suporte multimodal com vision)
+    const historicoOrdenado: HistoricoInteracao[] = historico
+      ? [...historico].sort((a, b) => new Date(a.criado_em).getTime() - new Date(b.criado_em).getTime())
+      : [];
+
     const messages: Array<{ role: string; content: any }> = [
       { role: "system", content: SYSTEM_ENGINE_WHATSAPP + contextExtra },
     ];
 
+    if (historicoOrdenado.length > 0) {
+      messages.push({
+        role: "system",
+        content: "ATENÇÃO: esta conversa já possui histórico. É PROIBIDO se apresentar novamente, repetir a saudação inicial ou reenviar a última resposta. Responda SOMENTE ao conteúdo mais recente do paciente e faça a conversa avançar.",
+      });
+    }
+
     // Adicionar histórico (do mais antigo ao mais recente)
-    const historicoOrdenado = historico ? [...historico].sort((a, b) => new Date(a.criado_em).getTime() - new Date(b.criado_em).getTime()) : [];
     for (const h of historicoOrdenado.slice(-8)) {
       if (h.mensagem_usuario) messages.push({ role: "user", content: h.mensagem_usuario });
       if (h.resposta_final) messages.push({ role: "assistant", content: h.resposta_final });
@@ -1628,36 +1638,23 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     // =============================
     // GERAR RESPOSTA COM OPENAI
     // =============================
-    let respostaFinal = "";
+    let respostaFinal = await gerarRespostaOpenAI(messages, Boolean(imagemBase64ParaIA));
 
-    try {
-      const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${Deno.env.get("OPENAI_API_KEY")}`,
-          "Content-Type": "application/json",
+    if (ehRespostaRepetidaOuIntroducao(respostaFinal, historicoOrdenado)) {
+      console.warn(`[whatsapp] ⚠️ Resposta repetida detectada para ${numero}; tentando regenerar`);
+      const retryMessages = [
+        ...messages,
+        {
+          role: "system",
+          content: "REFAÇA a resposta agora. É PROIBIDO repetir a saudação inicial, copiar a última resposta enviada ou agir como se fosse a primeira mensagem. Responda diretamente ao que o paciente acabou de dizer.",
         },
-        body: JSON.stringify({
-          model: imagemBase64ParaIA ? "gpt-4o" : "gpt-4o-mini",
-          temperature: 0.7,
-          max_tokens: imagemBase64ParaIA ? 800 : 300,
-          messages,
-        }),
-      });
+      ];
+      respostaFinal = await gerarRespostaOpenAI(retryMessages, Boolean(imagemBase64ParaIA));
+    }
 
-      if (!aiResp.ok) {
-        const errBody = await aiResp.text();
-        console.error(`[whatsapp] ❌ OpenAI HTTP ${aiResp.status}: ${errBody.slice(0, 500)}`);
-      } else {
-        const data = await aiResp.json();
-        if (data?.choices?.[0]?.message?.content) {
-          respostaFinal = data.choices[0].message.content;
-        } else {
-          console.error(`[whatsapp] ❌ OpenAI sem choices. Response: ${JSON.stringify(data).slice(0, 500)}`);
-        }
-      }
-    } catch (err) {
-      console.error("[whatsapp] Erro OpenAI:", err);
+    if (ehRespostaRepetidaOuIntroducao(respostaFinal, historicoOrdenado)) {
+      console.warn(`[whatsapp] ⚠️ Resposta inválida persistente para ${numero}; usando fallback seguro`);
+      respostaFinal = "";
     }
 
     // Fallback: só usar saudação se NÃO houver histórico (primeira interação)
