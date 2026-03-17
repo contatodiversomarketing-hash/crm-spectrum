@@ -31,6 +31,165 @@ function fixEncoding(text: string): string {
     .trim();
 }
 
+type HistoricoInteracao = {
+  mensagem_usuario?: string | null;
+  resposta_final?: string | null;
+  criado_em?: string | null;
+};
+
+const HUMAN_HANDOFF_MINUTES = 120;
+
+function normalizarTextoComparacao(texto?: string | null): string {
+  return (texto || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function ehSaudacaoPadraoMaria(texto?: string | null): boolean {
+  const normalizado = normalizarTextoComparacao(texto);
+  return normalizado.includes("aqui e a maria da clinica la vitta") && (
+    normalizado.includes("como voce esta") ||
+    normalizado.includes("estou a disposicao")
+  );
+}
+
+function ehRespostaRepetidaOuIntroducao(resposta: string, historico: HistoricoInteracao[]): boolean {
+  const respostaNormalizada = normalizarTextoComparacao(resposta);
+  if (!respostaNormalizada) return false;
+
+  const respostasRecentes = historico
+    .map((item) => item.resposta_final)
+    .filter((item): item is string => !!item)
+    .slice(-3);
+
+  if (historico.length > 0 && ehSaudacaoPadraoMaria(resposta)) {
+    return true;
+  }
+
+  return respostasRecentes.some((item) => normalizarTextoComparacao(item) === respostaNormalizada);
+}
+
+async function gerarRespostaOpenAI(messages: Array<{ role: string; content: any }>, usarVision: boolean): Promise<string> {
+  try {
+    const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${Deno.env.get("OPENAI_API_KEY")}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: usarVision ? "gpt-4o" : "gpt-4o-mini",
+        temperature: 0.7,
+        max_tokens: usarVision ? 800 : 300,
+        messages,
+      }),
+    });
+
+    if (!aiResp.ok) {
+      const errBody = await aiResp.text();
+      console.error(`[whatsapp] ❌ OpenAI HTTP ${aiResp.status}: ${errBody.slice(0, 500)}`);
+      return "";
+    }
+
+    const data = await aiResp.json();
+    const resposta = data?.choices?.[0]?.message?.content;
+    if (!resposta) {
+      console.error(`[whatsapp] ❌ OpenAI sem choices. Response: ${JSON.stringify(data).slice(0, 500)}`);
+      return "";
+    }
+
+    return resposta;
+  } catch (err) {
+    console.error("[whatsapp] Erro OpenAI:", err);
+    return "";
+  }
+}
+
+async function buscarBloqueioHumanoAtivo(supabase: any, numero: string) {
+  const { data, error } = await supabase
+    .from("memorias_ia")
+    .select("id, bloqueio_ate, resumo_contextual")
+    .eq("paciente_externo_id", numero)
+    .order("ultima_interacao", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[whatsapp] Erro ao buscar memória de bloqueio:", error);
+    return null;
+  }
+
+  if (!data?.bloqueio_ate) return null;
+  if (new Date(data.bloqueio_ate).getTime() <= Date.now()) return null;
+  return data;
+}
+
+async function registrarBloqueioHumano(supabase: any, numero: string, motivo: string, minutos = HUMAN_HANDOFF_MINUTES) {
+  const agora = new Date().toISOString();
+  const bloqueioAte = new Date(Date.now() + minutos * 60 * 1000).toISOString();
+  const payload = {
+    paciente_externo_id: numero,
+    bloqueio_ate: bloqueioAte,
+    ultima_interacao: agora,
+    resumo_contextual: motivo.slice(0, 500),
+  };
+
+  const { data: existente, error: buscaError } = await supabase
+    .from("memorias_ia")
+    .select("id")
+    .eq("paciente_externo_id", numero)
+    .order("ultima_interacao", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (buscaError) {
+    console.error("[whatsapp] Erro ao localizar memória para bloqueio humano:", buscaError);
+    return;
+  }
+
+  if (existente?.id) {
+    const { error } = await supabase.from("memorias_ia").update(payload).eq("id", existente.id);
+    if (error) console.error("[whatsapp] Erro ao atualizar bloqueio humano:", error);
+    return;
+  }
+
+  const { error } = await supabase.from("memorias_ia").insert(payload);
+  if (error) console.error("[whatsapp] Erro ao criar bloqueio humano:", error);
+}
+
+async function processarMensagemFromMe(supabase: any, numero: string, texto: string) {
+  const textoNormalizado = normalizarTextoComparacao(texto);
+  if (!textoNormalizado) return;
+
+  const { data: ultimaInteracao, error } = await supabase
+    .from("interacoes_ia")
+    .select("resposta_final, criado_em")
+    .eq("paciente_externo_id", numero)
+    .eq("canal", "whatsapp")
+    .not("resposta_final", "is", null)
+    .order("criado_em", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[whatsapp] Erro ao verificar última resposta da IA:", error);
+    return;
+  }
+
+  const ultimaRespostaIA = normalizarTextoComparacao(ultimaInteracao?.resposta_final);
+  if (ultimaRespostaIA && ultimaRespostaIA === textoNormalizado) {
+    console.log(`[whatsapp] Mensagem fromMe reconhecida como envio da própria Maria para ${numero}`);
+    return;
+  }
+
+  await registrarBloqueioHumano(supabase, numero, `atendente_humano:${texto.slice(0, 200)}`);
+  console.log(`[whatsapp] 🤝 Atendimento humano detectado para ${numero}; Maria ficará silenciada por ${HUMAN_HANDOFF_MINUTES} min`);
+}
+
 // =============================
 // HELPERS GESTÃO API
 // =============================
@@ -1227,13 +1386,16 @@ serve(async (req) => {
     // Extrair mensagem e número (formato MegaAPI)
     const msg = body.message || {};
     const mensagemTexto = msg.conversation || msg.text || msg.extendedTextMessage?.text || body.text?.message || body.data?.message?.conversation || "";
-    
+
+    const isFromMe = body.key?.fromMe || body.data?.key?.fromMe || false;
     const senderPn = body.key?.senderPn || "";
     const jid = body.jid || "";
-    const rawNumero = senderPn || jid || body.sender?.phone || body.data?.key?.remoteJid || "";
+    const remoteJid = body.key?.remoteJid || body.data?.key?.remoteJid || "";
+    const rawNumero = isFromMe
+      ? (remoteJid || senderPn || jid || body.sender?.phone || "")
+      : (senderPn || jid || body.sender?.phone || remoteJid || "");
     const numero = rawNumero.replace("@s.whatsapp.net", "").replace("@lid", "").trim();
-    
-    const isFromMe = body.key?.fromMe || body.data?.key?.fromMe || false;
+
     const isGroup = body.isGroup || false;
 
     // Detectar mídia (imagem, áudio, documento)
@@ -1243,9 +1405,9 @@ serve(async (req) => {
 
     console.log(`[whatsapp] Parsed: msg="${mensagemTexto.slice(0,50)}" num="${numero}" fromMe=${isFromMe} group=${isGroup} midia=${midia?.type || "nenhuma"}`);
 
-    // Ignorar mensagens vazias (sem texto NEM mídia), do próprio bot, ou de grupo
-    if ((!temTexto && !temMidia) || !numero || isFromMe || isGroup) {
-      console.log("[whatsapp] Ignorando: vazio/fromMe/grupo");
+    // Ignorar mensagens vazias (sem texto NEM mídia), sem número, ou de grupo
+    if ((!temTexto && !temMidia) || !numero || isGroup) {
+      console.log("[whatsapp] Ignorando: vazio/sem-numero/grupo");
       return new Response("ok");
     }
 
@@ -1284,12 +1446,10 @@ serve(async (req) => {
       }
     }
 
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
     // Verificar se o canal WhatsApp está ativo
-    const supabaseCheck = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-    const { data: configCanal } = await supabaseCheck
+    const { data: configCanal } = await supabase
       .from("configuracoes_sistema")
       .select("whatsapp_ativo")
       .order("criado_em", { ascending: false })
@@ -1308,9 +1468,34 @@ serve(async (req) => {
       return new Response("ok");
     }
 
-    console.log(`[whatsapp] 📩 De ${numero}: "${mensagem.slice(0, 100)}"${imagemBase64ParaIA ? " [+imagem]" : ""}`);
+    if (isFromMe) {
+      await processarMensagemFromMe(supabase, numero, mensagemTexto || mensagem);
+      return new Response("ok");
+    }
 
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const bloqueioHumanoAtivo = await buscarBloqueioHumanoAtivo(supabase, numero);
+    if (bloqueioHumanoAtivo) {
+      console.log(`[whatsapp] 🤫 Atendimento humano ativo para ${numero} até ${bloqueioHumanoAtivo.bloqueio_ate}; Maria ficará em silêncio`);
+
+      supabase.from("interacoes_ia").insert({
+        paciente_externo_id: numero,
+        canal: "whatsapp",
+        sistema_origem: "megaapi",
+        mensagem_usuario: (midia ? `[${midia.type}] ` : "") + mensagem.slice(0, 5000),
+        resposta_final: null,
+        intencao_detectada: "silenciado_humano",
+        estado_conversa: "handoff_humano",
+        supervisionado: true,
+      }).then(({ error }) => {
+        if (error) console.error("[whatsapp] Erro ao salvar mensagem silenciada:", error);
+      });
+
+      return new Response(JSON.stringify({ status: "silenciado_humano" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log(`[whatsapp] 📩 De ${numero}: "${mensagem.slice(0, 100)}"${imagemBase64ParaIA ? " [+imagem]" : ""}`);
 
     // =============================
     // BUSCAR HISTÓRICO + PACIENTE + PROFISSIONAIS + TREINAMENTO EM PARALELO
@@ -1416,12 +1601,22 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     }
 
     // Montar mensagens para IA (suporte multimodal com vision)
+    const historicoOrdenado: HistoricoInteracao[] = historico
+      ? [...historico].sort((a, b) => new Date(a.criado_em).getTime() - new Date(b.criado_em).getTime())
+      : [];
+
     const messages: Array<{ role: string; content: any }> = [
       { role: "system", content: SYSTEM_ENGINE_WHATSAPP + contextExtra },
     ];
 
+    if (historicoOrdenado.length > 0) {
+      messages.push({
+        role: "system",
+        content: "ATENÇÃO: esta conversa já possui histórico. É PROIBIDO se apresentar novamente, repetir a saudação inicial ou reenviar a última resposta. Responda SOMENTE ao conteúdo mais recente do paciente e faça a conversa avançar.",
+      });
+    }
+
     // Adicionar histórico (do mais antigo ao mais recente)
-    const historicoOrdenado = historico ? [...historico].sort((a, b) => new Date(a.criado_em).getTime() - new Date(b.criado_em).getTime()) : [];
     for (const h of historicoOrdenado.slice(-8)) {
       if (h.mensagem_usuario) messages.push({ role: "user", content: h.mensagem_usuario });
       if (h.resposta_final) messages.push({ role: "assistant", content: h.resposta_final });
@@ -1443,36 +1638,23 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     // =============================
     // GERAR RESPOSTA COM OPENAI
     // =============================
-    let respostaFinal = "";
+    let respostaFinal = await gerarRespostaOpenAI(messages, Boolean(imagemBase64ParaIA));
 
-    try {
-      const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${Deno.env.get("OPENAI_API_KEY")}`,
-          "Content-Type": "application/json",
+    if (ehRespostaRepetidaOuIntroducao(respostaFinal, historicoOrdenado)) {
+      console.warn(`[whatsapp] ⚠️ Resposta repetida detectada para ${numero}; tentando regenerar`);
+      const retryMessages = [
+        ...messages,
+        {
+          role: "system",
+          content: "REFAÇA a resposta agora. É PROIBIDO repetir a saudação inicial, copiar a última resposta enviada ou agir como se fosse a primeira mensagem. Responda diretamente ao que o paciente acabou de dizer.",
         },
-        body: JSON.stringify({
-          model: imagemBase64ParaIA ? "gpt-4o" : "gpt-4o-mini",
-          temperature: 0.7,
-          max_tokens: imagemBase64ParaIA ? 800 : 300,
-          messages,
-        }),
-      });
+      ];
+      respostaFinal = await gerarRespostaOpenAI(retryMessages, Boolean(imagemBase64ParaIA));
+    }
 
-      if (!aiResp.ok) {
-        const errBody = await aiResp.text();
-        console.error(`[whatsapp] ❌ OpenAI HTTP ${aiResp.status}: ${errBody.slice(0, 500)}`);
-      } else {
-        const data = await aiResp.json();
-        if (data?.choices?.[0]?.message?.content) {
-          respostaFinal = data.choices[0].message.content;
-        } else {
-          console.error(`[whatsapp] ❌ OpenAI sem choices. Response: ${JSON.stringify(data).slice(0, 500)}`);
-        }
-      }
-    } catch (err) {
-      console.error("[whatsapp] Erro OpenAI:", err);
+    if (ehRespostaRepetidaOuIntroducao(respostaFinal, historicoOrdenado)) {
+      console.warn(`[whatsapp] ⚠️ Resposta inválida persistente para ${numero}; usando fallback seguro`);
+      respostaFinal = "";
     }
 
     // Fallback: só usar saudação se NÃO houver histórico (primeira interação)
@@ -1559,6 +1741,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     if (respostaFinal.includes("##ENCAMINHAR_HUMANO##")) {
       respostaFinal = respostaFinal.replace("##ENCAMINHAR_HUMANO##", "").trim();
       encaminharHumano = true;
+      await registrarBloqueioHumano(supabase, numero, `encaminhado_humano:${mensagem.slice(0, 200)}`);
     }
 
     // =============================
