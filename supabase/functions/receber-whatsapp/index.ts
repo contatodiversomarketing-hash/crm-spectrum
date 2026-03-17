@@ -1386,13 +1386,16 @@ serve(async (req) => {
     // Extrair mensagem e número (formato MegaAPI)
     const msg = body.message || {};
     const mensagemTexto = msg.conversation || msg.text || msg.extendedTextMessage?.text || body.text?.message || body.data?.message?.conversation || "";
-    
+
+    const isFromMe = body.key?.fromMe || body.data?.key?.fromMe || false;
     const senderPn = body.key?.senderPn || "";
     const jid = body.jid || "";
-    const rawNumero = senderPn || jid || body.sender?.phone || body.data?.key?.remoteJid || "";
+    const remoteJid = body.key?.remoteJid || body.data?.key?.remoteJid || "";
+    const rawNumero = isFromMe
+      ? (remoteJid || senderPn || jid || body.sender?.phone || "")
+      : (senderPn || jid || body.sender?.phone || remoteJid || "");
     const numero = rawNumero.replace("@s.whatsapp.net", "").replace("@lid", "").trim();
-    
-    const isFromMe = body.key?.fromMe || body.data?.key?.fromMe || false;
+
     const isGroup = body.isGroup || false;
 
     // Detectar mídia (imagem, áudio, documento)
@@ -1402,9 +1405,9 @@ serve(async (req) => {
 
     console.log(`[whatsapp] Parsed: msg="${mensagemTexto.slice(0,50)}" num="${numero}" fromMe=${isFromMe} group=${isGroup} midia=${midia?.type || "nenhuma"}`);
 
-    // Ignorar mensagens vazias (sem texto NEM mídia), do próprio bot, ou de grupo
-    if ((!temTexto && !temMidia) || !numero || isFromMe || isGroup) {
-      console.log("[whatsapp] Ignorando: vazio/fromMe/grupo");
+    // Ignorar mensagens vazias (sem texto NEM mídia), sem número, ou de grupo
+    if ((!temTexto && !temMidia) || !numero || isGroup) {
+      console.log("[whatsapp] Ignorando: vazio/sem-numero/grupo");
       return new Response("ok");
     }
 
