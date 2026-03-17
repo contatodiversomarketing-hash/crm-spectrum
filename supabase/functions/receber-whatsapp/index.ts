@@ -1446,12 +1446,10 @@ serve(async (req) => {
       }
     }
 
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
     // Verificar se o canal WhatsApp está ativo
-    const supabaseCheck = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-    const { data: configCanal } = await supabaseCheck
+    const { data: configCanal } = await supabase
       .from("configuracoes_sistema")
       .select("whatsapp_ativo")
       .order("criado_em", { ascending: false })
@@ -1470,9 +1468,34 @@ serve(async (req) => {
       return new Response("ok");
     }
 
-    console.log(`[whatsapp] 📩 De ${numero}: "${mensagem.slice(0, 100)}"${imagemBase64ParaIA ? " [+imagem]" : ""}`);
+    if (isFromMe) {
+      await processarMensagemFromMe(supabase, numero, mensagemTexto || mensagem);
+      return new Response("ok");
+    }
 
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const bloqueioHumanoAtivo = await buscarBloqueioHumanoAtivo(supabase, numero);
+    if (bloqueioHumanoAtivo) {
+      console.log(`[whatsapp] 🤫 Atendimento humano ativo para ${numero} até ${bloqueioHumanoAtivo.bloqueio_ate}; Maria ficará em silêncio`);
+
+      supabase.from("interacoes_ia").insert({
+        paciente_externo_id: numero,
+        canal: "whatsapp",
+        sistema_origem: "megaapi",
+        mensagem_usuario: (midia ? `[${midia.type}] ` : "") + mensagem.slice(0, 5000),
+        resposta_final: null,
+        intencao_detectada: "silenciado_humano",
+        estado_conversa: "handoff_humano",
+        supervisionado: true,
+      }).then(({ error }) => {
+        if (error) console.error("[whatsapp] Erro ao salvar mensagem silenciada:", error);
+      });
+
+      return new Response(JSON.stringify({ status: "silenciado_humano" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log(`[whatsapp] 📩 De ${numero}: "${mensagem.slice(0, 100)}"${imagemBase64ParaIA ? " [+imagem]" : ""}`);
 
     // =============================
     // BUSCAR HISTÓRICO + PACIENTE + PROFISSIONAIS + TREINAMENTO EM PARALELO
