@@ -1443,7 +1443,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     // =============================
     // GERAR RESPOSTA COM OPENAI
     // =============================
-    let respostaFinal = `${getSaudacao()}! Aqui é a Maria, da Clínica La Vitta 😊 Como você está? Estou à disposição!`;
+    let respostaFinal = "";
 
     try {
       const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -1460,12 +1460,29 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         }),
       });
 
-      const data = await aiResp.json();
-      if (data?.choices?.[0]?.message?.content) {
-        respostaFinal = data.choices[0].message.content;
+      if (!aiResp.ok) {
+        const errBody = await aiResp.text();
+        console.error(`[whatsapp] ❌ OpenAI HTTP ${aiResp.status}: ${errBody.slice(0, 500)}`);
+      } else {
+        const data = await aiResp.json();
+        if (data?.choices?.[0]?.message?.content) {
+          respostaFinal = data.choices[0].message.content;
+        } else {
+          console.error(`[whatsapp] ❌ OpenAI sem choices. Response: ${JSON.stringify(data).slice(0, 500)}`);
+        }
       }
     } catch (err) {
       console.error("[whatsapp] Erro OpenAI:", err);
+    }
+
+    // Fallback: só usar saudação se NÃO houver histórico (primeira interação)
+    if (!respostaFinal) {
+      if (historicoOrdenado.length === 0) {
+        respostaFinal = `${getSaudacao()}! Aqui é a Maria, da Clínica La Vitta 😊 Como você está? Estou à disposição!`;
+      } else {
+        respostaFinal = "Desculpe, tive uma dificuldade técnica momentânea. Pode repetir, por favor? 😊";
+      }
+      console.warn(`[whatsapp] ⚠️ Usando fallback (histórico: ${historicoOrdenado.length} msgs)`);
     }
 
     // =============================
