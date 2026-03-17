@@ -1741,6 +1741,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     if (respostaFinal.includes("##ENCAMINHAR_HUMANO##")) {
       respostaFinal = respostaFinal.replace("##ENCAMINHAR_HUMANO##", "").trim();
       encaminharHumano = true;
+      await registrarBloqueioHumano(supabase, numero, `encaminhado_humano:${mensagem.slice(0, 200)}`);
     }
 
     // =============================
