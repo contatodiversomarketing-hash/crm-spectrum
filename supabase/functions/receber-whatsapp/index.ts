@@ -92,7 +92,6 @@ async function gerarRespostaOpenAI(messages: Array<{ role: string; content: any 
         },
         body: JSON.stringify({
           model,
-          temperature: 0.7,
           max_completion_tokens: usarVision ? 800 : 300,
           messages,
         }),
