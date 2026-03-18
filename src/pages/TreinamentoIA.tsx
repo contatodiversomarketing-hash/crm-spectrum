@@ -156,127 +156,141 @@ export default function TreinamentoIA() {
           )}
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="pt-4 text-center">
-              <p className="text-2xl font-bold">{treinamentos.length}</p>
-              <p className="text-xs text-muted-foreground">Total</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 text-center">
-              <p className="text-2xl font-bold text-green-500">{treinamentos.filter(t => t.ativo).length}</p>
-              <p className="text-xs text-muted-foreground">Ativas</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 text-center">
-              <p className="text-2xl font-bold text-muted-foreground">{treinamentos.filter(t => !t.ativo).length}</p>
-              <p className="text-xs text-muted-foreground">Inativas</p>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Tabs */}
+        <Tabs defaultValue="chat" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="chat">💬 Conversar com a Maria</TabsTrigger>
+            <TabsTrigger value="instrucoes">📋 Instruções</TabsTrigger>
+          </TabsList>
 
-        {/* Form */}
-        {showForm && isAdmin && (
-          <Card className="border-primary">
-            <CardHeader>
-              <CardTitle className="text-lg">{editId ? "Editar" : "Nova"} Instrução</CardTitle>
-              <CardDescription>Escreva de forma clara o que a Maria deve aprender. Seja específica.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Categoria</Label>
-                  <Select value={form.categoria} onValueChange={v => setForm(f => ({ ...f, categoria: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIAS.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Canal</Label>
-                  <Select value={form.canal} onValueChange={v => setForm(f => ({ ...f, canal: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {CANAIS.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Título</Label>
-                <Input placeholder="Ex: Quando pedirem dentista, indicar Dra. Amélia" value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Instrução (o que a Maria deve fazer)</Label>
-                <Textarea
-                  placeholder="Ex: Quando o paciente pedir dentista, clínico geral ou odontologia, indique APENAS profissionais com especialidade odontológica (Cirurgião dentista, Clínico geral, Ortodontista, etc). NUNCA indique psicólogos ou nutricionistas para quem pediu dentista."
-                  value={form.instrucao}
-                  onChange={e => setForm(f => ({ ...f, instrucao: e.target.value }))}
-                  rows={5}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={() => upsertMutation.mutate({ ...form, id: editId || undefined })} disabled={!form.titulo || !form.instrucao}>
-                  <Save className="h-4 w-4 mr-1" /> {editId ? "Salvar" : "Adicionar"}
-                </Button>
-                <Button variant="outline" onClick={() => { setShowForm(false); setEditId(null); }}>
-                  <X className="h-4 w-4 mr-1" /> Cancelar
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+          <TabsContent value="chat">
+            <ChatTreinamento />
+          </TabsContent>
 
-        {/* List */}
-        {isLoading ? (
-          <p className="text-center text-muted-foreground">Carregando...</p>
-        ) : grouped.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Brain className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-lg font-medium">Nenhuma instrução cadastrada</p>
-              <p className="text-sm text-muted-foreground">Adicione instruções para treinar a Maria.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          grouped.map(group => (
-            <div key={group.value} className="space-y-2">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{group.label}</h3>
-              {group.items.map(t => (
-                <Card key={t.id} className={!t.ativo ? "opacity-50" : ""}>
-                  <CardContent className="py-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium">{t.titulo}</span>
-                          <Badge variant="outline" className="text-xs flex items-center gap-1">
-                            {canalIcon(t.canal)} {t.canal}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{t.instrucao}</p>
-                      </div>
-                      {isAdmin && (
-                        <div className="flex items-center gap-2 shrink-0">
-                          <Switch checked={t.ativo} onCheckedChange={ativo => toggleMutation.mutate({ id: t.id, ativo })} />
-                          <Button size="icon" variant="ghost" onClick={() => startEdit(t)}>
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteMutation.mutate(t.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+          <TabsContent value="instrucoes" className="space-y-6">
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="pt-4 text-center">
+                  <p className="text-2xl font-bold">{treinamentos.length}</p>
+                  <p className="text-xs text-muted-foreground">Total</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-4 text-center">
+                  <p className="text-2xl font-bold text-green-500">{treinamentos.filter(t => t.ativo).length}</p>
+                  <p className="text-xs text-muted-foreground">Ativas</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-4 text-center">
+                  <p className="text-2xl font-bold text-muted-foreground">{treinamentos.filter(t => !t.ativo).length}</p>
+                  <p className="text-xs text-muted-foreground">Inativas</p>
+                </CardContent>
+              </Card>
             </div>
-          ))
-        )}
+
+            {/* Form */}
+            {showForm && isAdmin && (
+              <Card className="border-primary">
+                <CardHeader>
+                  <CardTitle className="text-lg">{editId ? "Editar" : "Nova"} Instrução</CardTitle>
+                  <CardDescription>Escreva de forma clara o que a Maria deve aprender. Seja específica.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Categoria</Label>
+                      <Select value={form.categoria} onValueChange={v => setForm(f => ({ ...f, categoria: v }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {CATEGORIAS.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Canal</Label>
+                      <Select value={form.canal} onValueChange={v => setForm(f => ({ ...f, canal: v }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {CANAIS.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Título</Label>
+                    <Input placeholder="Ex: Quando pedirem dentista, indicar Dra. Amélia" value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Instrução (o que a Maria deve fazer)</Label>
+                    <Textarea
+                      placeholder="Ex: Quando o paciente pedir dentista, clínico geral ou odontologia, indique APENAS profissionais com especialidade odontológica."
+                      value={form.instrucao}
+                      onChange={e => setForm(f => ({ ...f, instrucao: e.target.value }))}
+                      rows={5}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={() => upsertMutation.mutate({ ...form, id: editId || undefined })} disabled={!form.titulo || !form.instrucao}>
+                      <Save className="h-4 w-4 mr-1" /> {editId ? "Salvar" : "Adicionar"}
+                    </Button>
+                    <Button variant="outline" onClick={() => { setShowForm(false); setEditId(null); }}>
+                      <X className="h-4 w-4 mr-1" /> Cancelar
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* List */}
+            {isLoading ? (
+              <p className="text-center text-muted-foreground">Carregando...</p>
+            ) : grouped.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Brain className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium">Nenhuma instrução cadastrada</p>
+                  <p className="text-sm text-muted-foreground">Adicione instruções para treinar a Maria.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              grouped.map(group => (
+                <div key={group.value} className="space-y-2">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{group.label}</h3>
+                  {group.items.map(t => (
+                    <Card key={t.id} className={!t.ativo ? "opacity-50" : ""}>
+                      <CardContent className="py-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium">{t.titulo}</span>
+                              <Badge variant="outline" className="text-xs flex items-center gap-1">
+                                {canalIcon(t.canal)} {t.canal}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{t.instrucao}</p>
+                          </div>
+                          {isAdmin && (
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Switch checked={t.ativo} onCheckedChange={ativo => toggleMutation.mutate({ id: t.id, ativo })} />
+                              <Button size="icon" variant="ghost" onClick={() => startEdit(t)}>
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteMutation.mutate(t.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ))
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
