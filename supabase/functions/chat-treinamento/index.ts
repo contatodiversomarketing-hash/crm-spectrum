@@ -107,7 +107,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "openai/gpt-5-mini",
+        model: "google/gemini-3-flash-preview",
         temperature: 0.7,
         max_tokens: 500,
         messages,
