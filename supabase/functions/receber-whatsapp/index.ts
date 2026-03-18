@@ -73,6 +73,9 @@ function ehRespostaRepetidaOuIntroducao(resposta: string, historico: HistoricoIn
   return respostasRecentes.some((item) => normalizarTextoComparacao(item) === respostaNormalizada);
 }
 
+const LOVABLE_AI_BASE_URL = "https://ai.gateway.lovable.dev";
+const FALLBACK_TECNICO = "Desculpe, tive uma dificuldade técnica momentânea. Pode repetir, por favor? 😊";
+
 async function gerarRespostaOpenAI(messages: Array<{ role: string; content: any }>, usarVision: boolean): Promise<string> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
@@ -81,7 +84,7 @@ async function gerarRespostaOpenAI(messages: Array<{ role: string; content: any 
   if (LOVABLE_API_KEY) {
     try {
       const model = usarVision ? "openai/gpt-5" : "openai/gpt-5-mini";
-      const aiResp = await fetch("https://ai.lovable.dev/v1/chat/completions", {
+      const aiResp = await fetch(`${LOVABLE_AI_BASE_URL}/v1/chat/completions`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${LOVABLE_API_KEY}`,
