@@ -1,4 +1,5 @@
-import { MessageSquare, Zap, Shield, TrendingUp, RefreshCw } from "lucide-react";
+import { Activity, MessageSquare, Zap, Shield, TrendingUp, RefreshCw } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { StatusCard } from "@/components/StatusCard";
 import { SystemStatusBadge } from "@/components/SystemStatusBadge";
 import { RecentInteractions } from "@/components/RecentInteractions";
@@ -8,7 +9,6 @@ import { useDadosIntegrados } from "@/hooks/useDadosIntegrados";
 
 const Index = () => {
   const navigate = useNavigate();
-  const { signOut, profile } = useAuth();
   const dados = useDadosIntegrados();
 
   const allOnline = dados.systems.length > 0 && dados.systems.every(s => s.status === "online");
@@ -16,41 +16,27 @@ const Index = () => {
   const systemStatus = allOnline ? "online" as const : anyDegraded ? "degraded" as const : dados.systems.length === 0 ? "offline" as const : "degraded" as const;
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center">
-              <Brain className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold tracking-tight">Core IA Clínica</h1>
-              <p className="text-xs text-muted-foreground">Central de Orquestração Inteligente</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <ChannelToggles />
-            <div className="w-px h-6 bg-border" />
-            <SystemStatusBadge status={systemStatus} label={`${dados.systems.filter(s => s.status === "online").length}/${dados.systems.length} sistemas`} />
-            <button
-              onClick={dados.refresh}
-              disabled={dados.loading}
-              className="p-2 rounded-lg hover:bg-secondary transition-colors"
-              title="Atualizar dados"
-            >
-              <RefreshCw className={`h-5 w-5 text-muted-foreground ${dados.loading ? "animate-spin" : ""}`} />
-            </button>
-            {profile && <span className="text-xs text-muted-foreground hidden sm:inline">{profile.nome || profile.email}</span>}
-            <button className="p-2 rounded-lg hover:bg-secondary transition-colors">
-              <Settings className="h-5 w-5 text-muted-foreground" />
-            </button>
-            <button onClick={signOut} className="p-2 rounded-lg hover:bg-secondary transition-colors" title="Sair">
-              <LogOut className="h-5 w-5 text-muted-foreground" />
-            </button>
-          </div>
+    <div className="bg-background">
+      {/* Top bar with status */}
+      <div className="flex items-center justify-between px-6 py-4 border-b bg-card/50">
+        <div>
+          <h1 className="text-lg font-bold tracking-tight">Core IA Clínica</h1>
+          <p className="text-xs text-muted-foreground">Central de Orquestração Inteligente</p>
         </div>
-      </header>
+        <div className="flex items-center gap-3">
+          <ChannelToggles />
+          <div className="w-px h-6 bg-border" />
+          <SystemStatusBadge status={systemStatus} label={`${dados.systems.filter(s => s.status === "online").length}/${dados.systems.length} sistemas`} />
+          <button
+            onClick={dados.refresh}
+            disabled={dados.loading}
+            className="p-2 rounded-lg hover:bg-secondary transition-colors"
+            title="Atualizar dados"
+          >
+            <RefreshCw className={`h-5 w-5 text-muted-foreground ${dados.loading ? "animate-spin" : ""}`} />
+          </button>
+        </div>
+      </div>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
