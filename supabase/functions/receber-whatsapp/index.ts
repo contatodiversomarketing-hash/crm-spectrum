@@ -1710,7 +1710,10 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       if (historicoOrdenado.length === 0) {
         respostaFinal = `${getSaudacao()}! Aqui é a Maria, da Clínica La Vitta 😊 Como você está? Estou à disposição!`;
       } else {
-        respostaFinal = "Desculpe, tive uma dificuldade técnica momentânea. Pode repetir, por favor? 😊";
+        const ultimaResposta = historicoOrdenado[historicoOrdenado.length - 1]?.resposta_final;
+        respostaFinal = normalizarTextoComparacao(ultimaResposta) === normalizarTextoComparacao(FALLBACK_TECNICO)
+          ? "Desculpe pela instabilidade. Já acionei uma revisão aqui e sigo à disposição para continuar por texto."
+          : FALLBACK_TECNICO;
       }
       console.warn(`[whatsapp] ⚠️ Usando fallback (histórico: ${historicoOrdenado.length} msgs)`);
     }
