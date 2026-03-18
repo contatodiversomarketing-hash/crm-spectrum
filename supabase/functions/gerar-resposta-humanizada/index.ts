@@ -96,7 +96,7 @@ Gere a mensagem para o paciente.`;
           { role: "user", content: userPrompt },
         ],
         temperature: 0.7,
-        max_tokens: 300,
+        max_completion_tokens: 300,
       }),
     });
 

@@ -93,7 +93,7 @@ async function gerarRespostaOpenAI(messages: Array<{ role: string; content: any 
         body: JSON.stringify({
           model,
           temperature: 0.7,
-          max_tokens: usarVision ? 800 : 300,
+          max_completion_tokens: usarVision ? 800 : 300,
           messages,
         }),
       });
@@ -1296,7 +1296,7 @@ async function transcreverAudio(base64Audio: string, mimetype: string): Promise<
                 type: "input_audio",
                 input_audio: {
                   data: cleanBase64,
-                  format: mimeClean.includes("ogg") ? "ogg" : mimeClean.includes("mp3") || mimeClean.includes("mpeg") ? "mp3" : mimeClean.includes("wav") ? "wav" : "ogg",
+                  format: mimeClean.includes("wav") ? "wav" : "mp3",
                 },
               },
               {
@@ -1307,7 +1307,7 @@ async function transcreverAudio(base64Audio: string, mimetype: string): Promise<
           },
         ],
         temperature: 0.1,
-        max_tokens: 2000,
+        max_completion_tokens: 2000,
       }),
     });
 

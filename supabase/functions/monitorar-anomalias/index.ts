@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
               body: JSON.stringify({ model: "google/gemini-3-flash-preview", messages: [
                 { role: "system", content: "Assistente monitoramento clínica. Mensagem curta profissional WhatsApp. Máx 300 chars." },
                 { role: "user", content: `Anomalias:\n${resumoAlertas}` },
-              ], temperature: 0.5, max_tokens: 200 }),
+              ], temperature: 0.5, max_completion_tokens: 200 }),
             });
 
             let mensagem = `⚠️ Alerta Core-IA:\n${resumoAlertas}`;
