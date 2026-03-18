@@ -1,11 +1,9 @@
-import { Brain, Activity, MessageSquare, Zap, Shield, Settings, LogOut, TrendingUp, RefreshCw } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { MessageSquare, Zap, Shield, TrendingUp, RefreshCw } from "lucide-react";
 import { StatusCard } from "@/components/StatusCard";
 import { SystemStatusBadge } from "@/components/SystemStatusBadge";
 import { RecentInteractions } from "@/components/RecentInteractions";
 import { AutomationQueue } from "@/components/AutomationQueue";
 import { ChannelToggles } from "@/components/ChannelToggles";
-import { useAuth } from "@/contexts/AuthContext";
 import { useDadosIntegrados } from "@/hooks/useDadosIntegrados";
 
 const Index = () => {
