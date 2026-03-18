@@ -83,7 +83,7 @@ async function gerarRespostaOpenAI(messages: Array<{ role: string; content: any 
   // Tentar Lovable AI primeiro (sem depender de quota OpenAI)
   if (LOVABLE_API_KEY) {
     try {
-      const model = usarVision ? "google/gemini-2.5-pro" : "google/gemini-3-flash-preview";
+      const model = usarVision ? "openai/gpt-5" : "openai/gpt-5-mini";
       const aiResp = await fetch(`${LOVABLE_AI_BASE_URL}/v1/chat/completions`, {
         method: "POST",
         headers: {
@@ -1287,7 +1287,7 @@ async function transcreverAudio(base64Audio: string, mimetype: string): Promise<
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "openai/gpt-5-mini",
         messages: [
           {
             role: "user",

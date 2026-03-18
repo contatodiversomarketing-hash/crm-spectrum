@@ -76,7 +76,7 @@ Retorne APENAS a intenção classificada e o nível de confiança.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "openai/gpt-5-mini",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: sanitized },
