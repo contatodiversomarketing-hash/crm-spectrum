@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AppLayout } from "@/components/AppLayout";
 import Index from "./pages/Index";
 import SupervisaoIA from "./pages/SupervisaoIA";
 import DashboardInteligenciaIA from "./pages/DashboardInteligenciaIA";
@@ -23,10 +24,10 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-            <Route path="/supervisao" element={<ProtectedRoute requiredRoles={["admin", "supervisao"]}><SupervisaoIA /></ProtectedRoute>} />
-            <Route path="/dashboard-ia" element={<ProtectedRoute><DashboardInteligenciaIA /></ProtectedRoute>} />
-            <Route path="/treinamento-ia" element={<ProtectedRoute requiredRoles={["admin"]}><TreinamentoIA /></ProtectedRoute>} />
+            <Route path="/" element={<ProtectedRoute><AppLayout><Index /></AppLayout></ProtectedRoute>} />
+            <Route path="/supervisao" element={<ProtectedRoute requiredRoles={["admin", "supervisao"]}><AppLayout><SupervisaoIA /></AppLayout></ProtectedRoute>} />
+            <Route path="/dashboard-ia" element={<ProtectedRoute><AppLayout><DashboardInteligenciaIA /></AppLayout></ProtectedRoute>} />
+            <Route path="/treinamento-ia" element={<ProtectedRoute requiredRoles={["admin"]}><AppLayout><TreinamentoIA /></AppLayout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
