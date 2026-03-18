@@ -10,9 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Brain, Plus, Trash2, Edit2, Save, X, ArrowLeft, MessageSquare, Phone, Globe } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import ChatTreinamento from "@/components/ChatTreinamento";
 
 interface Treinamento {
   id: string;
