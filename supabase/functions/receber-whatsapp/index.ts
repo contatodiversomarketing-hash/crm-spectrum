@@ -1800,6 +1800,14 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     // =============================
     console.log(`[whatsapp] 📤 Resposta: "${respostaFinal.slice(0, 100)}..."`);
 
+    const ultimaRespostaEnviada = historicoOrdenado[historicoOrdenado.length - 1]?.resposta_final;
+    if (normalizarTextoComparacao(ultimaRespostaEnviada) === normalizarTextoComparacao(respostaFinal)) {
+      console.warn(`[whatsapp] ⚠️ Bloqueando reenvio duplicado para ${numero}`);
+      return new Response(JSON.stringify({ status: "resposta_duplicada_bloqueada" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const delayMs = 3000 + Math.random() * 1500;
     await new Promise(resolve => setTimeout(resolve, delayMs));
 
