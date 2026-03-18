@@ -73,6 +73,9 @@ function ehRespostaRepetidaOuIntroducao(resposta: string, historico: HistoricoIn
   return respostasRecentes.some((item) => normalizarTextoComparacao(item) === respostaNormalizada);
 }
 
+const LOVABLE_AI_BASE_URL = "https://ai.gateway.lovable.dev";
+const FALLBACK_TECNICO = "Desculpe, tive uma dificuldade técnica momentânea. Pode repetir, por favor? 😊";
+
 async function gerarRespostaOpenAI(messages: Array<{ role: string; content: any }>, usarVision: boolean): Promise<string> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
@@ -81,7 +84,7 @@ async function gerarRespostaOpenAI(messages: Array<{ role: string; content: any 
   if (LOVABLE_API_KEY) {
     try {
       const model = usarVision ? "openai/gpt-5" : "openai/gpt-5-mini";
-      const aiResp = await fetch("https://ai.lovable.dev/v1/chat/completions", {
+      const aiResp = await fetch(`${LOVABLE_AI_BASE_URL}/v1/chat/completions`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${LOVABLE_API_KEY}`,
@@ -1258,14 +1261,14 @@ async function transcreverAudio(base64Audio: string, mimetype: string): Promise<
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     const openaiKey = Deno.env.get("OPENAI_API_KEY");
     const apiKey = lovableKey || openaiKey;
-    const baseUrl = lovableKey ? "https://ai.lovable.dev" : "https://api.openai.com";
+    const baseUrl = lovableKey ? LOVABLE_AI_BASE_URL : "https://api.openai.com";
     if (!apiKey) return "[Áudio recebido - transcrição indisponível]";
 
     // Limpar base64: remover prefixo data URI (com possíveis espaços), espaços, quebras de linha
     let cleanBase64 = base64Audio
-      .replace(/^data:[^,]+,/, "")  // Remove qualquer prefixo data URI (incluindo com espaços tipo "data:audio/ogg; codecs=opus;base64,")
+      .replace(/^data:[^,]+,/, "")
       .replace(/[\s\r\n]/g, "")
-      .replace(/[^A-Za-z0-9+/=]/g, ""); // Remove qualquer caractere não-base64
+      .replace(/[^A-Za-z0-9+/=]/g, "");
     
     // Garantir padding correto
     const remainder = cleanBase64.length % 4;
@@ -1707,7 +1710,10 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       if (historicoOrdenado.length === 0) {
         respostaFinal = `${getSaudacao()}! Aqui é a Maria, da Clínica La Vitta 😊 Como você está? Estou à disposição!`;
       } else {
-        respostaFinal = "Desculpe, tive uma dificuldade técnica momentânea. Pode repetir, por favor? 😊";
+        const ultimaResposta = historicoOrdenado[historicoOrdenado.length - 1]?.resposta_final;
+        respostaFinal = normalizarTextoComparacao(ultimaResposta) === normalizarTextoComparacao(FALLBACK_TECNICO)
+          ? "Desculpe pela instabilidade. Já acionei uma revisão aqui e sigo à disposição para continuar por texto."
+          : FALLBACK_TECNICO;
       }
       console.warn(`[whatsapp] ⚠️ Usando fallback (histórico: ${historicoOrdenado.length} msgs)`);
     }
@@ -1793,6 +1799,14 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     // ENVIAR RESPOSTA
     // =============================
     console.log(`[whatsapp] 📤 Resposta: "${respostaFinal.slice(0, 100)}..."`);
+
+    const ultimaRespostaEnviada = historicoOrdenado[historicoOrdenado.length - 1]?.resposta_final;
+    if (normalizarTextoComparacao(ultimaRespostaEnviada) === normalizarTextoComparacao(respostaFinal)) {
+      console.warn(`[whatsapp] ⚠️ Bloqueando reenvio duplicado para ${numero}`);
+      return new Response(JSON.stringify({ status: "resposta_duplicada_bloqueada" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const delayMs = 3000 + Math.random() * 1500;
     await new Promise(resolve => setTimeout(resolve, delayMs));
