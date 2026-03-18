@@ -1258,13 +1258,10 @@ async function downloadMidiaBase64(media: MediaInfo, webhookBody: any): Promise<
 
 async function transcreverAudio(base64Audio: string, mimetype: string): Promise<string> {
   try {
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    const openaiKey = Deno.env.get("OPENAI_API_KEY");
-    const apiKey = lovableKey || openaiKey;
-    const baseUrl = lovableKey ? LOVABLE_AI_BASE_URL : "https://api.openai.com";
+    const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) return "[Áudio recebido - transcrição indisponível]";
 
-    // Limpar base64: remover prefixo data URI (com possíveis espaços), espaços, quebras de linha
+    // Limpar base64: remover prefixo data URI, espaços, quebras de linha
     let cleanBase64 = base64Audio
       .replace(/^data:[^,]+,/, "")
       .replace(/[\s\r\n]/g, "")
@@ -1278,36 +1275,50 @@ async function transcreverAudio(base64Audio: string, mimetype: string): Promise<
 
     console.log(`[whatsapp] 🎤 Base64 áudio: ${cleanBase64.length} chars (original: ${base64Audio.length})`);
 
-    // Converter base64 para bytes usando chunks para evitar stack overflow
-    const binaryStr = atob(cleanBase64);
-    const bytes = new Uint8Array(binaryStr.length);
-    for (let i = 0; i < binaryStr.length; i++) {
-      bytes[i] = binaryStr.charCodeAt(i);
-    }
-
-    console.log(`[whatsapp] 🎤 Áudio decodificado: ${bytes.length} bytes`);
-
-    const ext = mimetype.includes("ogg") ? "ogg" : mimetype.includes("mp4") ? "mp4" : mimetype.includes("mpeg") ? "mp3" : "ogg";
-    const blob = new Blob([bytes], { type: mimetype });
-
-    const formData = new FormData();
-    formData.append("file", blob, `audio.${ext}`);
-    formData.append("model", "whisper-1");
-    formData.append("language", "pt");
-
-    const res = await fetch(`${baseUrl}/v1/audio/transcriptions`, {
+    // Usar Gemini multimodal para transcrever áudio via chat completions
+    // O gateway Lovable AI não suporta /v1/audio/transcriptions (Whisper)
+    // Mas Gemini aceita áudio inline via content parts
+    const mimeClean = mimetype.split(";")[0].trim(); // "audio/ogg"
+    
+    const res = await fetch(`${LOVABLE_AI_BASE_URL}/v1/chat/completions`, {
       method: "POST",
-      headers: { "Authorization": `Bearer ${apiKey}` },
-      body: formData,
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "input_audio",
+                input_audio: {
+                  data: cleanBase64,
+                  format: mimeClean.includes("ogg") ? "ogg" : mimeClean.includes("mp3") || mimeClean.includes("mpeg") ? "mp3" : mimeClean.includes("wav") ? "wav" : "ogg",
+                },
+              },
+              {
+                type: "text",
+                text: "Transcreva exatamente o que a pessoa disse neste áudio em português brasileiro. Retorne APENAS a transcrição, sem comentários adicionais, sem aspas, sem prefixos como 'Transcrição:'. Se o áudio estiver inaudível ou vazio, retorne exatamente: [Áudio inaudível]",
+              },
+            ],
+          },
+        ],
+        temperature: 0.1,
+        max_tokens: 2000,
+      }),
     });
 
     if (res.ok) {
       const data = await res.json();
-      console.log(`[whatsapp] 🎤 Áudio transcrito: "${(data.text || "").slice(0, 100)}"`);
-      return data.text || "[Áudio inaudível]";
+      const transcricao = data.choices?.[0]?.message?.content?.trim() || "[Áudio inaudível]";
+      console.log(`[whatsapp] 🎤 Áudio transcrito via Gemini: "${transcricao.slice(0, 100)}"`);
+      return transcricao;
     }
     const errText = await res.text();
-    console.error(`[whatsapp] Whisper falhou: ${res.status} - ${errText.slice(0, 300)}`);
+    console.error(`[whatsapp] Gemini transcrição falhou: ${res.status} - ${errText.slice(0, 300)}`);
     return "[Áudio recebido - não foi possível transcrever]";
   } catch (err) {
     console.error("[whatsapp] Erro transcrição:", err);
