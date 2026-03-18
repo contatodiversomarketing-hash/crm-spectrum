@@ -1296,7 +1296,7 @@ async function transcreverAudio(base64Audio: string, mimetype: string): Promise<
                 type: "input_audio",
                 input_audio: {
                   data: cleanBase64,
-                  format: mimeClean.includes("ogg") ? "ogg" : mimeClean.includes("mp3") || mimeClean.includes("mpeg") ? "mp3" : mimeClean.includes("wav") ? "wav" : "ogg",
+                  format: mimeClean.includes("wav") ? "wav" : "mp3",
                 },
               },
               {
