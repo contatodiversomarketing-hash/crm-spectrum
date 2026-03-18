@@ -243,7 +243,7 @@ Gere a resposta usando a técnica ${estrategia.tecnicaUsada}.`;
           { role: "user", content: userPrompt },
         ],
         temperature: 0.7,
-        max_tokens: 400,
+        max_completion_tokens: 400,
       }),
     });
 
