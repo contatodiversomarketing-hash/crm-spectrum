@@ -1261,14 +1261,14 @@ async function transcreverAudio(base64Audio: string, mimetype: string): Promise<
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     const openaiKey = Deno.env.get("OPENAI_API_KEY");
     const apiKey = lovableKey || openaiKey;
-    const baseUrl = lovableKey ? "https://ai.lovable.dev" : "https://api.openai.com";
+    const baseUrl = lovableKey ? LOVABLE_AI_BASE_URL : "https://api.openai.com";
     if (!apiKey) return "[Áudio recebido - transcrição indisponível]";
 
     // Limpar base64: remover prefixo data URI (com possíveis espaços), espaços, quebras de linha
     let cleanBase64 = base64Audio
-      .replace(/^data:[^,]+,/, "")  // Remove qualquer prefixo data URI (incluindo com espaços tipo "data:audio/ogg; codecs=opus;base64,")
+      .replace(/^data:[^,]+,/, "")
       .replace(/[\s\r\n]/g, "")
-      .replace(/[^A-Za-z0-9+/=]/g, ""); // Remove qualquer caractere não-base64
+      .replace(/[^A-Za-z0-9+/=]/g, "");
     
     // Garantir padding correto
     const remainder = cleanBase64.length % 4;
