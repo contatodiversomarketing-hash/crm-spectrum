@@ -107,7 +107,7 @@ serve(async (req) => {
     // Buscar instruções de treinamento cadastradas
     const { data: treinamentos } = await supabase
       .from("treinamento_ia")
-      .select("categoria, titulo, instrucao, canal")
+      .select("categoria, titulo, instrucao, canal, anexo_nome, anexo_conteudo_extraido")
       .eq("ativo", true)
       .in("canal", ["ambos", "whatsapp", "voz"])
       .order("categoria");
@@ -117,6 +117,9 @@ serve(async (req) => {
       instrucoesExtra = "\n\n## INSTRUÇÕES CADASTRADAS PELO ADMINISTRADOR (aplique sempre):\n";
       for (const t of treinamentos) {
         instrucoesExtra += `- [${t.categoria} | canal: ${t.canal}] ${t.titulo}: ${t.instrucao}\n`;
+        if (t.anexo_conteudo_extraido) {
+          instrucoesExtra += `  📎 Conteúdo do anexo "${t.anexo_nome}": ${t.anexo_conteudo_extraido}\n`;
+        }
       }
     }
 
