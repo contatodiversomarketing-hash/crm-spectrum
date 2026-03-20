@@ -37,9 +37,18 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const dataInicio = url.searchParams.get("data_inicio") || new Date().toISOString().split("T")[0];
-    const dataFim = url.searchParams.get("data_fim") || new Date().toISOString().split("T")[0];
+    let dataInicio: string;
+    let dataFim: string;
+    
+    if (req.method === "POST") {
+      const body = await req.json().catch(() => ({}));
+      dataInicio = body.data_inicio || new Date().toISOString().split("T")[0];
+      dataFim = body.data_fim || new Date().toISOString().split("T")[0];
+    } else {
+      const url = new URL(req.url);
+      dataInicio = url.searchParams.get("data_inicio") || new Date().toISOString().split("T")[0];
+      dataFim = url.searchParams.get("data_fim") || new Date().toISOString().split("T")[0];
+    }
 
     const inicio = `${dataInicio}T00:00:00.000Z`;
     const fim = `${dataFim}T23:59:59.999Z`;
