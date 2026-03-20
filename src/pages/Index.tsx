@@ -5,6 +5,7 @@ import { SystemStatusBadge } from "@/components/SystemStatusBadge";
 import { RecentInteractions } from "@/components/RecentInteractions";
 import { AutomationQueue } from "@/components/AutomationQueue";
 import { ChannelToggles } from "@/components/ChannelToggles";
+import { PainelMetricas } from "@/components/PainelMetricas";
 import { useDadosIntegrados } from "@/hooks/useDadosIntegrados";
 
 const Index = () => {
@@ -82,6 +83,10 @@ const Index = () => {
           </div>
         </section>
 
+        {/* Métricas Detalhadas */}
+        <section>
+          <PainelMetricas />
+        </section>
         {/* Two Column Layout */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <RecentInteractions items={dados.interacoesRecentes} />
