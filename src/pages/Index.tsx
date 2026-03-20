@@ -83,6 +83,10 @@ const Index = () => {
           </div>
         </section>
 
+        {/* Métricas Detalhadas */}
+        <section>
+          <PainelMetricas />
+        </section>
         {/* Two Column Layout */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <RecentInteractions items={dados.interacoesRecentes} />
