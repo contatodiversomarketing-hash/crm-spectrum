@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMetricasPainel } from "@/hooks/useMetricasPainel";
-import { Bot, User, MessageSquare, UserPlus, Users, Stethoscope, RefreshCw, Calendar } from "lucide-react";
+import { Bot, User, UserPlus, Users, Stethoscope, RefreshCw, Calendar, MessageSquare } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -17,8 +17,7 @@ export function PainelMetricas() {
   const { dados, loading, error, refresh } = useMetricasPainel(dataInicio, dataFim);
 
   const totalAtend = dados?.atendimentos.total || 0;
-  const mariaPercent = totalAtend > 0 ? ((dados?.atendimentos.maria_ia || 0) / totalAtend) * 100 : 0;
-  const humanoPercent = totalAtend > 0 ? ((dados?.atendimentos.humanos || 0) / totalAtend) * 100 : 0;
+  const pct = (v: number) => (totalAtend > 0 ? (v / totalAtend) * 100 : 0);
 
   return (
     <div className="space-y-6">
@@ -26,33 +25,20 @@ export function PainelMetricas() {
       <div className="flex items-center gap-3 flex-wrap">
         <Calendar className="h-4 w-4 text-muted-foreground" />
         <div className="flex items-center gap-2">
-          <Input
-            type="date"
-            value={dataInicio}
-            onChange={(e) => setDataInicio(e.target.value)}
-            className="w-[150px] h-9 text-sm"
-          />
+          <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="w-[150px] h-9 text-sm" />
           <span className="text-xs text-muted-foreground">até</span>
-          <Input
-            type="date"
-            value={dataFim}
-            onChange={(e) => setDataFim(e.target.value)}
-            className="w-[150px] h-9 text-sm"
-          />
+          <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-[150px] h-9 text-sm" />
         </div>
         <Button variant="ghost" size="sm" onClick={refresh} disabled={loading}>
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
         </Button>
-        {/* Atalhos */}
         <div className="flex gap-1">
           {[
             { label: "Hoje", fn: () => { setDataInicio(formatDate(hoje)); setDataFim(formatDate(hoje)); } },
             { label: "7d", fn: () => { const d = new Date(); d.setDate(d.getDate() - 7); setDataInicio(formatDate(d)); setDataFim(formatDate(hoje)); } },
             { label: "30d", fn: () => { const d = new Date(); d.setDate(d.getDate() - 30); setDataInicio(formatDate(d)); setDataFim(formatDate(hoje)); } },
           ].map((a) => (
-            <Button key={a.label} variant="outline" size="sm" className="text-xs h-7 px-2" onClick={a.fn}>
-              {a.label}
-            </Button>
+            <Button key={a.label} variant="outline" size="sm" className="text-xs h-7 px-2" onClick={a.fn}>{a.label}</Button>
           ))}
         </div>
       </div>
@@ -63,8 +49,9 @@ export function PainelMetricas() {
         </div>
       )}
 
-      {/* Cards de atendimento */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Cards de atendimento - agora com Maria Rita e Rebeka separadas */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* MarIA (IA) */}
         <div className="rounded-lg border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-medium text-muted-foreground">MarIA (IA)</span>
@@ -73,26 +60,37 @@ export function PainelMetricas() {
           <div className="text-3xl font-bold tracking-tight tabular-nums">
             {loading ? "..." : dados?.atendimentos.maria_ia ?? 0}
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {mariaPercent.toFixed(0)}% dos atendimentos
-          </p>
-          <Progress value={mariaPercent} className="mt-2 h-1.5" />
+          <p className="text-xs text-muted-foreground mt-1">{pct(dados?.atendimentos.maria_ia ?? 0).toFixed(0)}% dos atendimentos</p>
+          <Progress value={pct(dados?.atendimentos.maria_ia ?? 0)} className="mt-2 h-1.5" />
         </div>
 
-        <div className="rounded-lg border bg-card p-5 shadow-sm">
+        {/* Maria Rita */}
+        <div className="rounded-lg border bg-card p-5 shadow-sm border-l-4 border-l-warning">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-muted-foreground">Humanos (Maria + Rebeka)</span>
+            <span className="text-sm font-medium text-muted-foreground">Maria Rita</span>
             <User className="h-5 w-5 text-warning" />
           </div>
           <div className="text-3xl font-bold tracking-tight tabular-nums">
-            {loading ? "..." : dados?.atendimentos.humanos ?? 0}
+            {loading ? "..." : dados?.atendimentos.maria_rita ?? 0}
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {humanoPercent.toFixed(0)}% dos atendimentos
-          </p>
-          <Progress value={humanoPercent} className="mt-2 h-1.5" />
+          <p className="text-xs text-muted-foreground mt-1">{pct(dados?.atendimentos.maria_rita ?? 0).toFixed(0)}% dos atendimentos</p>
+          <Progress value={pct(dados?.atendimentos.maria_rita ?? 0)} className="mt-2 h-1.5" />
         </div>
 
+        {/* Rebeka */}
+        <div className="rounded-lg border bg-card p-5 shadow-sm border-l-4 border-l-accent">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium text-muted-foreground">Rebeka</span>
+            <User className="h-5 w-5 text-accent-foreground" />
+          </div>
+          <div className="text-3xl font-bold tracking-tight tabular-nums">
+            {loading ? "..." : dados?.atendimentos.rebeka ?? 0}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">{pct(dados?.atendimentos.rebeka ?? 0).toFixed(0)}% dos atendimentos</p>
+          <Progress value={pct(dados?.atendimentos.rebeka ?? 0)} className="mt-2 h-1.5" />
+        </div>
+
+        {/* Leads Novos */}
         <div className="rounded-lg border bg-card p-5 shadow-sm border-l-4 border-l-success">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-medium text-muted-foreground">Leads Novos</span>
@@ -104,6 +102,7 @@ export function PainelMetricas() {
           <p className="text-xs text-muted-foreground mt-1">Primeiro contato no período</p>
         </div>
 
+        {/* Conversas Totais */}
         <div className="rounded-lg border bg-card p-5 shadow-sm border-l-4 border-l-info">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-medium text-muted-foreground">Conversas Totais</span>
@@ -112,13 +111,11 @@ export function PainelMetricas() {
           <div className="text-3xl font-bold tracking-tight tabular-nums">
             {loading ? "..." : dados?.conversas.total ?? 0}
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {dados?.conversas.leads_existentes ?? 0} já existentes
-          </p>
+          <p className="text-xs text-muted-foreground mt-1">{dados?.conversas.leads_existentes ?? 0} já existentes</p>
         </div>
       </div>
 
-      {/* Especialidades + Mensagens totais */}
+      {/* Especialidades + Mensagens por dia */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Especialidades */}
         <div className="rounded-lg border bg-card p-5 shadow-sm">
@@ -132,7 +129,7 @@ export function PainelMetricas() {
             <div className="space-y-3">
               {dados.especialidades.map((esp) => {
                 const maxVal = dados.especialidades[0]?.total || 1;
-                const pct = (esp.total / maxVal) * 100;
+                const espPct = (esp.total / maxVal) * 100;
                 return (
                   <div key={esp.nome}>
                     <div className="flex items-center justify-between mb-1">
@@ -140,10 +137,7 @@ export function PainelMetricas() {
                       <span className="text-sm font-semibold tabular-nums">{esp.total}</span>
                     </div>
                     <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-primary/70 transition-all duration-500"
-                        style={{ width: `${pct}%` }}
-                      />
+                      <div className="h-full rounded-full bg-primary/70 transition-all duration-500" style={{ width: `${espPct}%` }} />
                     </div>
                   </div>
                 );
@@ -167,23 +161,17 @@ export function PainelMetricas() {
               {dados.por_dia.map((d) => {
                 const maxVal = Math.max(...dados.por_dia.map((x) => x.total), 1);
                 const pctIA = (d.maria_ia / maxVal) * 100;
-                const pctH = (d.humano / maxVal) * 100;
+                const pctMR = (d.maria_rita / maxVal) * 100;
+                const pctR = (d.rebeka / maxVal) * 100;
                 return (
                   <div key={d.dia} className="flex items-center gap-3">
                     <span className="text-xs text-muted-foreground w-[72px] shrink-0 tabular-nums">
                       {d.dia.slice(5).replace("-", "/")}
                     </span>
                     <div className="flex-1 flex h-5 rounded-full overflow-hidden bg-secondary">
-                      <div
-                        className="h-full bg-primary/70 transition-all duration-500"
-                        style={{ width: `${pctIA}%` }}
-                        title={`MarIA: ${d.maria_ia}`}
-                      />
-                      <div
-                        className="h-full bg-warning/70 transition-all duration-500"
-                        style={{ width: `${pctH}%` }}
-                        title={`Humano: ${d.humano}`}
-                      />
+                      <div className="h-full bg-primary/70 transition-all duration-500" style={{ width: `${pctIA}%` }} title={`MarIA: ${d.maria_ia}`} />
+                      <div className="h-full bg-warning/70 transition-all duration-500" style={{ width: `${pctMR}%` }} title={`Maria Rita: ${d.maria_rita}`} />
+                      <div className="h-full bg-accent transition-all duration-500" style={{ width: `${pctR}%` }} title={`Rebeka: ${d.rebeka}`} />
                     </div>
                     <span className="text-xs font-medium tabular-nums w-[40px] text-right">{d.total}</span>
                   </div>
@@ -196,7 +184,11 @@ export function PainelMetricas() {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="h-2.5 w-2.5 rounded-full bg-warning/70" />
-                  <span className="text-xs text-muted-foreground">Humano</span>
+                  <span className="text-xs text-muted-foreground">Maria Rita</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-2.5 w-2.5 rounded-full bg-accent" />
+                  <span className="text-xs text-muted-foreground">Rebeka</span>
                 </div>
               </div>
             </div>
