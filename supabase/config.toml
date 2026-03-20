@@ -104,3 +104,6 @@ verify_jwt = false
 
 [functions.extrair-conteudo-arquivo]
 verify_jwt = false
+
+[functions.metricas-painel]
+verify_jwt = false
