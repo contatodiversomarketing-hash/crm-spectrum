@@ -27,13 +27,6 @@ export function useMetricasPainel(dataInicio: string, dataFim: string) {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: fnErr } = await supabase.functions.invoke("metricas-painel", {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-        body: null,
-      });
-
-      // Edge function GET with query params not supported via invoke, use fetch
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/metricas-painel?data_inicio=${dataInicio}&data_fim=${dataFim}`;
       const session = (await supabase.auth.getSession()).data.session;
 
