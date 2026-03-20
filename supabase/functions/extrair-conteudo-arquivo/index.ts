@@ -100,12 +100,12 @@ serve(async (req) => {
     // --- SPREADSHEETS: parse locally with SheetJS, then summarize with AI ---
     if (isSpreadsheet(file_type, file_name)) {
       const buf = await fileResp.arrayBuffer();
-      const wb = read(new Uint8Array(buf), { type: "array" });
+      const wb = XLSX.read(new Uint8Array(buf), { type: "array" });
 
       let textContent = "";
       for (const name of wb.SheetNames) {
         const sheet = wb.Sheets[name];
-        const csv = utils.sheet_to_csv(sheet);
+        const csv = XLSX.utils.sheet_to_csv(sheet);
         textContent += `=== Aba: ${name} ===\n${csv}\n\n`;
       }
 
