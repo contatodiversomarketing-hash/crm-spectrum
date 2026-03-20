@@ -5,7 +5,9 @@ export interface MetricasPainel {
   periodo: { inicio: string; fim: string };
   atendimentos: {
     maria_ia: number;
-    humanos: number;
+    rebeka: number;
+    maria_rita: number;
+    outros_humanos: number;
     sem_resposta: number;
     total: number;
   };
@@ -15,7 +17,7 @@ export interface MetricasPainel {
     leads_existentes: number;
   };
   especialidades: Array<{ nome: string; total: number }>;
-  por_dia: Array<{ dia: string; maria_ia: number; humano: number; total: number }>;
+  por_dia: Array<{ dia: string; maria_ia: number; rebeka: number; maria_rita: number; outros_humanos: number; total: number }>;
 }
 
 export function useMetricasPainel(dataInicio: string, dataFim: string) {
@@ -30,7 +32,6 @@ export function useMetricasPainel(dataInicio: string, dataFim: string) {
       const { data, error: fnErr } = await supabase.functions.invoke("metricas-painel", {
         body: { data_inicio: dataInicio, data_fim: dataFim },
       });
-
       if (fnErr) throw fnErr;
       setDados(data);
     } catch (err) {

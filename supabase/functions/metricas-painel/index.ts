@@ -6,7 +6,12 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Mapa de profissionais/especialidades para classificação
+// Mapa consultor_id -> nome
+const CONSULTOR_MAP: Record<string, string> = {
+  "bc0e58c4-ac38-4dff-9f82-6fa1d22659c5": "Rebeka",
+  "ed25df52-ec5f-48cc-b1af-2f32d3b42a83": "Maria Rita",
+};
+
 const ESPECIALIDADES: Record<string, string[]> = {
   "Odontologia Geral": ["dalila", "isadora", "erika", "dentista", "limpeza", "restaura", "canal", "extra"],
   "Ortodontia": ["ortodont", "aparelho", "alinhador"],
@@ -18,11 +23,7 @@ const ESPECIALIDADES: Record<string, string[]> = {
 };
 
 function classificarEspecialidade(texto: string): string {
-  const lower = texto
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-
+  const lower = texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   for (const [esp, keywords] of Object.entries(ESPECIALIDADES)) {
     for (const kw of keywords) {
       if (lower.includes(kw)) return esp;
@@ -39,7 +40,7 @@ Deno.serve(async (req) => {
   try {
     let dataInicio: string;
     let dataFim: string;
-    
+
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       dataInicio = body.data_inicio || new Date().toISOString().split("T")[0];
@@ -55,30 +56,80 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const crmApiUrl = Deno.env.get("CRM_API_URL")!;
+    const crmApiToken = Deno.env.get("CRM_API_TOKEN")!;
     const sb = createClient(supabaseUrl, serviceKey);
 
-    // Buscar todas interações do período
+    // Buscar interações do período
     const { data: interacoes, error: errInt } = await sb
       .from("interacoes_ia")
-      .select("id, paciente_externo_id, mensagem_usuario, resposta_final, intencao_detectada, supervisionado, criado_em")
+      .select("id, paciente_externo_id, mensagem_usuario, resposta_final, intencao_detectada, supervisionado, criado_em, atendente_humano")
       .gte("criado_em", inicio)
       .lte("criado_em", fim)
       .order("criado_em", { ascending: false });
 
     if (errInt) throw errInt;
-
     const items = interacoes || [];
+
+    // Para interações supervisionadas sem atendente_humano, tentar buscar do CRM
+    const semAtendente = items.filter((i: any) => i.supervisionado && !i.atendente_humano);
+    const telefonesParaBuscar = [...new Set(semAtendente.map((i: any) => i.paciente_externo_id))];
+
+    // Buscar consultor_id do CRM para pacientes sem atendente mapeado
+    const consultorPorPaciente: Record<string, string> = {};
+
+    if (telefonesParaBuscar.length > 0) {
+      try {
+        const leadsRes = await fetch(`${crmApiUrl}api-leads`, {
+          headers: {
+            "Authorization": `Bearer ${crmApiToken}`,
+            "apikey": crmApiToken,
+          },
+        });
+        if (leadsRes.ok) {
+          const leadsData = await leadsRes.json();
+          const leadsList = Array.isArray(leadsData) ? leadsData : leadsData?.data || [];
+          for (const lead of leadsList) {
+            const tel = lead.telefone || lead.phone || "";
+            const consultorId = lead.consultor_id || lead.responsavel_id || "";
+            if (tel && consultorId && CONSULTOR_MAP[consultorId]) {
+              consultorPorPaciente[tel] = CONSULTOR_MAP[consultorId];
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[metricas-painel] Erro ao buscar CRM leads:", e);
+      }
+
+      // Atualizar interações sem atendente no banco (fire-and-forget)
+      for (const i of semAtendente) {
+        const nome = consultorPorPaciente[i.paciente_externo_id];
+        if (nome) {
+          sb.from("interacoes_ia").update({ atendente_humano: nome }).eq("id", i.id).then(() => {});
+          (i as any).atendente_humano = nome;
+        }
+      }
+    }
 
     // === ATENDIMENTOS POR ATENDENTE ===
     let mariaIA = 0;
-    let humanos = 0;
+    let rebekaCount = 0;
+    let mariaRitaCount = 0;
+    let outrosHumanos = 0;
     let semResposta = 0;
 
     for (const i of items) {
       if (i.resposta_final && !i.supervisionado) {
         mariaIA++;
       } else if (i.supervisionado) {
-        humanos++;
+        const atendente = (i as any).atendente_humano || consultorPorPaciente[i.paciente_externo_id] || "";
+        if (atendente.toLowerCase().includes("rebeka")) {
+          rebekaCount++;
+        } else if (atendente.toLowerCase().includes("maria")) {
+          mariaRitaCount++;
+        } else {
+          outrosHumanos++;
+        }
       } else {
         semResposta++;
       }
@@ -87,14 +138,11 @@ Deno.serve(async (req) => {
     // === CONVERSAS ÚNICAS ===
     const pacientesUnicos = new Set(items.map((i: any) => i.paciente_externo_id));
     const conversasTotal = pacientesUnicos.size;
-
-    // Pacientes que já tinham interação antes do período
     const pacientesArray = [...pacientesUnicos];
     let leadsNovos = 0;
     let leadsExistentes = 0;
 
     if (pacientesArray.length > 0) {
-      // Verificar quais pacientes já tinham interações antes do período
       const { data: anteriores } = await sb
         .from("interacoes_ia")
         .select("paciente_externo_id")
@@ -102,44 +150,39 @@ Deno.serve(async (req) => {
         .in("paciente_externo_id", pacientesArray.slice(0, 500));
 
       const jaExistiam = new Set((anteriores || []).map((a: any) => a.paciente_externo_id));
-
       for (const p of pacientesArray) {
-        if (jaExistiam.has(p)) {
-          leadsExistentes++;
-        } else {
-          leadsNovos++;
-        }
+        if (jaExistiam.has(p)) leadsExistentes++;
+        else leadsNovos++;
       }
     }
 
-    // === CLASSIFICAÇÃO POR ESPECIALIDADE ===
+    // === ESPECIALIDADES ===
     const espContagem: Record<string, number> = {};
-
     for (const i of items) {
       const texto = [i.mensagem_usuario || "", i.resposta_final || ""].join(" ");
       if (texto.trim().length < 5) continue;
       const esp = classificarEspecialidade(texto);
       espContagem[esp] = (espContagem[esp] || 0) + 1;
     }
-
-    // Ordenar por quantidade
     const especialidades = Object.entries(espContagem)
       .map(([nome, total]) => ({ nome, total }))
       .sort((a, b) => b.total - a.total);
 
-    // === CONVERSAS POR DIA (para gráfico) ===
-    const porDia: Record<string, { maria_ia: number; humano: number; total: number }> = {};
+    // === POR DIA ===
+    const porDia: Record<string, { maria_ia: number; rebeka: number; maria_rita: number; outros_humanos: number; total: number }> = {};
     for (const i of items) {
       const dia = i.criado_em.split("T")[0];
-      if (!porDia[dia]) porDia[dia] = { maria_ia: 0, humano: 0, total: 0 };
+      if (!porDia[dia]) porDia[dia] = { maria_ia: 0, rebeka: 0, maria_rita: 0, outros_humanos: 0, total: 0 };
       porDia[dia].total++;
       if (i.resposta_final && !i.supervisionado) {
         porDia[dia].maria_ia++;
       } else if (i.supervisionado) {
-        porDia[dia].humano++;
+        const atendente = (i as any).atendente_humano || consultorPorPaciente[i.paciente_externo_id] || "";
+        if (atendente.toLowerCase().includes("rebeka")) porDia[dia].rebeka++;
+        else if (atendente.toLowerCase().includes("maria")) porDia[dia].maria_rita++;
+        else porDia[dia].outros_humanos++;
       }
     }
-
     const porDiaArray = Object.entries(porDia)
       .map(([dia, v]) => ({ dia, ...v }))
       .sort((a, b) => a.dia.localeCompare(b.dia));
@@ -149,7 +192,9 @@ Deno.serve(async (req) => {
         periodo: { inicio: dataInicio, fim: dataFim },
         atendimentos: {
           maria_ia: mariaIA,
-          humanos,
+          rebeka: rebekaCount,
+          maria_rita: mariaRitaCount,
+          outros_humanos: outrosHumanos,
           sem_resposta: semResposta,
           total: items.length,
         },
