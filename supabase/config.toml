@@ -101,3 +101,6 @@ verify_jwt = false
 
 [functions.debug-gestao-api]
 verify_jwt = false
+
+[functions.extrair-conteudo-arquivo]
+verify_jwt = false
