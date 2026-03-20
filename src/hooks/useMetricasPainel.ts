@@ -27,19 +27,12 @@ export function useMetricasPainel(dataInicio: string, dataFim: string) {
     setLoading(true);
     setError(null);
     try {
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/metricas-painel?data_inicio=${dataInicio}&data_fim=${dataFim}`;
-      const session = (await supabase.auth.getSession()).data.session;
-
-      const res = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        },
+      const { data, error: fnErr } = await supabase.functions.invoke("metricas-painel", {
+        body: { data_inicio: dataInicio, data_fim: dataFim },
       });
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      setDados(json);
+      if (fnErr) throw fnErr;
+      setDados(data);
     } catch (err) {
       console.error("Erro ao buscar métricas:", err);
       setError(err instanceof Error ? err.message : "Erro desconhecido");
