@@ -5,6 +5,7 @@ import { SystemStatusBadge } from "@/components/SystemStatusBadge";
 import { RecentInteractions } from "@/components/RecentInteractions";
 import { AutomationQueue } from "@/components/AutomationQueue";
 import { ChannelToggles } from "@/components/ChannelToggles";
+import { PainelMetricas } from "@/components/PainelMetricas";
 import { useDadosIntegrados } from "@/hooks/useDadosIntegrados";
 
 const Index = () => {
