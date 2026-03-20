@@ -472,6 +472,7 @@ export type Database = {
       }
       interacoes_ia: {
         Row: {
+          atendente_humano: string | null
           canal: string
           clinica_id: string | null
           criado_em: string
@@ -486,6 +487,7 @@ export type Database = {
           supervisionado: boolean
         }
         Insert: {
+          atendente_humano?: string | null
           canal: string
           clinica_id?: string | null
           criado_em?: string
@@ -500,6 +502,7 @@ export type Database = {
           supervisionado?: boolean
         }
         Update: {
+          atendente_humano?: string | null
           canal?: string
           clinica_id?: string | null
           criado_em?: string
