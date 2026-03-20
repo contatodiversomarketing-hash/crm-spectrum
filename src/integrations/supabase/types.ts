@@ -888,6 +888,10 @@ export type Database = {
       }
       treinamento_ia: {
         Row: {
+          anexo_conteudo_extraido: string | null
+          anexo_nome: string | null
+          anexo_tipo: string | null
+          anexo_url: string | null
           ativo: boolean
           atualizado_em: string
           canal: string
@@ -899,6 +903,10 @@ export type Database = {
           titulo: string
         }
         Insert: {
+          anexo_conteudo_extraido?: string | null
+          anexo_nome?: string | null
+          anexo_tipo?: string | null
+          anexo_url?: string | null
           ativo?: boolean
           atualizado_em?: string
           canal?: string
@@ -910,6 +918,10 @@ export type Database = {
           titulo: string
         }
         Update: {
+          anexo_conteudo_extraido?: string | null
+          anexo_nome?: string | null
+          anexo_tipo?: string | null
+          anexo_url?: string | null
           ativo?: boolean
           atualizado_em?: string
           canal?: string
