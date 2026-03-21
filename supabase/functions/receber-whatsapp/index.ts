@@ -229,7 +229,59 @@ async function processarMensagemFromMe(supabase: any, numero: string, texto: str
     return;
   }
 
-  await registrarBloqueioHumano(supabase, numero, `atendente_humano:${texto.slice(0, 200)}`);
+  // Identificar atendente humano via CRM consultor_id
+  const CONSULTOR_MAP: Record<string, string> = {
+    "bc0e58c4-ac38-4dff-9f82-6fa1d22659c5": "Rebeka",
+    "ed25df52-ec5f-48cc-b1af-2f32d3b42a83": "Maria Rita",
+  };
+
+  let nomeAtendente = "";
+  try {
+    const crmUrl = Deno.env.get("CRM_API_URL");
+    const crmToken = Deno.env.get("CRM_API_TOKEN");
+    if (crmUrl && crmToken) {
+      // Buscar nas últimas 2 páginas de leads
+      for (let page = 1; page <= 3; page++) {
+        const res = await fetch(`${crmUrl}api-leads?limit=500&page=${page}&periodo_dias=90`, {
+          headers: { "Authorization": `Bearer ${crmToken}`, "apikey": crmToken },
+        });
+        if (!res.ok) break;
+        const data = await res.json();
+        const leads = data?.leads || [];
+        const normalize = (t: string) => (t || "").replace(/\D/g, "");
+        for (const lead of leads) {
+          const tel = normalize(lead.telefone || "");
+          const consultorId = lead.consultor_id || "";
+          // Comparar com e sem prefixo 55
+          if (tel === numero || `55${tel}` === numero || tel === numero.replace(/^55/, "")) {
+            if (CONSULTOR_MAP[consultorId]) {
+              nomeAtendente = CONSULTOR_MAP[consultorId];
+              break;
+            }
+          }
+        }
+        if (nomeAtendente) break;
+        if (page >= (data?.paginacao?.total_pages || 1)) break;
+      }
+    }
+  } catch (e) {
+    console.warn("[whatsapp] Erro ao buscar consultor do CRM:", e);
+  }
+
+  // Marcar interações recentes desse paciente como supervisionadas com atendente
+  if (nomeAtendente) {
+    const fiveMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    await supabase
+      .from("interacoes_ia")
+      .update({ atendente_humano: nomeAtendente })
+      .eq("paciente_externo_id", numero)
+      .eq("supervisionado", true)
+      .is("atendente_humano", null)
+      .gte("criado_em", fiveMinAgo);
+    console.log(`[whatsapp] 🤝 Atendente ${nomeAtendente} identificado para ${numero}`);
+  }
+
+  await registrarBloqueioHumano(supabase, numero, `atendente_humano:${nomeAtendente || "desconhecido"}:${texto.slice(0, 200)}`);
   console.log(`[whatsapp] 🤝 Atendimento humano detectado para ${numero}; Maria ficará silenciada por ${HUMAN_HANDOFF_MINUTES} min`);
 }
 
