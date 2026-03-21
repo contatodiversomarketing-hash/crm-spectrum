@@ -80,44 +80,78 @@ Deno.serve(async (req) => {
 
     if (telefonesParaBuscar.length > 0) {
       try {
-        const leadsRes = await fetch(`${crmApiUrl}api-leads`, {
-          headers: {
-            "Authorization": `Bearer ${crmApiToken}`,
-            "apikey": crmApiToken,
-          },
-        });
-        if (leadsRes.ok) {
-          const leadsData = await leadsRes.json();
-          const leadsList = Array.isArray(leadsData) ? leadsData : leadsData?.data || [];
-          console.log(`[metricas-painel] CRM retornou ${leadsList.length} leads`);
-          
-          // Normalizar telefone: remover tudo que não é dígito
-          const normalize = (t: string) => (t || "").replace(/\D/g, "");
-          
-          for (const lead of leadsList) {
-            const telRaw = lead.telefone || lead.phone || lead.celular || "";
-            const consultorId = lead.consultor_id || lead.responsavel_id || "";
-            const tel = normalize(telRaw);
-            if (tel && consultorId && CONSULTOR_MAP[consultorId]) {
-              // Mapear tanto com quanto sem prefixo 55
-              consultorPorPaciente[tel] = CONSULTOR_MAP[consultorId];
-              if (tel.startsWith("55")) {
-                consultorPorPaciente[tel.slice(2)] = CONSULTOR_MAP[consultorId];
-              } else {
-                consultorPorPaciente["55" + tel] = CONSULTOR_MAP[consultorId];
+        // Tentar api-leads primeiro, depois api-conversoes
+        let leadsList: any[] = [];
+        
+        for (const endpoint of ["api-leads", "api-conversoes"]) {
+          try {
+            const res = await fetch(`${crmApiUrl}${endpoint}`, {
+              headers: {
+                "Authorization": `Bearer ${crmApiToken}`,
+                "apikey": crmApiToken,
+              },
+            });
+            if (res.ok) {
+              const data = await res.json();
+              const list = Array.isArray(data) ? data : data?.data || [];
+              console.log(`[metricas-painel] ${endpoint} retornou ${list.length} registros`);
+              if (list.length > 0) {
+                leadsList = [...leadsList, ...list];
               }
+            } else {
+              console.warn(`[metricas-painel] ${endpoint} status ${res.status}`);
+            }
+          } catch (e) {
+            console.warn(`[metricas-painel] Erro ${endpoint}:`, e);
+          }
+        }
+        
+        // Também buscar individualmente via paciente-por-telefone para os que faltam
+        const normalize = (t: string) => (t || "").replace(/\D/g, "");
+        
+        for (const lead of leadsList) {
+          const telRaw = lead.telefone || lead.phone || lead.celular || "";
+          const consultorId = lead.consultor_id || lead.responsavel_id || "";
+          const tel = normalize(telRaw);
+          if (tel && consultorId && CONSULTOR_MAP[consultorId]) {
+            consultorPorPaciente[tel] = CONSULTOR_MAP[consultorId];
+            if (tel.startsWith("55")) {
+              consultorPorPaciente[tel.slice(2)] = CONSULTOR_MAP[consultorId];
+            } else {
+              consultorPorPaciente["55" + tel] = CONSULTOR_MAP[consultorId];
             }
           }
-          console.log(`[metricas-painel] Mapeados ${Object.keys(consultorPorPaciente).length} telefones para consultores`);
-          
-          // Log sample para debug
-          if (telefonesParaBuscar.length > 0) {
-            const sample = telefonesParaBuscar[0];
-            const matched = consultorPorPaciente[sample];
-            console.log(`[metricas-painel] Amostra: tel=${sample} -> consultor=${matched || "NÃO ENCONTRADO"}`);
+        }
+        
+        console.log(`[metricas-painel] Mapeados ${Object.keys(consultorPorPaciente).length} telefones`);
+
+        // Se ainda faltam muitos, buscar por telefone individualmente (max 15)
+        const stillMissing = telefonesParaBuscar.filter(t => !consultorPorPaciente[t]).slice(0, 15);
+        if (stillMissing.length > 0) {
+          console.log(`[metricas-painel] Buscando ${stillMissing.length} pacientes individualmente`);
+          for (const tel of stillMissing) {
+            try {
+              const res = await fetch(`${crmApiUrl}paciente-por-telefone`, {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${crmApiToken}`,
+                  "apikey": crmApiToken,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ telefone: tel }),
+              });
+              if (res.ok) {
+                const data = await res.json();
+                const consultorId = data?.consultor_id || data?.responsavel_id || "";
+                if (consultorId && CONSULTOR_MAP[consultorId]) {
+                  consultorPorPaciente[tel] = CONSULTOR_MAP[consultorId];
+                  console.log(`[metricas-painel] ${tel} -> ${CONSULTOR_MAP[consultorId]}`);
+                } else if (consultorId) {
+                  console.log(`[metricas-painel] ${tel} consultor_id=${consultorId} (não mapeado)`);
+                }
+              }
+            } catch (_) {}
           }
-        } else {
-          console.warn(`[metricas-painel] CRM status ${leadsRes.status}`);
         }
       } catch (e) {
         console.warn("[metricas-painel] Erro ao buscar CRM leads:", e);
