@@ -89,13 +89,35 @@ Deno.serve(async (req) => {
         if (leadsRes.ok) {
           const leadsData = await leadsRes.json();
           const leadsList = Array.isArray(leadsData) ? leadsData : leadsData?.data || [];
+          console.log(`[metricas-painel] CRM retornou ${leadsList.length} leads`);
+          
+          // Normalizar telefone: remover tudo que não é dígito
+          const normalize = (t: string) => (t || "").replace(/\D/g, "");
+          
           for (const lead of leadsList) {
-            const tel = lead.telefone || lead.phone || "";
+            const telRaw = lead.telefone || lead.phone || lead.celular || "";
             const consultorId = lead.consultor_id || lead.responsavel_id || "";
+            const tel = normalize(telRaw);
             if (tel && consultorId && CONSULTOR_MAP[consultorId]) {
+              // Mapear tanto com quanto sem prefixo 55
               consultorPorPaciente[tel] = CONSULTOR_MAP[consultorId];
+              if (tel.startsWith("55")) {
+                consultorPorPaciente[tel.slice(2)] = CONSULTOR_MAP[consultorId];
+              } else {
+                consultorPorPaciente["55" + tel] = CONSULTOR_MAP[consultorId];
+              }
             }
           }
+          console.log(`[metricas-painel] Mapeados ${Object.keys(consultorPorPaciente).length} telefones para consultores`);
+          
+          // Log sample para debug
+          if (telefonesParaBuscar.length > 0) {
+            const sample = telefonesParaBuscar[0];
+            const matched = consultorPorPaciente[sample];
+            console.log(`[metricas-painel] Amostra: tel=${sample} -> consultor=${matched || "NÃO ENCONTRADO"}`);
+          }
+        } else {
+          console.warn(`[metricas-painel] CRM status ${leadsRes.status}`);
         }
       } catch (e) {
         console.warn("[metricas-painel] Erro ao buscar CRM leads:", e);
