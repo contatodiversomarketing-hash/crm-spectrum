@@ -56,8 +56,8 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const crmApiUrl = Deno.env.get("CRM_API_URL")!;
-    const crmApiToken = Deno.env.get("CRM_API_TOKEN")!;
+    const crmApiUrl = Deno.env.get("CRM_API_URL") || "";
+    const crmApiToken = Deno.env.get("CRM_API_TOKEN") || "";
     const sb = createClient(supabaseUrl, serviceKey);
 
     // Buscar interações do período
@@ -74,40 +74,47 @@ Deno.serve(async (req) => {
     // Para interações supervisionadas sem atendente_humano, tentar buscar do CRM
     const semAtendente = items.filter((i: any) => i.supervisionado && !i.atendente_humano);
     const telefonesParaBuscar = [...new Set(semAtendente.map((i: any) => i.paciente_externo_id))];
-
-    // Buscar consultor_id do CRM para pacientes sem atendente mapeado
     const consultorPorPaciente: Record<string, string> = {};
 
-    if (telefonesParaBuscar.length > 0) {
+    if (telefonesParaBuscar.length > 0 && crmApiUrl && crmApiToken) {
       try {
-        const leadsRes = await fetch(`${crmApiUrl}api-leads`, {
-          headers: {
-            "Authorization": `Bearer ${crmApiToken}`,
-            "apikey": crmApiToken,
-          },
-        });
-        if (leadsRes.ok) {
-          const leadsData = await leadsRes.json();
-          const leadsList = Array.isArray(leadsData) ? leadsData : leadsData?.data || [];
-          for (const lead of leadsList) {
-            const tel = lead.telefone || lead.phone || "";
-            const consultorId = lead.consultor_id || lead.responsavel_id || "";
-            if (tel && consultorId && CONSULTOR_MAP[consultorId]) {
-              consultorPorPaciente[tel] = CONSULTOR_MAP[consultorId];
-            }
+        const normalize = (t: string) => (t || "").replace(/\D/g, "");
+        let allLeads: any[] = [];
+        let page = 1;
+        
+        while (page <= 10) {
+          const res = await fetch(`${crmApiUrl}api-leads?limit=500&page=${page}&periodo_dias=365`, {
+            headers: { "Authorization": `Bearer ${crmApiToken}`, "apikey": crmApiToken },
+          });
+          if (!res.ok) break;
+          const data = await res.json();
+          const leads = data?.leads || [];
+          if (leads.length === 0) break;
+          allLeads = [...allLeads, ...leads];
+          if (page >= (data?.paginacao?.total_pages || 1)) break;
+          page++;
+        }
+        
+        for (const lead of allLeads) {
+          const tel = normalize(lead.telefone || "");
+          const consultorId = lead.consultor_id || "";
+          if (tel && consultorId && CONSULTOR_MAP[consultorId]) {
+            consultorPorPaciente[tel] = CONSULTOR_MAP[consultorId];
+            consultorPorPaciente["55" + tel] = CONSULTOR_MAP[consultorId];
+            if (tel.startsWith("55")) consultorPorPaciente[tel.slice(2)] = CONSULTOR_MAP[consultorId];
+          }
+        }
+
+        // Atualizar interações sem atendente no banco
+        for (const i of semAtendente) {
+          const nome = consultorPorPaciente[i.paciente_externo_id];
+          if (nome) {
+            sb.from("interacoes_ia").update({ atendente_humano: nome }).eq("id", i.id).then(() => {});
+            (i as any).atendente_humano = nome;
           }
         }
       } catch (e) {
-        console.warn("[metricas-painel] Erro ao buscar CRM leads:", e);
-      }
-
-      // Atualizar interações sem atendente no banco (fire-and-forget)
-      for (const i of semAtendente) {
-        const nome = consultorPorPaciente[i.paciente_externo_id];
-        if (nome) {
-          sb.from("interacoes_ia").update({ atendente_humano: nome }).eq("id", i.id).then(() => {});
-          (i as any).atendente_humano = nome;
-        }
+        console.warn("[metricas-painel] Erro CRM:", e);
       }
     }
 
