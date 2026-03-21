@@ -10,54 +10,54 @@ Deno.serve(async (req) => {
 
   const crmUrl = Deno.env.get("CRM_API_URL")!;
   const crmToken = Deno.env.get("CRM_API_TOKEN")!;
-  const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-  // Get distinct supervised patient phones from yesterday
-  const { data: supervised } = await sb
-    .from("interacoes_ia")
-    .select("paciente_externo_id")
-    .eq("supervisionado", true)
-    .gte("criado_em", "2026-03-20T00:00:00Z")
-    .lte("criado_em", "2026-03-20T23:59:59Z");
-
-  const phones = [...new Set((supervised || []).map((s: any) => s.paciente_externo_id))];
-
-  // Get CRM leads
-  const res = await fetch(`${crmUrl}api-leads?limit=500`, {
-    headers: { "Authorization": `Bearer ${crmToken}`, "apikey": crmToken },
-  });
-  const data = await res.json();
-  const leads = data?.leads || [];
-
+  // Try with bigger periodo and all pages
   const normalize = (t: string) => (t || "").replace(/\D/g, "");
+  const allPhones: Record<string, string> = {};
+  let totalLeads = 0;
   
-  // Build CRM phone map
-  const crmPhones: Record<string, { consultor_id: string; raw: string }> = {};
-  for (const lead of leads) {
-    const raw = lead.telefone || "";
-    const tel = normalize(raw);
-    crmPhones[tel] = { consultor_id: lead.consultor_id, raw };
-    crmPhones["55" + tel] = { consultor_id: lead.consultor_id, raw };
-  }
-
-  // Try to match
-  const matches: any[] = [];
-  const noMatch: string[] = [];
-  for (const phone of phones.slice(0, 20)) {
-    if (crmPhones[phone]) {
-      matches.push({ phone, ...crmPhones[phone] });
-    } else {
-      noMatch.push(phone);
+  for (const periodo of [365]) {
+    let page = 1;
+    while (page <= 20) {
+      const res = await fetch(`${crmUrl}api-leads?limit=500&page=${page}&periodo_dias=${periodo}`, {
+        headers: { "Authorization": `Bearer ${crmToken}`, "apikey": crmToken },
+      });
+      if (!res.ok) break;
+      const data = await res.json();
+      const leads = data?.leads || [];
+      if (leads.length === 0) break;
+      totalLeads += leads.length;
+      for (const lead of leads) {
+        const tel = normalize(lead.telefone || "");
+        if (tel) {
+          allPhones[tel] = lead.consultor_id || "";
+          allPhones["55" + tel] = lead.consultor_id || "";
+        }
+      }
+      if (page >= (data?.paginacao?.total_pages || 1)) break;
+      page++;
     }
   }
 
+  // Sample supervised phones
+  const targetPhones = [
+    "553288101295", "553299119976", "553285174138", 
+    "553298100752", "553288566397", "553284568857"
+  ];
+
+  const results: Record<string, any> = {};
+  for (const p of targetPhones) {
+    results[p] = {
+      direct: allPhones[p] || null,
+      without55: allPhones[p.slice(2)] || null,
+    };
+  }
+
   return new Response(JSON.stringify({
-    supervised_phones_sample: phones.slice(0, 10),
-    crm_phones_sample: Object.keys(crmPhones).slice(0, 10),
-    total_supervised_unique: phones.length,
-    total_crm_leads: leads.length,
-    matches,
-    no_match: noMatch,
+    total_leads: totalLeads,
+    total_phones_mapped: Object.keys(allPhones).length,
+    phone_samples: Object.entries(allPhones).slice(0, 5),
+    target_results: results,
   }, null, 2), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
