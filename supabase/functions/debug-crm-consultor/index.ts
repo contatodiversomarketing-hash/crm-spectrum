@@ -9,50 +9,42 @@ Deno.serve(async (req) => {
   const crmUrl = Deno.env.get("CRM_API_URL")!;
   const crmToken = Deno.env.get("CRM_API_TOKEN")!;
 
-  const body = await req.json().catch(() => ({}));
-  const telefone = body.telefone || "553588633398";
-
   const results: Record<string, unknown> = {};
 
-  // Test 1: paciente-por-telefone
-  try {
-    const r = await fetch(`${crmUrl}paciente-por-telefone`, {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${crmToken}`, "apikey": crmToken, "Content-Type": "application/json" },
-      body: JSON.stringify({ telefone }),
-    });
-    results["paciente-por-telefone"] = { status: r.status, data: await r.json().catch(() => r.text()) };
-  } catch (e) { results["paciente-por-telefone"] = { error: String(e) }; }
+  // Test api-leads with different params
+  for (const params of ["", "?periodo_dias=30", "?periodo_dias=90", "?limit=100"]) {
+    try {
+      const r = await fetch(`${crmUrl}api-leads${params}`, {
+        headers: { "Authorization": `Bearer ${crmToken}`, "apikey": crmToken },
+      });
+      const data = await r.json().catch(() => null);
+      const leads = data?.leads || [];
+      results[`api-leads${params || "(no params)"}`] = {
+        status: r.status,
+        resumo: data?.resumo,
+        paginacao: data?.paginacao,
+        leads_count: leads.length,
+        sample: leads.slice(0, 1),
+        keys: data ? Object.keys(data) : [],
+      };
+    } catch (e) { results[`api-leads${params}`] = { error: String(e) }; }
+  }
 
-  // Test 2: api-leads (check what comes back)
+  // Test api-conversoes with params
   try {
-    const r = await fetch(`${crmUrl}api-leads`, {
+    const r = await fetch(`${crmUrl}api-conversoes?periodo_dias=30`, {
       headers: { "Authorization": `Bearer ${crmToken}`, "apikey": crmToken },
     });
     const data = await r.json().catch(() => null);
-    const list = Array.isArray(data) ? data : data?.data || [];
-    results["api-leads"] = { status: r.status, count: list.length, sample: list.slice(0, 2), raw_keys: data ? Object.keys(data) : [] };
-  } catch (e) { results["api-leads"] = { error: String(e) }; }
-
-  // Test 3: api-conversoes
-  try {
-    const r = await fetch(`${crmUrl}api-conversoes`, {
-      headers: { "Authorization": `Bearer ${crmToken}`, "apikey": crmToken },
-    });
-    const data = await r.json().catch(() => null);
-    const list = Array.isArray(data) ? data : data?.data || [];
-    results["api-conversoes"] = { status: r.status, count: list.length, sample: list.slice(0, 2), raw_keys: data ? Object.keys(data) : [] };
+    const opps = data?.oportunidades || [];
+    results["api-conversoes?periodo_dias=30"] = {
+      status: r.status,
+      funil: data?.funil,
+      oportunidades_count: opps.length,
+      sample: opps.slice(0, 1),
+      conversoes_por_servico: data?.conversoes_por_servico,
+    };
   } catch (e) { results["api-conversoes"] = { error: String(e) }; }
-
-  // Test 4: api-pipeline
-  try {
-    const r = await fetch(`${crmUrl}api-pipeline`, {
-      headers: { "Authorization": `Bearer ${crmToken}`, "apikey": crmToken },
-    });
-    const data = await r.json().catch(() => null);
-    const list = Array.isArray(data) ? data : data?.data || [];
-    results["api-pipeline"] = { status: r.status, count: list.length, sample: list.slice(0, 2), raw_keys: data ? Object.keys(data) : [] };
-  } catch (e) { results["api-pipeline"] = { error: String(e) }; }
 
   return new Response(JSON.stringify(results, null, 2), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
