@@ -141,16 +141,26 @@ Deno.serve(async (req) => {
     }
 
     // === ATENDIMENTOS POR CONVERSA ÚNICA (não por mensagem) ===
-    // Agrupar por paciente_externo_id e classificar quem atendeu cada conversa
-    const conversasPorPaciente: Record<string, { ia: number; humano: string | null }> = {};
+    // Conta atendimento humano apenas quando houve resposta humana real.
+    const conversasPorPaciente: Record<string, {
+      ia: boolean;
+      respostaHumana: boolean;
+      humano: string | null;
+    }> = {};
+
     for (const i of items) {
       const pid = i.paciente_externo_id;
       if (!conversasPorPaciente[pid]) {
-        conversasPorPaciente[pid] = { ia: 0, humano: null };
+        conversasPorPaciente[pid] = { ia: false, respostaHumana: false, humano: null };
       }
+
       if (i.resposta_final && !i.supervisionado) {
-        conversasPorPaciente[pid].ia++;
-      } else if (i.supervisionado) {
+        conversasPorPaciente[pid].ia = true;
+      }
+
+      const teveRespostaHumana = i.supervisionado && i.intencao_detectada === "resposta_humana" && !!i.resposta_final;
+      if (teveRespostaHumana) {
+        conversasPorPaciente[pid].respostaHumana = true;
         const digits = extractDigits(pid);
         const atendente = (i as any).atendente_humano || consultorPorTelefone[digits] || "";
         if (atendente && atendente !== "Humano") {
@@ -163,19 +173,22 @@ Deno.serve(async (req) => {
     let rebekaCount = 0;
     let mariaRitaCount = 0;
     let outrosHumanos = 0;
+    let semResposta = 0;
 
-    for (const [_, conv] of Object.entries(conversasPorPaciente)) {
-      // Se teve atendimento humano, conta como humano (prioridade)
-      if (conv.humano) {
-        const nome = conv.humano.toLowerCase();
-        if (nome.includes("rebeka")) rebekaCount++;
-        else if (nome.includes("maria")) mariaRitaCount++;
-        else outrosHumanos++;
-      } else if (conv.ia > 0) {
+    for (const conv of Object.values(conversasPorPaciente)) {
+      if (conv.respostaHumana) {
+        if (conv.humano) {
+          const nome = conv.humano.toLowerCase();
+          if (nome.includes("rebeka")) rebekaCount++;
+          else if (nome.includes("maria")) mariaRitaCount++;
+          else outrosHumanos++;
+        } else {
+          outrosHumanos++;
+        }
+      } else if (conv.ia) {
         mariaIA++;
       } else {
-        // Conversa supervisionada sem atendente identificado
-        outrosHumanos++;
+        semResposta++;
       }
     }
 
