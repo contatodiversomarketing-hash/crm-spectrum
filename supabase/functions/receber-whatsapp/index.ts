@@ -240,25 +240,57 @@ async function processarMensagemFromMe(supabase: any, numero: string, texto: str
     const crmUrl = Deno.env.get("CRM_API_URL");
     const crmToken = Deno.env.get("CRM_API_TOKEN");
     if (crmUrl && crmToken) {
-      // Buscar nas últimas 2 páginas de leads
+      const normalize = (t: string) => (t || "").replace(/\D/g, "");
+      const numNorm = normalize(numero);
+      // Gerar variações do número para comparação
+      const numVariations = new Set([numNorm]);
+      if (numNorm.startsWith("55")) {
+        numVariations.add(numNorm.slice(2)); // sem DDI
+        // sem 9o dígito (formato 55 + DDD(2) + 8 dígitos)
+        const semDDI = numNorm.slice(2);
+        if (semDDI.length === 11 && semDDI[2] === "9") {
+          numVariations.add(semDDI.slice(0, 2) + semDDI.slice(3)); // DDD + 8 dígitos
+          numVariations.add("55" + semDDI.slice(0, 2) + semDDI.slice(3)); // 55 + DDD + 8 dígitos
+        }
+      } else if (numNorm.length === 11 && numNorm[2] === "9") {
+        numVariations.add("55" + numNorm);
+        numVariations.add(numNorm.slice(0, 2) + numNorm.slice(3));
+        numVariations.add("55" + numNorm.slice(0, 2) + numNorm.slice(3));
+      }
+
       for (let page = 1; page <= 3; page++) {
-        const res = await fetch(`${crmUrl}api-leads?limit=500&page=${page}&periodo_dias=90`, {
+        const res = await fetch(`${crmUrl}api-leads?limit=500&page=${page}&periodo_dias=365`, {
           headers: { "Authorization": `Bearer ${crmToken}`, "apikey": crmToken },
         });
         if (!res.ok) break;
         const data = await res.json();
         const leads = data?.leads || [];
-        const normalize = (t: string) => (t || "").replace(/\D/g, "");
         for (const lead of leads) {
           const tel = normalize(lead.telefone || "");
+          if (!tel) continue;
           const consultorId = lead.consultor_id || "";
-          // Comparar com e sem prefixo 55
-          if (tel === numero || `55${tel}` === numero || tel === numero.replace(/^55/, "")) {
-            if (CONSULTOR_MAP[consultorId]) {
-              nomeAtendente = CONSULTOR_MAP[consultorId];
+          // Gerar variações do telefone do CRM também
+          const telVariations = new Set([tel]);
+          if (tel.startsWith("55")) {
+            telVariations.add(tel.slice(2));
+            const semDDI = tel.slice(2);
+            if (semDDI.length === 11 && semDDI[2] === "9") {
+              telVariations.add(semDDI.slice(0, 2) + semDDI.slice(3));
+            }
+          } else if (tel.length === 11 && tel[2] === "9") {
+            telVariations.add("55" + tel);
+            telVariations.add(tel.slice(0, 2) + tel.slice(3));
+          }
+          // Verificar interseção
+          for (const v of numVariations) {
+            if (telVariations.has(v)) {
+              if (CONSULTOR_MAP[consultorId]) {
+                nomeAtendente = CONSULTOR_MAP[consultorId];
+              }
               break;
             }
           }
+          if (nomeAtendente) break;
         }
         if (nomeAtendente) break;
         if (page >= (data?.paginacao?.total_pages || 1)) break;
@@ -268,16 +300,31 @@ async function processarMensagemFromMe(supabase: any, numero: string, texto: str
     console.warn("[whatsapp] Erro ao buscar consultor do CRM:", e);
   }
 
+  // Salvar resposta humana como interação no banco
+  const textoHumano = texto.slice(0, 5000);
+  await supabase.from("interacoes_ia").insert({
+    paciente_externo_id: numero,
+    sistema_origem: "megaapi",
+    canal: "whatsapp",
+    mensagem_usuario: null,
+    resposta_final: textoHumano,
+    supervisionado: true,
+    atendente_humano: nomeAtendente || "Humano",
+    intencao_detectada: "resposta_humana",
+    estado_conversa: "handoff_humano",
+  });
+  console.log(`[whatsapp] 💬 Resposta humana salva: "${textoHumano.slice(0, 50)}..." por ${nomeAtendente || "Humano"}`);
+
   // Marcar interações recentes desse paciente como supervisionadas com atendente
   if (nomeAtendente) {
-    const fiveMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
     await supabase
       .from("interacoes_ia")
       .update({ atendente_humano: nomeAtendente })
       .eq("paciente_externo_id", numero)
       .eq("supervisionado", true)
       .is("atendente_humano", null)
-      .gte("criado_em", fiveMinAgo);
+      .gte("criado_em", thirtyMinAgo);
     console.log(`[whatsapp] 🤝 Atendente ${nomeAtendente} identificado para ${numero}`);
   }
 
