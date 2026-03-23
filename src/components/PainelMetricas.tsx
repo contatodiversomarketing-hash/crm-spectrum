@@ -50,7 +50,7 @@ export function PainelMetricas() {
       )}
 
       {/* Cards de atendimento - agora com Maria Rita e Rebeka separadas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
         {/* MarIA (IA) */}
         <div className="rounded-lg border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between mb-3">
@@ -88,6 +88,19 @@ export function PainelMetricas() {
           </div>
           <p className="text-xs text-muted-foreground mt-1">{pct(dados?.atendimentos.rebeka ?? 0).toFixed(0)}% dos atendimentos</p>
           <Progress value={pct(dados?.atendimentos.rebeka ?? 0)} className="mt-2 h-1.5" />
+        </div>
+
+        {/* Outros Humanos */}
+        <div className="rounded-lg border bg-card p-5 shadow-sm border-l-4 border-l-muted-foreground">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium text-muted-foreground">Outros Humanos</span>
+            <Users className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div className="text-3xl font-bold tracking-tight tabular-nums">
+            {loading ? "..." : dados?.atendimentos.outros_humanos ?? 0}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">{pct(dados?.atendimentos.outros_humanos ?? 0).toFixed(0)}% dos atendimentos</p>
+          <Progress value={pct(dados?.atendimentos.outros_humanos ?? 0)} className="mt-2 h-1.5" />
         </div>
 
         {/* Leads Novos */}
