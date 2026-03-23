@@ -250,6 +250,18 @@ async function processarMensagemFromMe(supabase: any, numero: string, texto: str
     console.log(`[whatsapp] ✅ Atendente identificado via participant: ${nomeAtendente} (${participantNumber})`);
   }
 
+  // 1b. Tentar identificar via pushName (nome do contato no WhatsApp)
+  if (!nomeAtendente && pushName) {
+    const pushLower = pushName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (pushLower.includes("rebeka")) {
+      nomeAtendente = "Rebeka";
+      console.log(`[whatsapp] ✅ Atendente identificado via pushName: Rebeka ("${pushName}")`);
+    } else if (pushLower.includes("maria rita")) {
+      nomeAtendente = "Maria Rita";
+      console.log(`[whatsapp] ✅ Atendente identificado via pushName: Maria Rita ("${pushName}")`);
+    }
+  }
+
   // 2. Se não identificou via participant, tentar via CRM
   if (!nomeAtendente) {
     try {
