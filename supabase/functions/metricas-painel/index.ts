@@ -74,8 +74,8 @@ Deno.serve(async (req) => {
     // Helper: extrair apenas dígitos de paciente_externo_id
     const extractDigits = (pid: string) => (pid || "").replace(/\D/g, "");
 
-    // Para interações supervisionadas sem atendente_humano, tentar buscar do CRM
-    const semAtendente = items.filter((i: any) => i.supervisionado && !i.atendente_humano);
+    // Para interações supervisionadas sem atendente identificado (null ou genérico "Humano"), tentar buscar do CRM
+    const semAtendente = items.filter((i: any) => i.supervisionado && (!i.atendente_humano || i.atendente_humano === "Humano"));
     const telefonesParaBuscar = [...new Set(semAtendente.map((i: any) => extractDigits(i.paciente_externo_id)))];
     const consultorPorTelefone: Record<string, string> = {};
 
@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
       } else if (i.supervisionado) {
         const digits = extractDigits(pid);
         const atendente = (i as any).atendente_humano || consultorPorTelefone[digits] || "";
-        if (atendente) {
+        if (atendente && atendente !== "Humano") {
           conversasPorPaciente[pid].humano = atendente;
         }
       }
@@ -226,7 +226,7 @@ Deno.serve(async (req) => {
       } else if (i.supervisionado) {
         const digits = extractDigits(pid);
         const atendente = (i as any).atendente_humano || consultorPorTelefone[digits] || "";
-        if (atendente) convPorDia[dia][pid].humano = atendente;
+        if (atendente && atendente !== "Humano") convPorDia[dia][pid].humano = atendente;
       }
     }
     for (const [dia, convs] of Object.entries(convPorDia)) {
