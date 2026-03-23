@@ -1639,11 +1639,11 @@ serve(async (req) => {
     }
 
     if (isFromMe) {
-      // Extrair participant (identifica quem está digitando na conta business)
       const participant = body.key?.participant || body.key?.participantPn || body.data?.key?.participant || "";
       const participantNumber = participant.replace("@s.whatsapp.net", "").replace("@lid", "").replace(/\D/g, "").trim();
-      console.log(`[whatsapp] 📤 fromMe detectado para ${numero} | participant=${participant} | participantNumber=${participantNumber} | lid=${body.lid || ""} | pushName=${body.pushName || ""}`);
-      await processarMensagemFromMe(supabase, numero, mensagemTexto || mensagem, participantNumber || undefined);
+      const pushName = body.pushName || "";
+      console.log(`[whatsapp] 📤 fromMe: paciente=${numero} participant=${participant} pushName="${pushName}" lid=${body.lid || ""} key=${JSON.stringify(body.key || {})}`);
+      await processarMensagemFromMe(supabase, numero, mensagemTexto || mensagem, participantNumber || undefined, pushName || undefined);
       return new Response("ok");
     }
 
