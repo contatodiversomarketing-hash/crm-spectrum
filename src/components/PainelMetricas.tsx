@@ -50,7 +50,7 @@ export function PainelMetricas() {
       )}
 
       {/* Cards de atendimento - agora com Maria Rita e Rebeka separadas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
         {/* MarIA (IA) */}
         <div className="rounded-lg border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between mb-3">
