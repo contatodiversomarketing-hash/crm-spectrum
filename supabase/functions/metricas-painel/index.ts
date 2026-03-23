@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
       } else if (i.supervisionado) {
         const digits = extractDigits(pid);
         const atendente = (i as any).atendente_humano || consultorPorTelefone[digits] || "";
-        if (atendente) {
+        if (atendente && atendente !== "Humano") {
           conversasPorPaciente[pid].humano = atendente;
         }
       }
