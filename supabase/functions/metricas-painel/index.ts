@@ -226,7 +226,7 @@ Deno.serve(async (req) => {
       } else if (i.supervisionado) {
         const digits = extractDigits(pid);
         const atendente = (i as any).atendente_humano || consultorPorTelefone[digits] || "";
-        if (atendente) convPorDia[dia][pid].humano = atendente;
+        if (atendente && atendente !== "Humano") convPorDia[dia][pid].humano = atendente;
       }
     }
     for (const [dia, convs] of Object.entries(convPorDia)) {
