@@ -208,14 +208,12 @@ async function registrarBloqueioHumano(supabase: any, numero: string, motivo: st
 const ATENDENTE_POR_NUMERO: Record<string, string> = {};
 // Este mapa será preenchido dinamicamente via logs. Por enquanto, usamos o participant do webhook.
 
-async function processarMensagemFromMe(supabase: any, numero: string, texto: string, participantNumber?: string) {
+async function processarMensagemFromMe(supabase: any, numero: string, texto: string, participantNumber?: string, pushName?: string) {
   const textoNormalizado = normalizarTextoComparacao(texto);
   if (!textoNormalizado) return;
 
   // Log participant para mapeamento futuro
-  if (participantNumber) {
-    console.log(`[whatsapp] 🔍 fromMe participant detectado: ${participantNumber} para paciente ${numero}`);
-  }
+  console.log(`[whatsapp] 🔍 fromMe details: participant=${participantNumber || "N/A"} pushName="${pushName || "N/A"}" paciente=${numero}`);
 
   const { data: ultimaInteracao, error } = await supabase
     .from("interacoes_ia")
