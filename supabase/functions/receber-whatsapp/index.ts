@@ -204,9 +204,18 @@ async function registrarBloqueioHumano(supabase: any, numero: string, motivo: st
   if (error) console.error("[whatsapp] Erro ao criar bloqueio humano:", error);
 }
 
-async function processarMensagemFromMe(supabase: any, numero: string, texto: string) {
+// Mapa de número pessoal -> nome da atendente
+const ATENDENTE_POR_NUMERO: Record<string, string> = {};
+// Este mapa será preenchido dinamicamente via logs. Por enquanto, usamos o participant do webhook.
+
+async function processarMensagemFromMe(supabase: any, numero: string, texto: string, participantNumber?: string) {
   const textoNormalizado = normalizarTextoComparacao(texto);
   if (!textoNormalizado) return;
+
+  // Log participant para mapeamento futuro
+  if (participantNumber) {
+    console.log(`[whatsapp] 🔍 fromMe participant detectado: ${participantNumber} para paciente ${numero}`);
+  }
 
   const { data: ultimaInteracao, error } = await supabase
     .from("interacoes_ia")
