@@ -141,16 +141,26 @@ Deno.serve(async (req) => {
     }
 
     // === ATENDIMENTOS POR CONVERSA ÚNICA (não por mensagem) ===
-    // Agrupar por paciente_externo_id e classificar quem atendeu cada conversa
-    const conversasPorPaciente: Record<string, { ia: number; humano: string | null }> = {};
+    // Conta atendimento humano apenas quando houve resposta humana real.
+    const conversasPorPaciente: Record<string, {
+      ia: boolean;
+      respostaHumana: boolean;
+      humano: string | null;
+    }> = {};
+
     for (const i of items) {
       const pid = i.paciente_externo_id;
       if (!conversasPorPaciente[pid]) {
-        conversasPorPaciente[pid] = { ia: 0, humano: null };
+        conversasPorPaciente[pid] = { ia: false, respostaHumana: false, humano: null };
       }
+
       if (i.resposta_final && !i.supervisionado) {
-        conversasPorPaciente[pid].ia++;
-      } else if (i.supervisionado) {
+        conversasPorPaciente[pid].ia = true;
+      }
+
+      const teveRespostaHumana = i.supervisionado && i.intencao_detectada === "resposta_humana" && !!i.resposta_final;
+      if (teveRespostaHumana) {
+        conversasPorPaciente[pid].respostaHumana = true;
         const digits = extractDigits(pid);
         const atendente = (i as any).atendente_humano || consultorPorTelefone[digits] || "";
         if (atendente && atendente !== "Humano") {
@@ -163,19 +173,22 @@ Deno.serve(async (req) => {
     let rebekaCount = 0;
     let mariaRitaCount = 0;
     let outrosHumanos = 0;
+    let semResposta = 0;
 
-    for (const [_, conv] of Object.entries(conversasPorPaciente)) {
-      // Se teve atendimento humano, conta como humano (prioridade)
-      if (conv.humano) {
-        const nome = conv.humano.toLowerCase();
-        if (nome.includes("rebeka")) rebekaCount++;
-        else if (nome.includes("maria")) mariaRitaCount++;
-        else outrosHumanos++;
-      } else if (conv.ia > 0) {
+    for (const conv of Object.values(conversasPorPaciente)) {
+      if (conv.respostaHumana) {
+        if (conv.humano) {
+          const nome = conv.humano.toLowerCase();
+          if (nome.includes("rebeka")) rebekaCount++;
+          else if (nome.includes("maria")) mariaRitaCount++;
+          else outrosHumanos++;
+        } else {
+          outrosHumanos++;
+        }
+      } else if (conv.ia) {
         mariaIA++;
       } else {
-        // Conversa supervisionada sem atendente identificado
-        outrosHumanos++;
+        semResposta++;
       }
     }
 
@@ -215,15 +228,20 @@ Deno.serve(async (req) => {
     // === POR DIA (por conversa única por dia) ===
     const porDia: Record<string, { maria_ia: number; rebeka: number; maria_rita: number; outros_humanos: number; total: number }> = {};
     // Agrupar por dia + paciente para contar conversas, não mensagens
-    const convPorDia: Record<string, Record<string, { ia: number; humano: string | null }>> = {};
+    const convPorDia: Record<string, Record<string, { ia: boolean; respostaHumana: boolean; humano: string | null }>> = {};
     for (const i of items) {
       const dia = i.criado_em.split("T")[0];
       if (!convPorDia[dia]) convPorDia[dia] = {};
       const pid = i.paciente_externo_id;
-      if (!convPorDia[dia][pid]) convPorDia[dia][pid] = { ia: 0, humano: null };
+      if (!convPorDia[dia][pid]) convPorDia[dia][pid] = { ia: false, respostaHumana: false, humano: null };
+
       if (i.resposta_final && !i.supervisionado) {
-        convPorDia[dia][pid].ia++;
-      } else if (i.supervisionado) {
+        convPorDia[dia][pid].ia = true;
+      }
+
+      const teveRespostaHumana = i.supervisionado && i.intencao_detectada === "resposta_humana" && !!i.resposta_final;
+      if (teveRespostaHumana) {
+        convPorDia[dia][pid].respostaHumana = true;
         const digits = extractDigits(pid);
         const atendente = (i as any).atendente_humano || consultorPorTelefone[digits] || "";
         if (atendente && atendente !== "Humano") convPorDia[dia][pid].humano = atendente;
@@ -232,16 +250,19 @@ Deno.serve(async (req) => {
     for (const [dia, convs] of Object.entries(convPorDia)) {
       const d = { maria_ia: 0, rebeka: 0, maria_rita: 0, outros_humanos: 0, total: 0 };
       for (const conv of Object.values(convs)) {
-        d.total++;
-        if (conv.humano) {
-          const nome = conv.humano.toLowerCase();
-          if (nome.includes("rebeka")) d.rebeka++;
-          else if (nome.includes("maria")) d.maria_rita++;
-          else d.outros_humanos++;
-        } else if (conv.ia > 0) {
+        if (conv.respostaHumana) {
+          d.total++;
+          if (conv.humano) {
+            const nome = conv.humano.toLowerCase();
+            if (nome.includes("rebeka")) d.rebeka++;
+            else if (nome.includes("maria")) d.maria_rita++;
+            else d.outros_humanos++;
+          } else {
+            d.outros_humanos++;
+          }
+        } else if (conv.ia) {
+          d.total++;
           d.maria_ia++;
-        } else {
-          d.outros_humanos++;
         }
       }
       porDia[dia] = d;
@@ -258,7 +279,7 @@ Deno.serve(async (req) => {
           rebeka: rebekaCount,
           maria_rita: mariaRitaCount,
           outros_humanos: outrosHumanos,
-          sem_resposta: 0,
+          sem_resposta: semResposta,
           total: mariaIA + rebekaCount + mariaRitaCount + outrosHumanos,
         },
         conversas: {
