@@ -71,10 +71,13 @@ Deno.serve(async (req) => {
     if (errInt) throw errInt;
     const items = interacoes || [];
 
+    // Helper: extrair apenas dígitos de paciente_externo_id
+    const extractDigits = (pid: string) => (pid || "").replace(/\D/g, "");
+
     // Para interações supervisionadas sem atendente_humano, tentar buscar do CRM
     const semAtendente = items.filter((i: any) => i.supervisionado && !i.atendente_humano);
-    const telefonesParaBuscar = [...new Set(semAtendente.map((i: any) => i.paciente_externo_id))];
-    const consultorPorPaciente: Record<string, string> = {};
+    const telefonesParaBuscar = [...new Set(semAtendente.map((i: any) => extractDigits(i.paciente_externo_id)))];
+    const consultorPorTelefone: Record<string, string> = {};
 
     if (telefonesParaBuscar.length > 0 && crmApiUrl && crmApiToken) {
       try {
@@ -99,15 +102,34 @@ Deno.serve(async (req) => {
           const tel = normalize(lead.telefone || "");
           const consultorId = lead.consultor_id || "";
           if (tel && consultorId && CONSULTOR_MAP[consultorId]) {
-            consultorPorPaciente[tel] = CONSULTOR_MAP[consultorId];
-            consultorPorPaciente["55" + tel] = CONSULTOR_MAP[consultorId];
-            if (tel.startsWith("55")) consultorPorPaciente[tel.slice(2)] = CONSULTOR_MAP[consultorId];
+            // Armazenar todas variações possíveis do telefone
+            consultorPorTelefone[tel] = CONSULTOR_MAP[consultorId];
+            consultorPorTelefone["55" + tel] = CONSULTOR_MAP[consultorId];
+            if (tel.startsWith("55")) {
+              consultorPorTelefone[tel.slice(2)] = CONSULTOR_MAP[consultorId];
+            }
+            // Variação com/sem 9o dígito
+            const semDDI = tel.startsWith("55") ? tel.slice(2) : tel;
+            if (semDDI.length >= 10) {
+              const ddd = semDDI.slice(0, 2);
+              const resto = semDDI.slice(2);
+              if (resto.length === 9 && resto.startsWith("9")) {
+                const sem9 = ddd + resto.slice(1);
+                consultorPorTelefone[sem9] = CONSULTOR_MAP[consultorId];
+                consultorPorTelefone["55" + sem9] = CONSULTOR_MAP[consultorId];
+              } else if (resto.length === 8) {
+                const com9 = ddd + "9" + resto;
+                consultorPorTelefone[com9] = CONSULTOR_MAP[consultorId];
+                consultorPorTelefone["55" + com9] = CONSULTOR_MAP[consultorId];
+              }
+            }
           }
         }
 
         // Atualizar interações sem atendente no banco
         for (const i of semAtendente) {
-          const nome = consultorPorPaciente[i.paciente_externo_id];
+          const digits = extractDigits(i.paciente_externo_id);
+          const nome = consultorPorTelefone[digits];
           if (nome) {
             sb.from("interacoes_ia").update({ atendente_humano: nome }).eq("id", i.id).then(() => {});
             (i as any).atendente_humano = nome;
@@ -118,27 +140,39 @@ Deno.serve(async (req) => {
       }
     }
 
-    // === ATENDIMENTOS POR ATENDENTE ===
+    // === ATENDIMENTOS POR CONVERSA ÚNICA (não por mensagem) ===
+    // Agrupar por paciente_externo_id e classificar quem atendeu cada conversa
+    const conversasPorPaciente: Record<string, { ia: number; humano: string | null }> = {};
+    for (const i of items) {
+      const pid = i.paciente_externo_id;
+      if (!conversasPorPaciente[pid]) {
+        conversasPorPaciente[pid] = { ia: 0, humano: null };
+      }
+      if (i.resposta_final && !i.supervisionado) {
+        conversasPorPaciente[pid].ia++;
+      } else if (i.supervisionado) {
+        const digits = extractDigits(pid);
+        const atendente = (i as any).atendente_humano || consultorPorTelefone[digits] || "";
+        if (atendente) {
+          conversasPorPaciente[pid].humano = atendente;
+        }
+      }
+    }
+
     let mariaIA = 0;
     let rebekaCount = 0;
     let mariaRitaCount = 0;
     let outrosHumanos = 0;
-    let semResposta = 0;
 
-    for (const i of items) {
-      if (i.resposta_final && !i.supervisionado) {
+    for (const [_, conv] of Object.entries(conversasPorPaciente)) {
+      // Se teve atendimento humano, conta como humano (prioridade)
+      if (conv.humano) {
+        const nome = conv.humano.toLowerCase();
+        if (nome.includes("rebeka")) rebekaCount++;
+        else if (nome.includes("maria")) mariaRitaCount++;
+        else outrosHumanos++;
+      } else if (conv.ia > 0) {
         mariaIA++;
-      } else if (i.supervisionado) {
-        const atendente = (i as any).atendente_humano || consultorPorPaciente[i.paciente_externo_id] || "";
-        if (atendente.toLowerCase().includes("rebeka")) {
-          rebekaCount++;
-        } else if (atendente.toLowerCase().includes("maria")) {
-          mariaRitaCount++;
-        } else {
-          outrosHumanos++;
-        }
-      } else {
-        semResposta++;
       }
     }
 
