@@ -253,8 +253,8 @@ Deno.serve(async (req) => {
           rebeka: rebekaCount,
           maria_rita: mariaRitaCount,
           outros_humanos: outrosHumanos,
-          sem_resposta: semResposta,
-          total: items.length,
+          sem_resposta: 0,
+          total: mariaIA + rebekaCount + mariaRitaCount + outrosHumanos,
         },
         conversas: {
           total: conversasTotal,
