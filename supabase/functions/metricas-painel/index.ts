@@ -209,20 +209,37 @@ Deno.serve(async (req) => {
       .map(([nome, total]) => ({ nome, total }))
       .sort((a, b) => b.total - a.total);
 
-    // === POR DIA ===
+    // === POR DIA (por conversa única por dia) ===
     const porDia: Record<string, { maria_ia: number; rebeka: number; maria_rita: number; outros_humanos: number; total: number }> = {};
+    // Agrupar por dia + paciente para contar conversas, não mensagens
+    const convPorDia: Record<string, Record<string, { ia: number; humano: string | null }>> = {};
     for (const i of items) {
       const dia = i.criado_em.split("T")[0];
-      if (!porDia[dia]) porDia[dia] = { maria_ia: 0, rebeka: 0, maria_rita: 0, outros_humanos: 0, total: 0 };
-      porDia[dia].total++;
+      if (!convPorDia[dia]) convPorDia[dia] = {};
+      const pid = i.paciente_externo_id;
+      if (!convPorDia[dia][pid]) convPorDia[dia][pid] = { ia: 0, humano: null };
       if (i.resposta_final && !i.supervisionado) {
-        porDia[dia].maria_ia++;
+        convPorDia[dia][pid].ia++;
       } else if (i.supervisionado) {
-        const atendente = (i as any).atendente_humano || consultorPorPaciente[i.paciente_externo_id] || "";
-        if (atendente.toLowerCase().includes("rebeka")) porDia[dia].rebeka++;
-        else if (atendente.toLowerCase().includes("maria")) porDia[dia].maria_rita++;
-        else porDia[dia].outros_humanos++;
+        const digits = extractDigits(pid);
+        const atendente = (i as any).atendente_humano || consultorPorTelefone[digits] || "";
+        if (atendente) convPorDia[dia][pid].humano = atendente;
       }
+    }
+    for (const [dia, convs] of Object.entries(convPorDia)) {
+      const d = { maria_ia: 0, rebeka: 0, maria_rita: 0, outros_humanos: 0, total: 0 };
+      for (const conv of Object.values(convs)) {
+        d.total++;
+        if (conv.humano) {
+          const nome = conv.humano.toLowerCase();
+          if (nome.includes("rebeka")) d.rebeka++;
+          else if (nome.includes("maria")) d.maria_rita++;
+          else d.outros_humanos++;
+        } else if (conv.ia > 0) {
+          d.maria_ia++;
+        }
+      }
+      porDia[dia] = d;
     }
     const porDiaArray = Object.entries(porDia)
       .map(([dia, v]) => ({ dia, ...v }))
