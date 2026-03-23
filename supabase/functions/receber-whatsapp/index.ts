@@ -238,75 +238,81 @@ async function processarMensagemFromMe(supabase: any, numero: string, texto: str
     return;
   }
 
-  // Identificar atendente humano via CRM consultor_id
+  // Identificar atendente humano via participant do webhook OU CRM
   const CONSULTOR_MAP: Record<string, string> = {
     "bc0e58c4-ac38-4dff-9f82-6fa1d22659c5": "Rebeka",
     "ed25df52-ec5f-48cc-b1af-2f32d3b42a83": "Maria Rita",
   };
 
   let nomeAtendente = "";
-  try {
-    const crmUrl = Deno.env.get("CRM_API_URL");
-    const crmToken = Deno.env.get("CRM_API_TOKEN");
-    if (crmUrl && crmToken) {
-      const normalize = (t: string) => (t || "").replace(/\D/g, "");
-      const numNorm = normalize(numero);
-      // Gerar variações do número para comparação
-      const numVariations = new Set([numNorm]);
-      if (numNorm.startsWith("55")) {
-        numVariations.add(numNorm.slice(2)); // sem DDI
-        // sem 9o dígito (formato 55 + DDD(2) + 8 dígitos)
-        const semDDI = numNorm.slice(2);
-        if (semDDI.length === 11 && semDDI[2] === "9") {
-          numVariations.add(semDDI.slice(0, 2) + semDDI.slice(3)); // DDD + 8 dígitos
-          numVariations.add("55" + semDDI.slice(0, 2) + semDDI.slice(3)); // 55 + DDD + 8 dígitos
-        }
-      } else if (numNorm.length === 11 && numNorm[2] === "9") {
-        numVariations.add("55" + numNorm);
-        numVariations.add(numNorm.slice(0, 2) + numNorm.slice(3));
-        numVariations.add("55" + numNorm.slice(0, 2) + numNorm.slice(3));
-      }
 
-      for (let page = 1; page <= 3; page++) {
-        const res = await fetch(`${crmUrl}api-leads?limit=500&page=${page}&periodo_dias=365`, {
-          headers: { "Authorization": `Bearer ${crmToken}`, "apikey": crmToken },
-        });
-        if (!res.ok) break;
-        const data = await res.json();
-        const leads = data?.leads || [];
-        for (const lead of leads) {
-          const tel = normalize(lead.telefone || "");
-          if (!tel) continue;
-          const consultorId = lead.consultor_id || "";
-          // Gerar variações do telefone do CRM também
-          const telVariations = new Set([tel]);
-          if (tel.startsWith("55")) {
-            telVariations.add(tel.slice(2));
-            const semDDI = tel.slice(2);
-            if (semDDI.length === 11 && semDDI[2] === "9") {
-              telVariations.add(semDDI.slice(0, 2) + semDDI.slice(3));
-            }
-          } else if (tel.length === 11 && tel[2] === "9") {
-            telVariations.add("55" + tel);
-            telVariations.add(tel.slice(0, 2) + tel.slice(3));
+  // 1. Tentar identificar via participant (número pessoal de quem digitou)
+  if (participantNumber && ATENDENTE_POR_NUMERO[participantNumber]) {
+    nomeAtendente = ATENDENTE_POR_NUMERO[participantNumber];
+    console.log(`[whatsapp] ✅ Atendente identificado via participant: ${nomeAtendente} (${participantNumber})`);
+  }
+
+  // 2. Se não identificou via participant, tentar via CRM
+  if (!nomeAtendente) {
+    try {
+      const crmUrl = Deno.env.get("CRM_API_URL");
+      const crmToken = Deno.env.get("CRM_API_TOKEN");
+      if (crmUrl && crmToken) {
+        const normalize = (t: string) => (t || "").replace(/\D/g, "");
+        const numNorm = normalize(numero);
+        const numVariations = new Set([numNorm]);
+        if (numNorm.startsWith("55")) {
+          numVariations.add(numNorm.slice(2));
+          const semDDI = numNorm.slice(2);
+          if (semDDI.length === 11 && semDDI[2] === "9") {
+            numVariations.add(semDDI.slice(0, 2) + semDDI.slice(3));
+            numVariations.add("55" + semDDI.slice(0, 2) + semDDI.slice(3));
           }
-          // Verificar interseção
-          for (const v of numVariations) {
-            if (telVariations.has(v)) {
-              if (CONSULTOR_MAP[consultorId]) {
-                nomeAtendente = CONSULTOR_MAP[consultorId];
+        } else if (numNorm.length === 11 && numNorm[2] === "9") {
+          numVariations.add("55" + numNorm);
+          numVariations.add(numNorm.slice(0, 2) + numNorm.slice(3));
+          numVariations.add("55" + numNorm.slice(0, 2) + numNorm.slice(3));
+        }
+
+        for (let page = 1; page <= 3; page++) {
+          const res = await fetch(`${crmUrl}api-leads?limit=500&page=${page}&periodo_dias=365`, {
+            headers: { "Authorization": `Bearer ${crmToken}`, "apikey": crmToken },
+          });
+          if (!res.ok) break;
+          const data = await res.json();
+          const leads = data?.leads || [];
+          for (const lead of leads) {
+            const tel = normalize(lead.telefone || "");
+            if (!tel) continue;
+            const consultorId = lead.consultor_id || "";
+            const telVariations = new Set([tel]);
+            if (tel.startsWith("55")) {
+              telVariations.add(tel.slice(2));
+              const semDDI = tel.slice(2);
+              if (semDDI.length === 11 && semDDI[2] === "9") {
+                telVariations.add(semDDI.slice(0, 2) + semDDI.slice(3));
               }
-              break;
+            } else if (tel.length === 11 && tel[2] === "9") {
+              telVariations.add("55" + tel);
+              telVariations.add(tel.slice(0, 2) + tel.slice(3));
             }
+            for (const v of numVariations) {
+              if (telVariations.has(v)) {
+                if (CONSULTOR_MAP[consultorId]) {
+                  nomeAtendente = CONSULTOR_MAP[consultorId];
+                }
+                break;
+              }
+            }
+            if (nomeAtendente) break;
           }
           if (nomeAtendente) break;
+          if (page >= (data?.paginacao?.total_pages || 1)) break;
         }
-        if (nomeAtendente) break;
-        if (page >= (data?.paginacao?.total_pages || 1)) break;
       }
+    } catch (e) {
+      console.warn("[whatsapp] Erro ao buscar consultor do CRM:", e);
     }
-  } catch (e) {
-    console.warn("[whatsapp] Erro ao buscar consultor do CRM:", e);
   }
 
   // Salvar resposta humana como interação no banco
