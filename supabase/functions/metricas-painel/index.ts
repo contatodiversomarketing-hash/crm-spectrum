@@ -279,7 +279,7 @@ Deno.serve(async (req) => {
           rebeka: rebekaCount,
           maria_rita: mariaRitaCount,
           outros_humanos: outrosHumanos,
-          sem_resposta: 0,
+          sem_resposta: semResposta,
           total: mariaIA + rebekaCount + mariaRitaCount + outrosHumanos,
         },
         conversas: {
