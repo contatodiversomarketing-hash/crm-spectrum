@@ -240,6 +240,8 @@ Deno.serve(async (req) => {
           else d.outros_humanos++;
         } else if (conv.ia > 0) {
           d.maria_ia++;
+        } else {
+          d.outros_humanos++;
         }
       }
       porDia[dia] = d;
