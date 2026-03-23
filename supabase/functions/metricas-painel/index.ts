@@ -173,6 +173,9 @@ Deno.serve(async (req) => {
         else outrosHumanos++;
       } else if (conv.ia > 0) {
         mariaIA++;
+      } else {
+        // Conversa supervisionada sem atendente identificado
+        outrosHumanos++;
       }
     }
 
