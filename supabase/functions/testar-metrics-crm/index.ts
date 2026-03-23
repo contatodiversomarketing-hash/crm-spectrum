@@ -14,110 +14,88 @@ Deno.serve(async (req) => {
   try {
     const CRM_API_URL = Deno.env.get("CRM_API_URL") || "";
     const CRM_API_TOKEN = Deno.env.get("CRM_API_TOKEN") || "";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const sb = createClient(supabaseUrl, serviceKey);
 
     if (!CRM_API_URL || !CRM_API_TOKEN) {
-      return new Response(
-        JSON.stringify({ error: "CRM_API_URL ou CRM_API_TOKEN não configurados" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "CRM não configurado" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const body = await req.json().catch(() => ({}));
-    const telefonesAlvo = body.telefones_teste || ["553284297781", "553284318169", "553284560212"];
+    // 1. Buscar TODOS os telefones que tiveram resposta humana hoje
+    const { data: humanas } = await sb
+      .from("interacoes_ia")
+      .select("paciente_externo_id")
+      .gte("criado_em", "2026-03-23T00:00:00Z")
+      .eq("supervisionado", true)
+      .eq("intencao_detectada", "resposta_humana")
+      .eq("atendente_humano", "Humano");
 
-    // Buscar leads do CRM
-    const results: any = { crm_url: CRM_API_URL, pages_fetched: 0, total_leads: 0, leads_com_consultor: 0, consultores_unicos: {} as Record<string, number>, matches: [] as any[] };
+    const telefonesHumanos = [...new Set((humanas || []).map((h: any) => h.paciente_externo_id))];
 
+    // 2. Buscar TODOS os leads do CRM (todas as páginas, periodo_dias=365)
+    const normalize = (t: string) => (t || "").replace(/\D/g, "");
     let allLeads: any[] = [];
-    for (let page = 1; page <= 5; page++) {
-      const url = `${CRM_API_URL}api-leads?limit=500&page=${page}&periodo_dias=30`;
-      console.log(`[test] Fetching ${url}`);
+    for (let page = 1; page <= 20; page++) {
+      const url = `${CRM_API_URL}api-leads?limit=500&page=${page}&periodo_dias=365`;
       const res = await fetch(url, {
         headers: { "Authorization": `Bearer ${CRM_API_TOKEN}`, "apikey": CRM_API_TOKEN },
       });
-      if (!res.ok) {
-        results[`page_${page}_error`] = { status: res.status, body: await res.text().catch(() => "") };
-        break;
-      }
+      if (!res.ok) break;
       const data = await res.json();
       const leads = data?.leads || [];
-      results.pages_fetched = page;
-      results[`page_${page}_count`] = leads.length;
-      results[`page_${page}_paginacao`] = data?.paginacao;
       allLeads = [...allLeads, ...leads];
       if (leads.length === 0 || page >= (data?.paginacao?.total_pages || 1)) break;
     }
 
-    results.total_leads = allLeads.length;
-
-    // Analisar consultor_id nos leads
-    const normalize = (t: string) => (t || "").replace(/\D/g, "");
+    // 3. Criar mapa de telefone -> consultor (com variações)
+    const telToConsultor: Record<string, { consultor_id: string; consultor_nome: string }> = {};
     for (const lead of allLeads) {
-      if (lead.consultor_id) {
-        results.leads_com_consultor++;
-        const cid = lead.consultor_id;
-        results.consultores_unicos[cid] = (results.consultores_unicos[cid] || 0) + 1;
+      const tel = normalize(lead.telefone || "");
+      const cid = lead.consultor_id || "";
+      const cnome = lead.consultor_nome || "";
+      if (!tel || !cid) continue;
+      
+      // Últimos 8 dígitos como chave
+      if (tel.length >= 8) {
+        telToConsultor[tel.slice(-8)] = { consultor_id: cid, consultor_nome: cnome };
       }
+      telToConsultor[tel] = { consultor_id: cid, consultor_nome: cnome };
     }
 
-    // Amostra dos primeiros 5 leads com todos os campos
-    results.amostra_leads = allLeads.slice(0, 5).map((l: any) => ({
-      id: l.id,
-      nome: l.nome,
-      telefone: l.telefone,
-      consultor_id: l.consultor_id,
-      consultor_nome: l.consultor_nome || l.consultor?.nome || null,
-      status: l.status,
-      all_keys: Object.keys(l),
-    }));
-
-    // Tentar encontrar os telefones de teste
-    for (const tel of telefonesAlvo) {
+    // 4. Tentar match para cada telefone humano
+    const matches: any[] = [];
+    let found = 0;
+    let notFound = 0;
+    for (const tel of telefonesHumanos) {
       const telNorm = normalize(tel);
-      let found = false;
-      for (const lead of allLeads) {
-        const leadTel = normalize(lead.telefone || "");
-        // Comparar últimos 8 dígitos
-        if (leadTel.length >= 8 && telNorm.length >= 8 && leadTel.slice(-8) === telNorm.slice(-8)) {
-          results.matches.push({
-            telefone_busca: tel,
-            lead_telefone: lead.telefone,
-            consultor_id: lead.consultor_id,
-            lead_nome: lead.nome,
-            lead_id: lead.id,
-          });
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
-        results.matches.push({ telefone_busca: tel, match: "NÃO ENCONTRADO" });
+      const last8 = telNorm.slice(-8);
+      const match = telToConsultor[telNorm] || telToConsultor[last8];
+      if (match) {
+        found++;
+        matches.push({ telefone: tel, ...match });
+      } else {
+        notFound++;
+        matches.push({ telefone: tel, match: "NÃO ENCONTRADO" });
       }
     }
 
-    // Também testar endpoint paciente-por-telefone se existir
-    for (const tel of telefonesAlvo.slice(0, 2)) {
-      try {
-        const url2 = `${CRM_API_URL}paciente-por-telefone?telefone=${tel}`;
-        const res2 = await fetch(url2, {
-          headers: { "Authorization": `Bearer ${CRM_API_TOKEN}`, "apikey": CRM_API_TOKEN },
-        });
-        const d2 = await res2.json().catch(() => null);
-        results[`paciente_por_tel_${tel.slice(-4)}`] = { status: res2.status, data: d2 };
-      } catch (e) {
-        results[`paciente_por_tel_${tel.slice(-4)}_error`] = String(e);
-      }
-    }
+    // 5. Listar todos os telefones do CRM para comparar
+    const crmPhones = allLeads.map((l: any) => normalize(l.telefone || "")).filter(Boolean).slice(0, 20);
 
-    return new Response(
-      JSON.stringify(results, null, 2),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({
+      total_telefones_humanos: telefonesHumanos.length,
+      total_leads_crm: allLeads.length,
+      found,
+      notFound,
+      amostra_telefones_humanos: telefonesHumanos.slice(0, 10),
+      amostra_telefones_crm: crmPhones,
+      matches: matches.slice(0, 20),
+    }, null, 2), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error) {
-    console.error("[testar-metrics-crm] Erro:", error);
-    return new Response(
-      JSON.stringify({ error: true, message: error instanceof Error ? error.message : "Erro interno" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: String(error) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
