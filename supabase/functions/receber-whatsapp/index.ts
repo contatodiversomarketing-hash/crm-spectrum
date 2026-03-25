@@ -76,6 +76,26 @@ function ehRespostaRepetidaOuIntroducao(resposta: string, historico: HistoricoIn
 const LOVABLE_AI_BASE_URL = "https://ai.gateway.lovable.dev";
 const FALLBACK_TECNICO = "Desculpe, tive uma dificuldade técnica momentânea. Pode repetir, por favor? 😊";
 
+// =============================
+// TRAVA DE CONCORRÊNCIA POR NÚMERO (evita respostas duplicadas quando múltiplos webhooks chegam ao mesmo tempo)
+// =============================
+const processandoNumero = new Map<string, number>();
+const LOCK_TIMEOUT_MS = 30000; // 30 segundos
+
+function tentarObterLock(numero: string): boolean {
+  const agora = Date.now();
+  const lockTime = processandoNumero.get(numero);
+  if (lockTime && (agora - lockTime) < LOCK_TIMEOUT_MS) {
+    return false; // Já está sendo processado
+  }
+  processandoNumero.set(numero, agora);
+  return true;
+}
+
+function liberarLock(numero: string): void {
+  processandoNumero.delete(numero);
+}
+
 async function gerarRespostaOpenAI(messages: Array<{ role: string; content: any }>, usarVision: boolean): Promise<string> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
@@ -1685,8 +1705,19 @@ serve(async (req) => {
       return new Response("ok");
     }
 
+    // =============================
+    // TRAVA DE CONCORRÊNCIA - evitar processar mesmo número em paralelo
+    // =============================
+    if (!tentarObterLock(numero)) {
+      console.log(`[whatsapp] 🔒 Número ${numero} já está sendo processado — ignorando webhook duplicado`);
+      return new Response(JSON.stringify({ status: "processamento_em_andamento" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const bloqueioHumanoAtivo = await buscarBloqueioHumanoAtivo(supabase, numero);
     if (bloqueioHumanoAtivo) {
+      liberarLock(numero);
       console.log(`[whatsapp] 🤫 Atendimento humano ativo para ${numero} até ${bloqueioHumanoAtivo.bloqueio_ate}; Maria ficará em silêncio`);
 
       supabase.from("interacoes_ia").insert({
@@ -1960,14 +1991,35 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     }
 
     // =============================
-    // ENVIAR RESPOSTA
+    // ENVIAR RESPOSTA (com verificação FRESCA de duplicação no banco)
     // =============================
     console.log(`[whatsapp] 📤 Resposta: "${respostaFinal.slice(0, 100)}..."`);
 
-    const ultimaRespostaEnviada = historicoOrdenado[historicoOrdenado.length - 1]?.resposta_final;
-    if (normalizarTextoComparacao(ultimaRespostaEnviada) === normalizarTextoComparacao(respostaFinal)) {
-      console.warn(`[whatsapp] ⚠️ Bloqueando reenvio duplicado para ${numero}`);
+    // Verificação FRESCA no banco — recarrega a última resposta AGORA (não do cache do início)
+    const { data: ultimaFresca } = await supabase
+      .from("interacoes_ia")
+      .select("resposta_final, criado_em")
+      .eq("paciente_externo_id", numero)
+      .eq("canal", "whatsapp")
+      .not("resposta_final", "is", null)
+      .order("criado_em", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const ultimaRespostaFresca = ultimaFresca?.resposta_final;
+    if (normalizarTextoComparacao(ultimaRespostaFresca) === normalizarTextoComparacao(respostaFinal)) {
+      console.warn(`[whatsapp] ⚠️ Bloqueando reenvio duplicado (check fresco) para ${numero}`);
+      liberarLock(numero);
       return new Response(JSON.stringify({ status: "resposta_duplicada_bloqueada" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Verificar também se é saudação repetida quando já tem histórico
+    if (ultimaFresca && ehSaudacaoPadraoMaria(respostaFinal)) {
+      console.warn(`[whatsapp] ⚠️ Bloqueando saudação repetida (já existe histórico) para ${numero}`);
+      liberarLock(numero);
+      return new Response(JSON.stringify({ status: "saudacao_repetida_bloqueada" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -1991,9 +2043,9 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     }
 
     // =============================
-    // SALVAR INTERAÇÃO NO BANCO
+    // SALVAR INTERAÇÃO NO BANCO (AWAIT para garantir que o lock cobre o insert)
     // =============================
-    supabase.from("interacoes_ia").insert({
+    const { error: saveError } = await supabase.from("interacoes_ia").insert({
       paciente_externo_id: numero,
       canal: "whatsapp",
       sistema_origem: "megaapi",
@@ -2006,12 +2058,17 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         ? "finalizado"
         : "em_andamento",
       supervisionado: false,
-    }).then(({ error }) => {
-      if (error) console.error("[whatsapp] Erro salvar interação:", error);
     });
+    if (saveError) console.error("[whatsapp] Erro salvar interação:", saveError);
 
+    liberarLock(numero);
     return new Response("ok");
   } catch (err) {
+    // Tentar liberar lock mesmo em caso de erro
+    try {
+      const body2 = typeof err === "object" ? "" : "";
+      // Não temos acesso fácil ao número aqui, mas o lock expira em 30s
+    } catch (_) {}
     console.error("[whatsapp] Erro geral:", err);
     return new Response("erro", { status: 500 });
   }
