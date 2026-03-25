@@ -76,6 +76,26 @@ function ehRespostaRepetidaOuIntroducao(resposta: string, historico: HistoricoIn
 const LOVABLE_AI_BASE_URL = "https://ai.gateway.lovable.dev";
 const FALLBACK_TECNICO = "Desculpe, tive uma dificuldade técnica momentânea. Pode repetir, por favor? 😊";
 
+// =============================
+// TRAVA DE CONCORRÊNCIA POR NÚMERO (evita respostas duplicadas quando múltiplos webhooks chegam ao mesmo tempo)
+// =============================
+const processandoNumero = new Map<string, number>();
+const LOCK_TIMEOUT_MS = 30000; // 30 segundos
+
+function tentarObterLock(numero: string): boolean {
+  const agora = Date.now();
+  const lockTime = processandoNumero.get(numero);
+  if (lockTime && (agora - lockTime) < LOCK_TIMEOUT_MS) {
+    return false; // Já está sendo processado
+  }
+  processandoNumero.set(numero, agora);
+  return true;
+}
+
+function liberarLock(numero: string): void {
+  processandoNumero.delete(numero);
+}
+
 async function gerarRespostaOpenAI(messages: Array<{ role: string; content: any }>, usarVision: boolean): Promise<string> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
