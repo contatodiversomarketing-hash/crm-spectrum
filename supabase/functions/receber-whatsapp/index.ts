@@ -287,9 +287,6 @@ async function processarMensagemFromMe(supabase: any, numero: string, texto: str
       console.log(`[whatsapp] ✅ Atendente identificado via texto da mensagem: Maria Rita`);
     }
   }
-      console.log(`[whatsapp] ✅ Atendente identificado via pushName: Maria Rita ("${pushName}")`);
-    }
-  }
 
   // 2. Se não identificou via participant, tentar via CRM
   if (!nomeAtendente) {
