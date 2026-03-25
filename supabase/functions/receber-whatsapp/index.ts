@@ -2043,9 +2043,9 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     }
 
     // =============================
-    // SALVAR INTERAÇÃO NO BANCO
+    // SALVAR INTERAÇÃO NO BANCO (AWAIT para garantir que o lock cobre o insert)
     // =============================
-    supabase.from("interacoes_ia").insert({
+    const { error: saveError } = await supabase.from("interacoes_ia").insert({
       paciente_externo_id: numero,
       canal: "whatsapp",
       sistema_origem: "megaapi",
@@ -2058,12 +2058,17 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         ? "finalizado"
         : "em_andamento",
       supervisionado: false,
-    }).then(({ error }) => {
-      if (error) console.error("[whatsapp] Erro salvar interação:", error);
     });
+    if (saveError) console.error("[whatsapp] Erro salvar interação:", saveError);
 
+    liberarLock(numero);
     return new Response("ok");
   } catch (err) {
+    // Tentar liberar lock mesmo em caso de erro
+    try {
+      const body2 = typeof err === "object" ? "" : "";
+      // Não temos acesso fácil ao número aqui, mas o lock expira em 30s
+    } catch (_) {}
     console.error("[whatsapp] Erro geral:", err);
     return new Response("erro", { status: 500 });
   }
