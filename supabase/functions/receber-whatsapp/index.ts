@@ -39,6 +39,32 @@ type HistoricoInteracao = {
 
 const HUMAN_HANDOFF_MINUTES = 120;
 
+function detectarAtendentePorTexto(texto?: string | null): string {
+  const textoId = normalizarTextoComparacao(texto);
+  if (!textoId) return "";
+
+  const patternsRebeka = [
+    /\b(?:sou|chamo|me chamo|eu sou|aqui e|aqui eh)\s*(?:a\s+)?rebeka\b/,
+    /\brebeka\b.*\b(aqui|falando|da clinica|da la vitta)\b/,
+    /\bbom dia[^\n]*\brebeka\b/,
+    /\bboa tarde[^\n]*\brebeka\b/,
+    /\bboa noite[^\n]*\brebeka\b/,
+  ];
+
+  const patternsMaria = [
+    /\b(?:sou|chamo|me chamo|eu sou|aqui e|aqui eh)\s*(?:a\s+)?maria(?:\s+rita)?\b/,
+    /\bmaria(?:\s+rita)?\b.*\b(aqui|falando|da clinica|da la vitta)\b/,
+    /\bbom dia[^\n]*\bmaria(?:\s+rita)?\b/,
+    /\bboa tarde[^\n]*\bmaria(?:\s+rita)?\b/,
+    /\bboa noite[^\n]*\bmaria(?:\s+rita)?\b/,
+  ];
+
+  if (patternsRebeka.some((pattern) => pattern.test(textoId))) return "Rebeka";
+  if (patternsMaria.some((pattern) => pattern.test(textoId))) return "Maria Rita";
+
+  return "";
+}
+
 function normalizarTextoComparacao(texto?: string | null): string {
   return (texto || "")
     .toLowerCase()
@@ -279,32 +305,20 @@ async function processarMensagemFromMe(supabase: any, numero: string, texto: str
     } else if (pushLower.includes("maria rita")) {
       nomeAtendente = "Maria Rita";
       console.log(`[whatsapp] ✅ Atendente identificado via pushName: Maria Rita ("${pushName}")`);
+    } else {
+      nomeAtendente = detectarAtendentePorTexto(pushName);
+      if (nomeAtendente) {
+        console.log(`[whatsapp] ✅ Atendente identificado via pushName flexível: ${nomeAtendente} ("${pushName}")`);
+      }
     }
   }
 
   // 1c. Tentar identificar via conteúdo da mensagem (auto-identificação)
-  // Ex: "bom dia me chamo Maria Rita", "oi sou a Rebeka", "aqui é a Maria Rita"
+  // Ex: "bom dia me chamo Maria", "oi sou a Rebeka", "aqui é a Maria Rita"
   if (!nomeAtendente) {
-    const textoId = textoNormalizado;
-    const patternsRebeka = [
-      /\b(?:sou|chamo|aqui e?)\s*(?:a\s+)?rebeka/,
-      /\brebeka\b.*\baqui\b/,
-      /\bme\s+chamo\s+rebeka\b/,
-      /\beu\s+sou\s+(?:a\s+)?rebeka\b/,
-    ];
-    const patternsMaria = [
-      /\b(?:sou|chamo|aqui e?)\s*(?:a\s+)?maria\s*rita/,
-      /\bmaria\s*rita\b.*\baqui\b/,
-      /\bme\s+chamo\s+maria\s*rita\b/,
-      /\beu\s+sou\s+(?:a\s+)?maria\s*rita\b/,
-    ];
-
-    if (patternsRebeka.some(p => p.test(textoId))) {
-      nomeAtendente = "Rebeka";
-      console.log(`[whatsapp] ✅ Atendente identificado via texto da mensagem: Rebeka`);
-    } else if (patternsMaria.some(p => p.test(textoId))) {
-      nomeAtendente = "Maria Rita";
-      console.log(`[whatsapp] ✅ Atendente identificado via texto da mensagem: Maria Rita`);
+    nomeAtendente = detectarAtendentePorTexto(textoNormalizado);
+    if (nomeAtendente) {
+      console.log(`[whatsapp] ✅ Atendente identificado via texto da mensagem: ${nomeAtendente}`);
     }
   }
 
@@ -389,6 +403,14 @@ async function processarMensagemFromMe(supabase: any, numero: string, texto: str
   // Marcar interações recentes desse paciente como supervisionadas com atendente
   if (nomeAtendente) {
     const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    await supabase
+      .from("interacoes_ia")
+      .update({ atendente_humano: nomeAtendente })
+      .eq("paciente_externo_id", numero)
+      .eq("supervisionado", true)
+      .in("atendente_humano", ["Humano", ""])
+      .gte("criado_em", thirtyMinAgo);
+
     await supabase
       .from("interacoes_ia")
       .update({ atendente_humano: nomeAtendente })
