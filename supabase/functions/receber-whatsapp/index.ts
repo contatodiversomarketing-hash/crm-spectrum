@@ -1963,7 +1963,74 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     // DETECTAR AGENDAMENTOS CONFIRMADOS (suporta múltiplos)
     // =============================
     let agendamentosConfirmados = 0;
-    const { agendamentos, textoLimpo: textoSemAgendamentos } = extrairAgendamentos(respostaFinal);
+    let { agendamentos, textoLimpo: textoSemAgendamentos } = extrairAgendamentos(respostaFinal);
+
+    // =============================
+    // FALLBACK: Se a IA disse "agendado/marcado/confirmado" mas NÃO incluiu o marcador ##AGENDAMENTO_CONFIRMADO##
+    // Isso acontece quando a IA "confirma" verbalmente mas esquece o marcador técnico
+    // =============================
+    if (agendamentos.length === 0) {
+      const respostaNorm = respostaFinal.toLowerCase();
+      const pareceuConfirmar = /(sua consulta.*(?:marcad|agendad|confirmad))|(?:marcad[oa].*para)|(?:agendad[oa].*para)|(?:confirmad[oa].*para)|(?:fica\s+marcad)|(?:está\s+(?:agendad|marcad|confirmad))/.test(respostaNorm);
+
+      if (pareceuConfirmar) {
+        console.warn(`[whatsapp] ⚠️ IA disse "agendado" mas SEM marcador ##AGENDAMENTO_CONFIRMADO##! Tentando extrair dados da conversa...`);
+
+        // Tentar extrair dados do agendamento da resposta e histórico
+        const dataMatch = respostaFinal.match(/(\d{2})\/(\d{2})(?:\/(\d{4}))?/) || respostaFinal.match(/(\d{4})-(\d{2})-(\d{2})/);
+        const horaMatch = respostaFinal.match(/(\d{1,2})[h:](\d{2})?/);
+        
+        // Buscar profissional mencionado na resposta
+        let profIdFallback = "";
+        let profNomeFallback = "";
+        if (profResult?.raw) {
+          const profDetectado = detectarProfissionalPorNome(respostaFinal, profResult.raw);
+          if (profDetectado) {
+            profIdFallback = profDetectado.id || profDetectado.professional_id || "";
+            profNomeFallback = fixEncoding(profDetectado.full_name || profDetectado.name || "");
+          }
+        }
+
+        // Se não encontrou na resposta, tentar pegar da última menção no histórico
+        if (!profIdFallback && profissionaisParaContexto.length === 1) {
+          profIdFallback = profissionaisParaContexto[0].id || profissionaisParaContexto[0].professional_id || "";
+          profNomeFallback = fixEncoding(profissionaisParaContexto[0].full_name || profissionaisParaContexto[0].name || "");
+        }
+
+        const nomePacienteFallback = pacienteEncontrado?.nome || "";
+        
+        if (dataMatch && horaMatch && profIdFallback && nomePacienteFallback) {
+          let dataFormatada = "";
+          if (dataMatch[0].includes("-")) {
+            dataFormatada = dataMatch[0]; // já YYYY-MM-DD
+          } else {
+            const dia = dataMatch[1];
+            const mes = dataMatch[2];
+            const ano = dataMatch[3] || new Date().getFullYear().toString();
+            dataFormatada = `${ano}-${mes}-${dia}`;
+          }
+          const hora = horaMatch[1].padStart(2, "0");
+          const minuto = (horaMatch[2] || "00").padStart(2, "0");
+          const horarioFormatado = `${hora}:${minuto}`;
+          
+          console.log(`[whatsapp] 🔧 Fallback: reconstruindo agendamento: ${nomePacienteFallback} | ${dataFormatada} ${horarioFormatado} | prof=${profIdFallback} (${profNomeFallback})`);
+          agendamentos = [{
+            nome: nomePacienteFallback,
+            data: dataFormatada,
+            horario: horarioFormatado,
+            professionalId: profIdFallback,
+          }];
+          textoSemAgendamentos = respostaFinal; // manter o texto como está (sem marcador para remover)
+        } else {
+          console.warn(`[whatsapp] ⚠️ Fallback incompleto: nome=${nomePacienteFallback || "?"} data=${dataMatch?.[0] || "?"} hora=${horaMatch?.[0] || "?"} prof=${profIdFallback || "?"}`);
+          // Notificar admin sobre confirmação sem agendamento real
+          const adminNumber = Deno.env.get("ADMIN_WHATSAPP_NUMBER");
+          if (adminNumber) {
+            enviarTexto(adminNumber, `⚠️ *Maria confirmou agendamento verbalmente mas NÃO registrou na agenda*\n📱 Paciente: ${numero}\n💬 Resposta: "${respostaFinal.slice(0, 200)}"\n\n⚡ Favor verificar e registrar manualmente.`).catch(() => {});
+          }
+        }
+      }
+    }
     if (agendamentos.length > 0) {
       respostaFinal = textoSemAgendamentos;
       const patientId = pacienteEncontrado?.id || "";
