@@ -708,13 +708,10 @@ async function buscarPacientePorTelefone(telefone: string): Promise<{ texto: str
           let texto = `\n\n## CADASTRO DO PACIENTE (ENCONTRADO NO SISTEMA):
 - Nome: ${nome}
 - Telefone: ${tel}
-- CPF: ${cpf || "NÃO CADASTRADO - PEÇA AO PACIENTE"}
+- CPF: ${cpf || "não cadastrado (peça DEPOIS do agendamento, NÃO antes)"}
 - Email: ${email || "não informado"}
-- ID no sistema: ${patientId}`;
-
-          if (!cpf) {
-            texto += `\n\n⚠️ ATENÇÃO: Este paciente NÃO TEM CPF no cadastro. Você DEVE pedir o CPF antes de finalizar qualquer agendamento.`;
-          }
+- ID no sistema: ${patientId}
+IMPORTANTE: O paciente JÁ está cadastrado. Você pode agendar DIRETAMENTE sem pedir mais dados. CPF é OPCIONAL e deve ser pedido APÓS o agendamento, nunca antes.`;
 
           return { texto, paciente: { id: patientId, nome, cpf, email, telefone: tel } };
         }
