@@ -1705,8 +1705,19 @@ serve(async (req) => {
       return new Response("ok");
     }
 
+    // =============================
+    // TRAVA DE CONCORRÊNCIA - evitar processar mesmo número em paralelo
+    // =============================
+    if (!tentarObterLock(numero)) {
+      console.log(`[whatsapp] 🔒 Número ${numero} já está sendo processado — ignorando webhook duplicado`);
+      return new Response(JSON.stringify({ status: "processamento_em_andamento" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const bloqueioHumanoAtivo = await buscarBloqueioHumanoAtivo(supabase, numero);
     if (bloqueioHumanoAtivo) {
+      liberarLock(numero);
       console.log(`[whatsapp] 🤫 Atendimento humano ativo para ${numero} até ${bloqueioHumanoAtivo.bloqueio_ate}; Maria ficará em silêncio`);
 
       supabase.from("interacoes_ia").insert({
