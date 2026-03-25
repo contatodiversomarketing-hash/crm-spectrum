@@ -262,6 +262,32 @@ async function processarMensagemFromMe(supabase: any, numero: string, texto: str
     }
   }
 
+  // 1c. Tentar identificar via conteúdo da mensagem (auto-identificação)
+  // Ex: "bom dia me chamo Maria Rita", "oi sou a Rebeka", "aqui é a Maria Rita"
+  if (!nomeAtendente) {
+    const textoId = textoNormalizado;
+    const patternsRebeka = [
+      /\b(?:sou|chamo|aqui e?)\s*(?:a\s+)?rebeka/,
+      /\brebeka\b.*\baqui\b/,
+      /\bme\s+chamo\s+rebeka\b/,
+      /\beu\s+sou\s+(?:a\s+)?rebeka\b/,
+    ];
+    const patternsMaria = [
+      /\b(?:sou|chamo|aqui e?)\s*(?:a\s+)?maria\s*rita/,
+      /\bmaria\s*rita\b.*\baqui\b/,
+      /\bme\s+chamo\s+maria\s*rita\b/,
+      /\beu\s+sou\s+(?:a\s+)?maria\s*rita\b/,
+    ];
+
+    if (patternsRebeka.some(p => p.test(textoId))) {
+      nomeAtendente = "Rebeka";
+      console.log(`[whatsapp] ✅ Atendente identificado via texto da mensagem: Rebeka`);
+    } else if (patternsMaria.some(p => p.test(textoId))) {
+      nomeAtendente = "Maria Rita";
+      console.log(`[whatsapp] ✅ Atendente identificado via texto da mensagem: Maria Rita`);
+    }
+  }
+
   // 2. Se não identificou via participant, tentar via CRM
   if (!nomeAtendente) {
     try {
