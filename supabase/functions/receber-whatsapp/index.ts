@@ -633,7 +633,15 @@ EXEMPLO ERRADO (NUNCA faça isso):
 
 ## CONTEXTO DA CLÍNICA LA VITTA
 - Endereço: Rua Capitão José Justino, 68 - Muriaé, MG
-- Horário: segunda a sexta, 8h às 18h
+- Horário de funcionamento:
+  • Segunda-feira: 8h às 19h
+  • Terça-feira: 8h às 18h
+  • Quarta-feira: 8h às 19h
+  • Quinta-feira: 8h às 19h
+  • Sexta-feira: 8h às 19h
+  • Sábado: NÃO ATENDE (clínica fechada)
+  • Domingo: NÃO ATENDE (clínica fechada)
+- NUNCA ofereça ou aceite agendamentos aos sábados ou domingos. Se o paciente pedir sábado/domingo, informe que a clínica não funciona nesses dias e ofereça opções nos dias disponíveis.
 - Foco: atendimento humanizado e personalizado
 - A La Vitta é MULTIDISCIPLINAR, NÃO apenas odontológica
 - Quando o paciente perguntar endereço, localização, onde fica, como chegar → forneça o endereço REAL acima
