@@ -116,9 +116,9 @@ Deno.serve(async (req) => {
           const consultorId = lead.consultor_id || "";
           if (tel && consultorId && CONSULTOR_MAP[consultorId]) {
             consultorPorTelefone[tel] = CONSULTOR_MAP[consultorId];
-            consultorPorTelefone["55" + tel] = CONSULTOR_MAP[consultorId];
-            if (tel.startsWith("55")) {
-              consultorPorTelefone[tel.slice(2)] = CONSULTOR_MAP[consultorId];
+            // Guardar variações - evitar duplicar "55"
+            if (!tel.startsWith("55")) {
+              consultorPorTelefone["55" + tel] = CONSULTOR_MAP[consultorId];
             }
             const semDDI = tel.startsWith("55") ? tel.slice(2) : tel;
             if (semDDI.length >= 10) {
