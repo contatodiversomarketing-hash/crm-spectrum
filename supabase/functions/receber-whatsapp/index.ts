@@ -417,7 +417,7 @@ async function processarMensagemFromMe(supabase: any, numero: string, texto: str
     }
   }
 
-  console.log(`[whatsapp] 📊 Resultado identificação para ${numero}: atendente="${nomeAtendente || "Humano (não identificado)}"`);
+  console.log("[whatsapp] Resultado identificacao para " + numero + ": atendente=" + (nomeAtendente || "Humano (nao identificado)"));
 
 
   // Salvar resposta humana como interação no banco
