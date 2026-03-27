@@ -140,11 +140,51 @@ Deno.serve(async (req) => {
         console.log(`[metricas-painel] Mapa telefone->consultor: ${Object.keys(consultorPorTelefone).length} variações mapeadas`);
 
         // Atualizar interações sem atendente no banco
+        // Gerar variações do telefone do paciente para buscar no mapa
         let matched = 0;
         let unmatched = 0;
         for (const i of semAtendente) {
           const digits = extractDigits(i.paciente_externo_id);
-          const nome = consultorPorTelefone[digits];
+          // Tentar lookup direto e com variações
+          let nome = consultorPorTelefone[digits];
+          if (!nome) {
+            // Gerar variações do telefone do paciente
+            const variations: string[] = [];
+            if (digits.startsWith("55")) {
+              const semDDI = digits.slice(2);
+              variations.push(semDDI);
+              if (semDDI.length >= 10) {
+                const ddd = semDDI.slice(0, 2);
+                const resto = semDDI.slice(2);
+                if (resto.length === 8) {
+                  // Adicionar 9o dígito
+                  variations.push(ddd + "9" + resto);
+                  variations.push("55" + ddd + "9" + resto);
+                } else if (resto.length === 9 && resto.startsWith("9")) {
+                  // Remover 9o dígito
+                  variations.push(ddd + resto.slice(1));
+                  variations.push("55" + ddd + resto.slice(1));
+                }
+              }
+            } else if (digits.length >= 10) {
+              variations.push("55" + digits);
+              const ddd = digits.slice(0, 2);
+              const resto = digits.slice(2);
+              if (resto.length === 8) {
+                variations.push(ddd + "9" + resto);
+                variations.push("55" + ddd + "9" + resto);
+              } else if (resto.length === 9 && resto.startsWith("9")) {
+                variations.push(ddd + resto.slice(1));
+                variations.push("55" + ddd + resto.slice(1));
+              }
+            }
+            for (const v of variations) {
+              if (consultorPorTelefone[v]) {
+                nome = consultorPorTelefone[v];
+                break;
+              }
+            }
+          }
           if (nome) {
             matched++;
             sb.from("interacoes_ia").update({ atendente_humano: nome }).eq("id", i.id).then(() => {});
