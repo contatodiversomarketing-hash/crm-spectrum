@@ -433,7 +433,7 @@ async function processarMensagemFromMe(supabase: any, numero: string, texto: str
     intencao_detectada: "resposta_humana",
     estado_conversa: "handoff_humano",
   });
-  console.log(`[whatsapp] 💬 Resposta humana salva: "${textoHumano.slice(0, 50)}..." por ${nomeAtendente || "Humano"}`);
+  console.log("[whatsapp] Resposta humana salva: " + textoHumano.slice(0, 50) + "... por " + (nomeAtendente || "Humano"));
 
   // Marcar interações recentes desse paciente como supervisionadas com atendente
   if (nomeAtendente) {
