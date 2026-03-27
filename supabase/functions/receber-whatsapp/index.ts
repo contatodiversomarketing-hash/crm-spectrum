@@ -322,7 +322,7 @@ async function processarMensagemFromMe(supabase: any, numero: string, texto: str
     }
   }
 
-  // 2. Se não identificou via participant, tentar via CRM
+  // 2. Se não identificou via participant/pushName/texto, tentar via CRM
   if (!nomeAtendente) {
     try {
       const crmUrl = Deno.env.get("CRM_API_URL");
@@ -330,60 +330,95 @@ async function processarMensagemFromMe(supabase: any, numero: string, texto: str
       if (crmUrl && crmToken) {
         const normalize = (t: string) => (t || "").replace(/\D/g, "");
         const numNorm = normalize(numero);
-        const numVariations = new Set([numNorm]);
-        if (numNorm.startsWith("55")) {
-          numVariations.add(numNorm.slice(2));
-          const semDDI = numNorm.slice(2);
-          if (semDDI.length === 11 && semDDI[2] === "9") {
-            numVariations.add(semDDI.slice(0, 2) + semDDI.slice(3));
-            numVariations.add("55" + semDDI.slice(0, 2) + semDDI.slice(3));
-          }
-        } else if (numNorm.length === 11 && numNorm[2] === "9") {
-          numVariations.add("55" + numNorm);
-          numVariations.add(numNorm.slice(0, 2) + numNorm.slice(3));
-          numVariations.add("55" + numNorm.slice(0, 2) + numNorm.slice(3));
-        }
 
-        for (let page = 1; page <= 3; page++) {
-          const res = await fetch(`${crmUrl}api-leads?limit=500&page=${page}&periodo_dias=365`, {
+        // 2a. Tentar endpoint direto paciente-por-telefone (mais rápido)
+        try {
+          const resPaciente = await fetch(`${crmUrl}paciente-por-telefone?telefone=${encodeURIComponent(numero)}`, {
             headers: { "Authorization": `Bearer ${crmToken}`, "apikey": crmToken },
           });
-          if (!res.ok) break;
-          const data = await res.json();
-          const leads = data?.leads || [];
-          for (const lead of leads) {
-            const tel = normalize(lead.telefone || "");
-            if (!tel) continue;
-            const consultorId = lead.consultor_id || "";
-            const telVariations = new Set([tel]);
-            if (tel.startsWith("55")) {
-              telVariations.add(tel.slice(2));
-              const semDDI = tel.slice(2);
-              if (semDDI.length === 11 && semDDI[2] === "9") {
-                telVariations.add(semDDI.slice(0, 2) + semDDI.slice(3));
-              }
-            } else if (tel.length === 11 && tel[2] === "9") {
-              telVariations.add("55" + tel);
-              telVariations.add(tel.slice(0, 2) + tel.slice(3));
+          if (resPaciente.ok) {
+            const pacData = await resPaciente.json();
+            const consultorId = pacData?.consultor_id || pacData?.lead?.consultor_id || "";
+            console.log(`[whatsapp] 🔍 CRM paciente-por-telefone: consultor_id=${consultorId} para ${numero}`);
+            if (consultorId && CONSULTOR_MAP[consultorId]) {
+              nomeAtendente = CONSULTOR_MAP[consultorId];
+              console.log(`[whatsapp] ✅ Atendente identificado via CRM direto: ${nomeAtendente} (consultor_id=${consultorId})`);
             }
-            for (const v of numVariations) {
-              if (telVariations.has(v)) {
-                if (CONSULTOR_MAP[consultorId]) {
-                  nomeAtendente = CONSULTOR_MAP[consultorId];
+          }
+        } catch (e2) {
+          console.warn("[whatsapp] Erro paciente-por-telefone:", e2);
+        }
+
+        // 2b. Fallback: buscar nos leads por telefone
+        if (!nomeAtendente) {
+          const numVariations = new Set([numNorm]);
+          if (numNorm.startsWith("55")) {
+            numVariations.add(numNorm.slice(2));
+            const semDDI = numNorm.slice(2);
+            if (semDDI.length === 11 && semDDI[2] === "9") {
+              numVariations.add(semDDI.slice(0, 2) + semDDI.slice(3));
+              numVariations.add("55" + semDDI.slice(0, 2) + semDDI.slice(3));
+            }
+          } else if (numNorm.length === 11 && numNorm[2] === "9") {
+            numVariations.add("55" + numNorm);
+            numVariations.add(numNorm.slice(0, 2) + numNorm.slice(3));
+            numVariations.add("55" + numNorm.slice(0, 2) + numNorm.slice(3));
+          }
+
+          for (let page = 1; page <= 3; page++) {
+            const res = await fetch(`${crmUrl}api-leads?limit=500&page=${page}&periodo_dias=365`, {
+              headers: { "Authorization": `Bearer ${crmToken}`, "apikey": crmToken },
+            });
+            if (!res.ok) {
+              console.warn(`[whatsapp] CRM api-leads page ${page} retornou status ${res.status}`);
+              break;
+            }
+            const data = await res.json();
+            const leads = data?.leads || [];
+            for (const lead of leads) {
+              const tel = normalize(lead.telefone || "");
+              if (!tel) continue;
+              const consultorId = lead.consultor_id || "";
+              const telVariations = new Set([tel]);
+              if (tel.startsWith("55")) {
+                telVariations.add(tel.slice(2));
+                const semDDI = tel.slice(2);
+                if (semDDI.length === 11 && semDDI[2] === "9") {
+                  telVariations.add(semDDI.slice(0, 2) + semDDI.slice(3));
                 }
-                break;
+              } else if (tel.length === 11 && tel[2] === "9") {
+                telVariations.add("55" + tel);
+                telVariations.add(tel.slice(0, 2) + tel.slice(3));
               }
+              for (const v of numVariations) {
+                if (telVariations.has(v)) {
+                  if (CONSULTOR_MAP[consultorId]) {
+                    nomeAtendente = CONSULTOR_MAP[consultorId];
+                    console.log(`[whatsapp] ✅ Atendente identificado via CRM leads: ${nomeAtendente} (consultor_id=${consultorId}, tel=${tel})`);
+                  } else if (consultorId) {
+                    console.log(`[whatsapp] ⚠️ Lead encontrado no CRM mas consultor_id="${consultorId}" não está mapeado. Tel=${tel}`);
+                  } else {
+                    console.log(`[whatsapp] ⚠️ Lead encontrado no CRM sem consultor_id. Tel=${tel}`);
+                  }
+                  break;
+                }
+              }
+              if (nomeAtendente) break;
             }
             if (nomeAtendente) break;
+            if (page >= (data?.paginacao?.total_pages || 1)) break;
           }
-          if (nomeAtendente) break;
-          if (page >= (data?.paginacao?.total_pages || 1)) break;
         }
+      } else {
+        console.warn("[whatsapp] CRM_API_URL ou CRM_API_TOKEN não configurados");
       }
     } catch (e) {
       console.warn("[whatsapp] Erro ao buscar consultor do CRM:", e);
     }
   }
+
+  console.log("[whatsapp] Resultado identificacao para " + numero + ": atendente=" + (nomeAtendente || "Humano (nao identificado)"));
+
 
   // Salvar resposta humana como interação no banco
   const textoHumano = texto.slice(0, 5000);
@@ -398,7 +433,7 @@ async function processarMensagemFromMe(supabase: any, numero: string, texto: str
     intencao_detectada: "resposta_humana",
     estado_conversa: "handoff_humano",
   });
-  console.log(`[whatsapp] 💬 Resposta humana salva: "${textoHumano.slice(0, 50)}..." por ${nomeAtendente || "Humano"}`);
+  console.log("[whatsapp] Resposta humana salva: " + textoHumano.slice(0, 50) + "... por " + (nomeAtendente || "Humano"));
 
   // Marcar interações recentes desse paciente como supervisionadas com atendente
   if (nomeAtendente) {

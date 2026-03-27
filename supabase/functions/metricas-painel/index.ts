@@ -89,7 +89,10 @@ Deno.serve(async (req) => {
           const res = await fetch(`${crmApiUrl}api-leads?limit=500&page=${page}&periodo_dias=365`, {
             headers: { "Authorization": `Bearer ${crmApiToken}`, "apikey": crmApiToken },
           });
-          if (!res.ok) break;
+          if (!res.ok) {
+            console.warn(`[metricas-painel] CRM api-leads page ${page} retornou status ${res.status}`);
+            break;
+          }
           const data = await res.json();
           const leads = data?.leads || [];
           if (leads.length === 0) break;
@@ -97,18 +100,28 @@ Deno.serve(async (req) => {
           if (page >= (data?.paginacao?.total_pages || 1)) break;
           page++;
         }
+
+        console.log(`[metricas-painel] CRM: ${allLeads.length} leads carregados`);
+        
+        // Contar leads por consultor para debug
+        const consultorCount: Record<string, number> = {};
+        for (const lead of allLeads) {
+          const cid = lead.consultor_id || "sem_consultor";
+          consultorCount[cid] = (consultorCount[cid] || 0) + 1;
+        }
+        console.log(`[metricas-painel] CRM consultores: ${JSON.stringify(consultorCount)}`);
         
         for (const lead of allLeads) {
           const tel = normalize(lead.telefone || "");
           const consultorId = lead.consultor_id || "";
           if (tel && consultorId && CONSULTOR_MAP[consultorId]) {
-            // Armazenar todas variações possíveis do telefone
             consultorPorTelefone[tel] = CONSULTOR_MAP[consultorId];
-            consultorPorTelefone["55" + tel] = CONSULTOR_MAP[consultorId];
+            // Guardar variações
             if (tel.startsWith("55")) {
               consultorPorTelefone[tel.slice(2)] = CONSULTOR_MAP[consultorId];
+            } else {
+              consultorPorTelefone["55" + tel] = CONSULTOR_MAP[consultorId];
             }
-            // Variação com/sem 9o dígito
             const semDDI = tel.startsWith("55") ? tel.slice(2) : tel;
             if (semDDI.length >= 10) {
               const ddd = semDDI.slice(0, 2);
@@ -126,18 +139,68 @@ Deno.serve(async (req) => {
           }
         }
 
+        console.log(`[metricas-painel] Mapa telefone->consultor: ${Object.keys(consultorPorTelefone).length} variações mapeadas`);
+
         // Atualizar interações sem atendente no banco
+        // Gerar variações do telefone do paciente para buscar no mapa
+        let matched = 0;
+        let unmatched = 0;
         for (const i of semAtendente) {
           const digits = extractDigits(i.paciente_externo_id);
-          const nome = consultorPorTelefone[digits];
+          // Tentar lookup direto e com variações
+          let nome = consultorPorTelefone[digits];
+          if (!nome) {
+            // Gerar variações do telefone do paciente
+            const variations: string[] = [];
+            if (digits.startsWith("55")) {
+              const semDDI = digits.slice(2);
+              variations.push(semDDI);
+              if (semDDI.length >= 10) {
+                const ddd = semDDI.slice(0, 2);
+                const resto = semDDI.slice(2);
+                if (resto.length === 8) {
+                  // Adicionar 9o dígito
+                  variations.push(ddd + "9" + resto);
+                  variations.push("55" + ddd + "9" + resto);
+                } else if (resto.length === 9 && resto.startsWith("9")) {
+                  // Remover 9o dígito
+                  variations.push(ddd + resto.slice(1));
+                  variations.push("55" + ddd + resto.slice(1));
+                }
+              }
+            } else if (digits.length >= 10) {
+              variations.push("55" + digits);
+              const ddd = digits.slice(0, 2);
+              const resto = digits.slice(2);
+              if (resto.length === 8) {
+                variations.push(ddd + "9" + resto);
+                variations.push("55" + ddd + "9" + resto);
+              } else if (resto.length === 9 && resto.startsWith("9")) {
+                variations.push(ddd + resto.slice(1));
+                variations.push("55" + ddd + resto.slice(1));
+              }
+            }
+            for (const v of variations) {
+              if (consultorPorTelefone[v]) {
+                nome = consultorPorTelefone[v];
+                break;
+              }
+            }
+          }
           if (nome) {
+            matched++;
             sb.from("interacoes_ia").update({ atendente_humano: nome }).eq("id", i.id).then(() => {});
             (i as any).atendente_humano = nome;
+          } else {
+            unmatched++;
           }
         }
+        console.log(`[metricas-painel] CRM atribuição: ${matched} matched, ${unmatched} unmatched de ${semAtendente.length} total`);
       } catch (e) {
         console.warn("[metricas-painel] Erro CRM:", e);
       }
+    } else {
+      console.log(`[metricas-painel] CRM lookup skip: telefones=${telefonesParaBuscar.length} crmUrl=${!!crmApiUrl} crmToken=${!!crmApiToken}`);
     }
 
     // === ATENDIMENTOS POR CONVERSA ÚNICA (não por mensagem) ===
