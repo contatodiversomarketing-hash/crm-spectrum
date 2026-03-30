@@ -39,9 +39,32 @@ type HistoricoInteracao = {
 
 const HUMAN_HANDOFF_MINUTES = 120;
 
+// Detectar prefixo de identificação: "R:", "MR:", "r:", "mr:", "R ", "MR " etc.
+function detectarPrefixoAtendente(texto?: string | null): { atendente: string; textoLimpo: string } {
+  if (!texto) return { atendente: "", textoLimpo: texto || "" };
+  const trimmed = texto.trimStart();
+  
+  // Padrões de prefixo: R: MR: r: mr: R- MR- com ou sem espaço depois
+  const prefixRebeka = /^[Rr]\s*[:;\-\.]\s*/;
+  const prefixMaria = /^[Mm][Rr]\s*[:;\-\.]\s*/;
+  
+  if (prefixMaria.test(trimmed)) {
+    return { atendente: "Maria Rita", textoLimpo: trimmed.replace(prefixMaria, "").trim() };
+  }
+  if (prefixRebeka.test(trimmed)) {
+    return { atendente: "Rebeka", textoLimpo: trimmed.replace(prefixRebeka, "").trim() };
+  }
+  
+  return { atendente: "", textoLimpo: texto };
+}
+
 function detectarAtendentePorTexto(texto?: string | null): string {
   const textoId = normalizarTextoComparacao(texto);
   if (!textoId) return "";
+
+  // Primeiro checar prefixo
+  const { atendente } = detectarPrefixoAtendente(texto);
+  if (atendente) return atendente;
 
   const patternsRebeka = [
     /\b(?:sou|chamo|me chamo|eu sou|aqui e|aqui eh)\s*(?:a\s+)?rebeka\b/,
