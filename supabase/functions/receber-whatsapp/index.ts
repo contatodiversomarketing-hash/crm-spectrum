@@ -39,9 +39,32 @@ type HistoricoInteracao = {
 
 const HUMAN_HANDOFF_MINUTES = 120;
 
+// Detectar prefixo de identificação: "R:", "MR:", "r:", "mr:", "R ", "MR " etc.
+function detectarPrefixoAtendente(texto?: string | null): { atendente: string; textoLimpo: string } {
+  if (!texto) return { atendente: "", textoLimpo: texto || "" };
+  const trimmed = texto.trimStart();
+  
+  // Padrões de prefixo: R: MR: r: mr: R- MR- com ou sem espaço depois
+  const prefixRebeka = /^[Rr]\s*[:;\-\.]\s*/;
+  const prefixMaria = /^[Mm][Rr]\s*[:;\-\.]\s*/;
+  
+  if (prefixMaria.test(trimmed)) {
+    return { atendente: "Maria Rita", textoLimpo: trimmed.replace(prefixMaria, "").trim() };
+  }
+  if (prefixRebeka.test(trimmed)) {
+    return { atendente: "Rebeka", textoLimpo: trimmed.replace(prefixRebeka, "").trim() };
+  }
+  
+  return { atendente: "", textoLimpo: texto };
+}
+
 function detectarAtendentePorTexto(texto?: string | null): string {
   const textoId = normalizarTextoComparacao(texto);
   if (!textoId) return "";
+
+  // Primeiro checar prefixo
+  const { atendente } = detectarPrefixoAtendente(texto);
+  if (atendente) return atendente;
 
   const patternsRebeka = [
     /\b(?:sou|chamo|me chamo|eu sou|aqui e|aqui eh)\s*(?:a\s+)?rebeka\b/,
@@ -255,7 +278,13 @@ const ATENDENTE_POR_NUMERO: Record<string, string> = {};
 // Este mapa será preenchido dinamicamente via logs. Por enquanto, usamos o participant do webhook.
 
 async function processarMensagemFromMe(supabase: any, numero: string, texto: string, participantNumber?: string, pushName?: string) {
-  const textoNormalizado = normalizarTextoComparacao(texto);
+  // Detectar prefixo de identificação ANTES de normalizar
+  const { atendente: atendenteViaPrefixo, textoLimpo } = detectarPrefixoAtendente(texto);
+  if (atendenteViaPrefixo) {
+    console.log("[whatsapp] Atendente identificado via prefixo: " + atendenteViaPrefixo);
+  }
+  
+  const textoNormalizado = normalizarTextoComparacao(textoLimpo);
   if (!textoNormalizado) return;
 
   // Log participant para mapeamento futuro
@@ -288,7 +317,7 @@ async function processarMensagemFromMe(supabase: any, numero: string, texto: str
     "ed25df52-ec5f-48cc-b1af-2f32d3b42a83": "Maria Rita",
   };
 
-  let nomeAtendente = "";
+  let nomeAtendente = atendenteViaPrefixo || "";
 
   // 1. Tentar identificar via participant (número pessoal de quem digitou)
   if (participantNumber && ATENDENTE_POR_NUMERO[participantNumber]) {
@@ -421,7 +450,7 @@ async function processarMensagemFromMe(supabase: any, numero: string, texto: str
 
 
   // Salvar resposta humana como interação no banco
-  const textoHumano = texto.slice(0, 5000);
+  const textoHumano = textoLimpo.slice(0, 5000);
   await supabase.from("interacoes_ia").insert({
     paciente_externo_id: numero,
     sistema_origem: "megaapi",
