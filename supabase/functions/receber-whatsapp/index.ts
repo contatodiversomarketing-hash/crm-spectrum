@@ -317,7 +317,7 @@ async function processarMensagemFromMe(supabase: any, numero: string, texto: str
     "ed25df52-ec5f-48cc-b1af-2f32d3b42a83": "Maria Rita",
   };
 
-  let nomeAtendente = "";
+  let nomeAtendente = atendenteViaPrefixo || "";
 
   // 1. Tentar identificar via participant (número pessoal de quem digitou)
   if (participantNumber && ATENDENTE_POR_NUMERO[participantNumber]) {
