@@ -278,7 +278,13 @@ const ATENDENTE_POR_NUMERO: Record<string, string> = {};
 // Este mapa será preenchido dinamicamente via logs. Por enquanto, usamos o participant do webhook.
 
 async function processarMensagemFromMe(supabase: any, numero: string, texto: string, participantNumber?: string, pushName?: string) {
-  const textoNormalizado = normalizarTextoComparacao(texto);
+  // Detectar prefixo de identificação ANTES de normalizar
+  const { atendente: atendenteViaPrefixo, textoLimpo } = detectarPrefixoAtendente(texto);
+  if (atendenteViaPrefixo) {
+    console.log("[whatsapp] Atendente identificado via prefixo: " + atendenteViaPrefixo);
+  }
+  
+  const textoNormalizado = normalizarTextoComparacao(textoLimpo);
   if (!textoNormalizado) return;
 
   // Log participant para mapeamento futuro
