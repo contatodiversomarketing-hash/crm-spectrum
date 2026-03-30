@@ -450,7 +450,7 @@ async function processarMensagemFromMe(supabase: any, numero: string, texto: str
 
 
   // Salvar resposta humana como interação no banco
-  const textoHumano = texto.slice(0, 5000);
+  const textoHumano = textoLimpo.slice(0, 5000);
   await supabase.from("interacoes_ia").insert({
     paciente_externo_id: numero,
     sistema_origem: "megaapi",
