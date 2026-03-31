@@ -69,10 +69,12 @@ Deno.serve(async (req) => {
 Regras obrigatórias:
 - Seja acolhedora, simpática e profissional
 - ${nomePaciente ? `Chame o paciente de "${nomePaciente}"` : "Não use nome, apenas cumprimente cordialmente"}
-- NÃO invente informações como datas, horários ou valores
+- NÃO invente informações como datas, horários, valores, disponibilidade ou regras
 - NÃO invente endereços fictícios. O endereço REAL é: Rua Capitão José Justino, 68 - Muriaé, MG
 - NÃO dê orientação médica ou clínica
 - NÃO use emojis em excesso (máximo 1-2)
+- NUNCA diga que serviços "acabaram", "encerraram" ou "não estão disponíveis" — avaliações odontológicas estão SEMPRE disponíveis
+- Se não souber uma informação, diga que vai confirmar com a equipe
 - Responda APENAS com o texto da mensagem, sem aspas, sem prefixos`;
 
     const userPrompt = `Contexto:
