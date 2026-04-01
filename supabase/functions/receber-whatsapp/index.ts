@@ -1158,12 +1158,69 @@ function isAppointmentCreatedResponse(data: any): boolean {
   return pareceSucesso && !pareceErro;
 }
 
+// Validação de dias de atendimento por profissional (proteção programática contra alucinação)
+// 0=Dom, 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sab
+const RESTRICOES_DIA_PROFISSIONAL: Record<string, { diasPermitidos: number[]; nome: string }> = {};
+
+async function validarDiaProfissional(professionalId: string, dataISO: string): Promise<{ valido: boolean; mensagemErro?: string }> {
+  // Verificar restrições estáticas conhecidas
+  const restricao = RESTRICOES_DIA_PROFISSIONAL[professionalId];
+  
+  // Também verificar pelo nome do profissional consultando a API de gestão
+  try {
+    if (Deno.env.get("GESTAO_API_URL") && Deno.env.get("GESTAO_API_TOKEN")) {
+      const result = await chamarGestao("list_professionals", {});
+      const profs = result.data?.professionals || result.data?.data || result.data || [];
+      if (Array.isArray(profs)) {
+        for (const p of profs) {
+          const id = p.id || p.professional_id || "";
+          const nome = fixEncoding(p.full_name || p.professional_name || p.name || p.nome || "").toLowerCase();
+          
+          if (String(id) === String(professionalId)) {
+            const dia = new Date(dataISO + "T12:00:00Z").getDay();
+            
+            // Dra. Amélia Carvalho: somente seg(1), qua(3), sex(5)
+            if (nome.includes("amélia") || nome.includes("amelia")) {
+              if (![1, 3, 5].includes(dia)) {
+                const nomesDia: Record<number, string> = { 0: "domingo", 1: "segunda", 2: "terça", 3: "quarta", 4: "quinta", 5: "sexta", 6: "sábado" };
+                console.error(`[whatsapp] ❌ BLOQUEADO: Tentativa de agendar Dra. Amélia em ${nomesDia[dia]} (${dataISO}). Ela só atende seg/qua/sex.`);
+                return { valido: false, mensagemErro: `A Dra. Amélia Carvalho atende somente às segundas, quartas e sextas-feiras. ${nomesDia[dia]}-feira não é um dia de atendimento dela.` };
+              }
+            }
+            
+            // Dra. Mylena Moraes Carneiro: somente qui(4)
+            if (nome.includes("mylena")) {
+              if (dia !== 4) {
+                const nomesDia: Record<number, string> = { 0: "domingo", 1: "segunda", 2: "terça", 3: "quarta", 4: "quinta", 5: "sexta", 6: "sábado" };
+                console.error(`[whatsapp] ❌ BLOQUEADO: Tentativa de agendar Dra. Mylena em ${nomesDia[dia]} (${dataISO}). Ela só atende qui.`);
+                return { valido: false, mensagemErro: `A Dra. Mylena Moraes Carneiro atende somente às quintas-feiras. ${nomesDia[dia]}-feira não é um dia de atendimento dela.` };
+              }
+            }
+            break;
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[whatsapp] Erro ao validar dia do profissional:", err);
+  }
+  
+  return { valido: true };
+}
+
 async function registrarAgendamento(nome: string, telefone: string, data: string, horario: string, professionalId: string, pacienteId: string): Promise<boolean> {
   try {
     if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) return false;
 
     if (!professionalId || professionalId === "auto") {
       console.warn(`[whatsapp] professional_id inválido para create_appointment: "${professionalId}"`);
+      return false;
+    }
+
+    // Validar dia de atendimento do profissional ANTES de criar o agendamento
+    const validacao = await validarDiaProfissional(professionalId, data);
+    if (!validacao.valido) {
+      console.error(`[whatsapp] ❌ Agendamento BLOQUEADO por validação de dia: ${validacao.mensagemErro}`);
       return false;
     }
 
