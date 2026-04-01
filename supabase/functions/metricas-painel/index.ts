@@ -22,6 +22,75 @@ const ESPECIALIDADES: Record<string, string[]> = {
   "Psicologia": ["psicolog", "terapia"],
 };
 
+const TIMEZONE = "America/Sao_Paulo";
+const PAGE_SIZE = 1000;
+
+function toUtcInicioSaoPaulo(dataISO: string): string {
+  return new Date(`${dataISO}T00:00:00.000-03:00`).toISOString();
+}
+
+function toUtcFimSaoPaulo(dataISO: string): string {
+  return new Date(`${dataISO}T23:59:59.999-03:00`).toISOString();
+}
+
+function diaSaoPaulo(dataIso: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TIMEZONE }).format(new Date(dataIso));
+}
+
+function normalizarTexto(valor?: string | null): string {
+  return (valor || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function classificarAtendenteHumano(valor?: string | null): "Rebeka" | "Maria Rita" | null {
+  const normalizado = normalizarTexto(valor);
+  if (!normalizado) return null;
+
+  if (normalizado.includes("maria rita") || normalizado.replace(/\s/g, "").includes("mariarita")) {
+    return "Maria Rita";
+  }
+
+  if (normalizado.includes("rebeka") || normalizado.includes("rebeca")) {
+    return "Rebeka";
+  }
+
+  return null;
+}
+
+function atendenteGenerico(valor?: string | null): boolean {
+  const normalizado = normalizarTexto(valor);
+  return !normalizado || normalizado === "humano";
+}
+
+async function carregarInteracoesPeriodo(sb: any, inicio: string, fim: string) {
+  const all: any[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await sb
+      .from("interacoes_ia")
+      .select("id, paciente_externo_id, mensagem_usuario, resposta_final, intencao_detectada, supervisionado, criado_em, atendente_humano")
+      .gte("criado_em", inicio)
+      .lte("criado_em", fim)
+      .order("criado_em", { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+
+    all.push(...data);
+    if (data.length < PAGE_SIZE) break;
+
+    from += PAGE_SIZE;
+  }
+
+  return all;
+}
+
 function classificarEspecialidade(texto: string): string {
   const lower = texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   for (const [esp, keywords] of Object.entries(ESPECIALIDADES)) {
@@ -51,8 +120,8 @@ Deno.serve(async (req) => {
       dataFim = url.searchParams.get("data_fim") || new Date().toISOString().split("T")[0];
     }
 
-    const inicio = `${dataInicio}T00:00:00.000Z`;
-    const fim = `${dataFim}T23:59:59.999Z`;
+    const inicio = toUtcInicioSaoPaulo(dataInicio);
+    const fim = toUtcFimSaoPaulo(dataFim);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -60,22 +129,15 @@ Deno.serve(async (req) => {
     const crmApiToken = Deno.env.get("CRM_API_TOKEN") || "";
     const sb = createClient(supabaseUrl, serviceKey);
 
-    // Buscar interações do período
-    const { data: interacoes, error: errInt } = await sb
-      .from("interacoes_ia")
-      .select("id, paciente_externo_id, mensagem_usuario, resposta_final, intencao_detectada, supervisionado, criado_em, atendente_humano")
-      .gte("criado_em", inicio)
-      .lte("criado_em", fim)
-      .order("criado_em", { ascending: false });
-
-    if (errInt) throw errInt;
-    const items = interacoes || [];
+    // Buscar TODAS as interações do período (paginação acima de 1000 registros)
+    const items = await carregarInteracoesPeriodo(sb, inicio, fim);
+    console.log(`[metricas-painel] Interações carregadas: ${items.length}`);
 
     // Helper: extrair apenas dígitos de paciente_externo_id
     const extractDigits = (pid: string) => (pid || "").replace(/\D/g, "");
 
     // Para interações supervisionadas sem atendente identificado (null ou genérico "Humano"), tentar buscar do CRM
-    const semAtendente = items.filter((i: any) => i.supervisionado && (!i.atendente_humano || i.atendente_humano === "Humano"));
+    const semAtendente = items.filter((i: any) => i.supervisionado && atendenteGenerico(i.atendente_humano));
     const telefonesParaBuscar = [...new Set(semAtendente.map((i: any) => extractDigits(i.paciente_externo_id)))];
     const consultorPorTelefone: Record<string, string> = {};
 
@@ -225,8 +287,8 @@ Deno.serve(async (req) => {
       if (teveRespostaHumana) {
         conversasPorPaciente[pid].respostaHumana = true;
         const digits = extractDigits(pid);
-        const atendente = (i as any).atendente_humano || consultorPorTelefone[digits] || "";
-        if (atendente && atendente !== "Humano") {
+        const atendente = classificarAtendenteHumano((i as any).atendente_humano || consultorPorTelefone[digits] || "");
+        if (atendente && !conversasPorPaciente[pid].humano) {
           conversasPorPaciente[pid].humano = atendente;
         }
       }
@@ -241,9 +303,8 @@ Deno.serve(async (req) => {
     for (const conv of Object.values(conversasPorPaciente)) {
       if (conv.respostaHumana) {
         if (conv.humano) {
-          const nome = conv.humano.toLowerCase();
-          if (nome.includes("rebeka")) rebekaCount++;
-          else if (nome.includes("maria")) mariaRitaCount++;
+          if (conv.humano === "Rebeka") rebekaCount++;
+          else if (conv.humano === "Maria Rita") mariaRitaCount++;
           else outrosHumanos++;
         } else {
           outrosHumanos++;
@@ -263,13 +324,21 @@ Deno.serve(async (req) => {
     let leadsExistentes = 0;
 
     if (pacientesArray.length > 0) {
-      const { data: anteriores } = await sb
-        .from("interacoes_ia")
-        .select("paciente_externo_id")
-        .lt("criado_em", inicio)
-        .in("paciente_externo_id", pacientesArray.slice(0, 500));
+      const jaExistiam = new Set<string>();
+      for (let i = 0; i < pacientesArray.length; i += 500) {
+        const chunk = pacientesArray.slice(i, i + 500);
+        const { data: anterioresChunk, error: errAnteriores } = await sb
+          .from("interacoes_ia")
+          .select("paciente_externo_id")
+          .lt("criado_em", inicio)
+          .in("paciente_externo_id", chunk);
 
-      const jaExistiam = new Set((anteriores || []).map((a: any) => a.paciente_externo_id));
+        if (errAnteriores) throw errAnteriores;
+        for (const item of anterioresChunk || []) {
+          if (item.paciente_externo_id) jaExistiam.add(item.paciente_externo_id);
+        }
+      }
+
       for (const p of pacientesArray) {
         if (jaExistiam.has(p)) leadsExistentes++;
         else leadsNovos++;
@@ -293,7 +362,7 @@ Deno.serve(async (req) => {
     // Agrupar por dia + paciente para contar conversas, não mensagens
     const convPorDia: Record<string, Record<string, { ia: boolean; respostaHumana: boolean; humano: string | null }>> = {};
     for (const i of items) {
-      const dia = i.criado_em.split("T")[0];
+      const dia = diaSaoPaulo(i.criado_em);
       if (!convPorDia[dia]) convPorDia[dia] = {};
       const pid = i.paciente_externo_id;
       if (!convPorDia[dia][pid]) convPorDia[dia][pid] = { ia: false, respostaHumana: false, humano: null };
@@ -306,8 +375,8 @@ Deno.serve(async (req) => {
       if (teveRespostaHumana) {
         convPorDia[dia][pid].respostaHumana = true;
         const digits = extractDigits(pid);
-        const atendente = (i as any).atendente_humano || consultorPorTelefone[digits] || "";
-        if (atendente && atendente !== "Humano") convPorDia[dia][pid].humano = atendente;
+        const atendente = classificarAtendenteHumano((i as any).atendente_humano || consultorPorTelefone[digits] || "");
+        if (atendente && !convPorDia[dia][pid].humano) convPorDia[dia][pid].humano = atendente;
       }
     }
     for (const [dia, convs] of Object.entries(convPorDia)) {
@@ -316,9 +385,8 @@ Deno.serve(async (req) => {
         if (conv.respostaHumana) {
           d.total++;
           if (conv.humano) {
-            const nome = conv.humano.toLowerCase();
-            if (nome.includes("rebeka")) d.rebeka++;
-            else if (nome.includes("maria")) d.maria_rita++;
+            if (conv.humano === "Rebeka") d.rebeka++;
+            else if (conv.humano === "Maria Rita") d.maria_rita++;
             else d.outros_humanos++;
           } else {
             d.outros_humanos++;
