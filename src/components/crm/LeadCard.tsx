@@ -26,6 +26,7 @@ export interface Lead {
   bairro?: string | null;
   cidade?: string | null;
   estado?: string | null;
+  pipeline_id?: string | null;
 }
 
 // Pipeline columns are now dynamic - loaded from DB via usePipelineColumns hook
