@@ -68,7 +68,7 @@ function detectarAtendentePorTexto(texto?: string | null): string {
 
   const patternsRebeka = [
     /\b(?:sou|chamo|me chamo|eu sou|aqui e|aqui eh)\s*(?:a\s+)?rebeka\b/,
-    /\brebeka\b.*\b(aqui|falando|da clinica|da la vitta)\b/,
+    /\brebeka\b.*\b(aqui|falando|da vitta care)\b/,
     /\bbom dia[^\n]*\brebeka\b/,
     /\bboa tarde[^\n]*\brebeka\b/,
     /\bboa noite[^\n]*\brebeka\b/,
@@ -76,7 +76,7 @@ function detectarAtendentePorTexto(texto?: string | null): string {
 
   const patternsMaria = [
     /\b(?:sou|chamo|me chamo|eu sou|aqui e|aqui eh)\s*(?:a\s+)?maria(?:\s+rita)?\b/,
-    /\bmaria(?:\s+rita)?\b.*\b(aqui|falando|da clinica|da la vitta)\b/,
+    /\bmaria(?:\s+rita)?\b.*\b(aqui|falando|da vitta care)\b/,
     /\bbom dia[^\n]*\bmaria(?:\s+rita)?\b/,
     /\bboa tarde[^\n]*\bmaria(?:\s+rita)?\b/,
     /\bboa noite[^\n]*\bmaria(?:\s+rita)?\b/,
@@ -98,9 +98,9 @@ function normalizarTextoComparacao(texto?: string | null): string {
     .trim();
 }
 
-function ehSaudacaoPadraoMaria(texto?: string | null): boolean {
+function ehSaudacaoPadraoSofIA(texto?: string | null): boolean {
   const normalizado = normalizarTextoComparacao(texto);
-  return normalizado.includes("aqui e a maria da clinica la vitta") && (
+  return normalizado.includes("aqui e a sofia da vitta care") && (
     normalizado.includes("como voce esta") ||
     normalizado.includes("estou a disposicao")
   );
@@ -115,7 +115,7 @@ function ehRespostaRepetidaOuIntroducao(resposta: string, historico: HistoricoIn
     .filter((item): item is string => !!item)
     .slice(-3);
 
-  if (historico.length > 0 && ehSaudacaoPadraoMaria(resposta)) {
+  if (historico.length > 0 && ehSaudacaoPadraoSofIA(resposta)) {
     return true;
   }
 
@@ -316,7 +316,7 @@ async function processarMensagemFromMe(supabase: any, numero: string, texto: str
 
   const ultimaRespostaIA = normalizarTextoComparacao(ultimaInteracao?.resposta_final);
   if (ultimaRespostaIA && ultimaRespostaIA === textoNormalizado) {
-    console.log(`[whatsapp] Mensagem fromMe reconhecida como envio da própria Maria para ${numero}`);
+    console.log(`[whatsapp] Mensagem fromMe reconhecida como envio da própria SofIA para ${numero}`);
     return;
   }
 
@@ -495,7 +495,7 @@ async function processarMensagemFromMe(supabase: any, numero: string, texto: str
   }
 
   await registrarBloqueioHumano(supabase, numero, `atendente_humano:${nomeAtendente || "desconhecido"}:${texto.slice(0, 200)}`);
-  console.log(`[whatsapp] 🤝 Atendimento humano detectado para ${numero}; Maria ficará silenciada por ${HUMAN_HANDOFF_MINUTES} min`);
+  console.log(`[whatsapp] 🤝 Atendimento humano detectado para ${numero}; SofIA ficará silenciada por ${HUMAN_HANDOFF_MINUTES} min`);
 }
 
 // =============================
@@ -1836,7 +1836,7 @@ serve(async (req) => {
     const bloqueioHumanoAtivo = await buscarBloqueioHumanoAtivo(supabase, numero);
     if (bloqueioHumanoAtivo) {
       await liberarLockDB(supabase, numero);
-      console.log(`[whatsapp] 🤫 Atendimento humano ativo para ${numero} até ${bloqueioHumanoAtivo.bloqueio_ate}; Maria ficará em silêncio`);
+      console.log(`[whatsapp] 🤫 Atendimento humano ativo para ${numero} até ${bloqueioHumanoAtivo.bloqueio_ate}; SofIA ficará em silêncio`);
 
       supabase.from("interacoes_ia").insert({
         paciente_externo_id: numero,
@@ -2021,7 +2021,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     // Fallback: só usar saudação se NÃO houver histórico (primeira interação)
     if (!respostaFinal) {
       if (historicoOrdenado.length === 0) {
-        respostaFinal = `${getSaudacao()}! Aqui é a Maria, da Clínica La Vitta 😊 Como você está? Estou à disposição!`;
+        respostaFinal = `${getSaudacao()}! Aqui é a SofIA, da Vitta Care 😊 Como você está? Estou à disposição!`;
       } else {
         const ultimaResposta = historicoOrdenado[historicoOrdenado.length - 1]?.resposta_final;
         respostaFinal = normalizarTextoComparacao(ultimaResposta) === normalizarTextoComparacao(FALLBACK_TECNICO)
@@ -2111,7 +2111,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
           // Notificar admin sobre confirmação sem agendamento real
           const adminNumber = Deno.env.get("ADMIN_WHATSAPP_NUMBER");
           if (adminNumber) {
-            enviarTexto(adminNumber, `⚠️ *Maria confirmou agendamento verbalmente mas NÃO registrou na agenda*\n📱 Paciente: ${numero}\n💬 Resposta: "${respostaFinal.slice(0, 200)}"\n\n⚡ Favor verificar e registrar manualmente.`).catch(() => {});
+            enviarTexto(adminNumber, `⚠️ *SofIA confirmou agendamento verbalmente mas NÃO registrou na agenda*\n📱 Paciente: ${numero}\n💬 Resposta: "${respostaFinal.slice(0, 200)}"\n\n⚡ Favor verificar e registrar manualmente.`).catch(() => {});
           }
         }
       }
@@ -2201,7 +2201,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     }
 
     // Verificar também se é saudação repetida quando já tem histórico
-    if (ultimaFresca && ehSaudacaoPadraoMaria(respostaFinal)) {
+    if (ultimaFresca && ehSaudacaoPadraoSofIA(respostaFinal)) {
       console.warn(`[whatsapp] ⚠️ Bloqueando saudação repetida (já existe histórico) para ${numero}`);
       await liberarLockDB(supabase, numero);
       return new Response(JSON.stringify({ status: "saudacao_repetida_bloqueada" }), {
