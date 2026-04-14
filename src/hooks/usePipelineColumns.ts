@@ -7,6 +7,7 @@ export interface PipelineColumn {
   nome: string;
   cor: string;
   ordem: number;
+  pipeline_id: string;
 }
 
 const COLOR_OPTIONS = [
@@ -26,27 +27,35 @@ const COLOR_OPTIONS = [
 
 export { COLOR_OPTIONS };
 
-export function usePipelineColumns() {
+export function usePipelineColumns(pipelineId: string | null) {
   const [columns, setColumns] = useState<PipelineColumn[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchColumns = useCallback(async () => {
+    if (!pipelineId) {
+      setColumns([]);
+      setLoading(false);
+      return;
+    }
     const { data, error } = await supabase
       .from("pipeline_colunas")
       .select("*")
+      .eq("pipeline_id", pipelineId)
       .order("ordem", { ascending: true });
 
     if (!error && data) {
       setColumns(data as PipelineColumn[]);
     }
     setLoading(false);
-  }, []);
+  }, [pipelineId]);
 
   useEffect(() => {
+    setLoading(true);
     fetchColumns();
   }, [fetchColumns]);
 
   const addColumn = async (nome: string, cor: string) => {
+    if (!pipelineId) return { message: "Nenhum pipeline selecionado" };
     const chave = nome
       .toLowerCase()
       .normalize("NFD")
@@ -56,14 +65,12 @@ export function usePipelineColumns() {
     const ordem = columns.length;
     const { error } = await supabase
       .from("pipeline_colunas")
-      .insert({ chave, nome, cor, ordem });
+      .insert({ chave, nome, cor, ordem, pipeline_id: pipelineId });
     if (!error) await fetchColumns();
     return error;
   };
 
   const updateColumn = async (id: string, updates: { nome?: string; cor?: string }) => {
-    const col = columns.find((c) => c.id === id);
-    if (!col) return;
     const { error } = await supabase
       .from("pipeline_colunas")
       .update(updates)

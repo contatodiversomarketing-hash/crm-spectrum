@@ -6,7 +6,9 @@ import { Search, Users, FileText, Phone, Calendar, Settings } from "lucide-react
 import { Button } from "@/components/ui/button";
 import { KanbanBoard } from "@/components/crm/KanbanBoard";
 import { ColumnSettingsDialog } from "@/components/crm/ColumnSettingsDialog";
+import { PipelineSelector } from "@/components/crm/PipelineSelector";
 import { usePipelineColumns } from "@/hooks/usePipelineColumns";
+import { usePipelines } from "@/hooks/usePipelines";
 import type { Lead } from "@/components/crm/LeadCard";
 
 export default function CRMPage() {
@@ -14,17 +16,33 @@ export default function CRMPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const { columns, loading: colsLoading, addColumn, updateColumn, deleteColumn } = usePipelineColumns();
+  const [activePipelineId, setActivePipelineId] = useState<string | null>(null);
+
+  const { pipelines, loading: pipelinesLoading, addPipeline, updatePipeline, deletePipeline } = usePipelines();
+  const { columns, loading: colsLoading, addColumn, updateColumn, deleteColumn } = usePipelineColumns(activePipelineId);
+
+  // Auto-select first pipeline
+  useEffect(() => {
+    if (!activePipelineId && pipelines.length > 0) {
+      setActivePipelineId(pipelines[0].id);
+    }
+    // If active was deleted, reset
+    if (activePipelineId && pipelines.length > 0 && !pipelines.find((p) => p.id === activePipelineId)) {
+      setActivePipelineId(pipelines[0].id);
+    }
+  }, [pipelines, activePipelineId]);
 
   useEffect(() => {
-    fetchLeads();
-  }, []);
+    if (activePipelineId) fetchLeads();
+  }, [activePipelineId]);
 
   const fetchLeads = async () => {
+    if (!activePipelineId) return;
     setLoading(true);
     const { data, error } = await supabase
       .from("leads")
       .select("*")
+      .eq("pipeline_id", activePipelineId)
       .order("criado_em", { ascending: false })
       .limit(500);
 
@@ -56,14 +74,26 @@ export default function CRMPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">CRM — Pacientes</h1>
-          <p className="text-sm text-muted-foreground">Pipeline de leads recebidos do vitta-care.com</p>
+          <h1 className="text-2xl font-bold text-foreground">CRM — Pipeline</h1>
+          <p className="text-sm text-muted-foreground">Gerencie múltiplas pipelines de leads</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
+        <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)} disabled={!activePipelineId}>
           <Settings className="h-4 w-4 mr-1.5" />
           Colunas
         </Button>
       </div>
+
+      {/* Pipeline tabs */}
+      {!pipelinesLoading && (
+        <PipelineSelector
+          pipelines={pipelines}
+          activePipelineId={activePipelineId}
+          onSelect={setActivePipelineId}
+          onAdd={addPipeline}
+          onUpdate={updatePipeline}
+          onDelete={deletePipeline}
+        />
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -117,7 +147,7 @@ export default function CRMPage() {
       </div>
 
       {/* Kanban */}
-      {loading || colsLoading ? (
+      {loading || colsLoading || pipelinesLoading ? (
         <p className="text-center text-muted-foreground py-12">Carregando...</p>
       ) : (
         <KanbanBoard leads={filteredLeads} onRefresh={fetchLeads} columns={columns} />
