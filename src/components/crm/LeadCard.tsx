@@ -1,0 +1,122 @@
+import { Phone, Mail, MapPin, Calendar, FileText, Eye } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+export interface Lead {
+  id: string;
+  nome: string | null;
+  telefone: string | null;
+  email: string | null;
+  cpf: string | null;
+  origem: string | null;
+  status: string;
+  status_pipeline: string;
+  dados_triagem?: any;
+  criado_em: string;
+  data_nascimento?: string | null;
+  cep?: string | null;
+  logradouro?: string | null;
+  numero?: string | null;
+  bairro?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
+}
+
+export const pipelineColumns = [
+  { key: "novo", label: "Novo", color: "bg-blue-500" },
+  { key: "triagem_recebida", label: "Triagem Recebida", color: "bg-purple-500" },
+  { key: "em_contato", label: "Em Contato", color: "bg-yellow-500" },
+  { key: "agendado", label: "Agendado", color: "bg-green-500" },
+  { key: "consultou", label: "Consultou", color: "bg-emerald-600" },
+  { key: "perdido", label: "Perdido", color: "bg-red-500" },
+];
+
+function formatEndereco(lead: Lead): string | null {
+  const parts = [
+    lead.logradouro,
+    lead.numero ? `nº ${lead.numero}` : null,
+    lead.bairro,
+    lead.cidade && lead.estado ? `${lead.cidade}/${lead.estado}` : lead.cidade || lead.estado,
+    lead.cep ? `CEP ${lead.cep}` : null,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(", ") : null;
+}
+
+export function LeadCard({ lead }: { lead: Lead }) {
+  const endereco = formatEndereco(lead);
+
+  return (
+    <div className="bg-card border border-border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow cursor-default">
+      <div className="flex items-start justify-between mb-2">
+        <p className="font-semibold text-sm text-foreground truncate flex-1">
+          {lead.nome || "Sem nome"}
+        </p>
+        {lead.dados_triagem && (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
+                <Eye className="h-3.5 w-3.5" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Triagem — {lead.nome || "Sem nome"}</DialogTitle>
+              </DialogHeader>
+              <ScrollArea className="max-h-[400px]">
+                <pre className="text-xs bg-muted p-3 rounded-lg whitespace-pre-wrap">
+                  {JSON.stringify(lead.dados_triagem, null, 2)}
+                </pre>
+              </ScrollArea>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+
+      <div className="space-y-1 text-xs text-muted-foreground">
+        {lead.telefone && (
+          <div className="flex items-center gap-1.5">
+            <Phone className="h-3 w-3 shrink-0" />
+            <span className="truncate">{lead.telefone}</span>
+          </div>
+        )}
+        {lead.email && (
+          <div className="flex items-center gap-1.5">
+            <Mail className="h-3 w-3 shrink-0" />
+            <span className="truncate">{lead.email}</span>
+          </div>
+        )}
+        {lead.cpf && (
+          <div className="flex items-center gap-1.5">
+            <FileText className="h-3 w-3 shrink-0" />
+            <span>CPF: {lead.cpf}</span>
+          </div>
+        )}
+        {lead.data_nascimento && (
+          <div className="flex items-center gap-1.5">
+            <Calendar className="h-3 w-3 shrink-0" />
+            <span>{new Date(lead.data_nascimento + "T12:00:00").toLocaleDateString("pt-BR")}</span>
+          </div>
+        )}
+        {endereco && (
+          <div className="flex items-start gap-1.5">
+            <MapPin className="h-3 w-3 shrink-0 mt-0.5" />
+            <span className="line-clamp-2">{endereco}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
+        {lead.origem && (
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+            {lead.origem}
+          </Badge>
+        )}
+        <span className="text-[10px] text-muted-foreground ml-auto">
+          {new Date(lead.criado_em).toLocaleDateString("pt-BR")}
+        </span>
+      </div>
+    </div>
+  );
+}

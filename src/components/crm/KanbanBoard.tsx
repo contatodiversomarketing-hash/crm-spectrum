@@ -1,0 +1,42 @@
+import { LeadCard, Lead, pipelineColumns } from "./LeadCard";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+interface KanbanBoardProps {
+  leads: Lead[];
+}
+
+export function KanbanBoard({ leads }: KanbanBoardProps) {
+  return (
+    <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: "calc(100vh - 280px)" }}>
+      {pipelineColumns.map((col) => {
+        const colLeads = leads.filter((l) => l.status_pipeline === col.key);
+        return (
+          <div
+            key={col.key}
+            className="flex-shrink-0 w-[280px] flex flex-col bg-muted/40 rounded-xl border border-border"
+          >
+            {/* Column header */}
+            <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border">
+              <div className={`w-2.5 h-2.5 rounded-full ${col.color}`} />
+              <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
+              <span className="ml-auto text-xs font-medium text-muted-foreground bg-background px-2 py-0.5 rounded-full">
+                {colLeads.length}
+              </span>
+            </div>
+
+            {/* Cards */}
+            <ScrollArea className="flex-1 p-2">
+              <div className="space-y-2">
+                {colLeads.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-8">Nenhum lead</p>
+                ) : (
+                  colLeads.map((lead) => <LeadCard key={lead.id} lead={lead} />)
+                )}
+              </div>
+            </ScrollArea>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
