@@ -783,6 +783,33 @@ export type Database = {
           },
         ]
       }
+      pipeline_colunas: {
+        Row: {
+          chave: string
+          cor: string
+          criado_em: string
+          id: string
+          nome: string
+          ordem: number
+        }
+        Insert: {
+          chave: string
+          cor?: string
+          criado_em?: string
+          id?: string
+          nome: string
+          ordem?: number
+        }
+        Update: {
+          chave?: string
+          cor?: string
+          criado_em?: string
+          id?: string
+          nome?: string
+          ordem?: number
+        }
+        Relationships: []
+      }
       precificacao_ia: {
         Row: {
           clinica_id: string | null
