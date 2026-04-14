@@ -53,18 +53,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    const systemPrompt = `Você é um classificador de intenções para uma clínica odontológica/médica. Classifique a mensagem do paciente em UMA das seguintes intenções:
-- agendamento: quer marcar consulta/exame
+    const systemPrompt = `Você é um classificador de intenções para uma empresa de telemedicina especializada em cannabis medicinal (Vitta Care). Classifique a mensagem em UMA das seguintes intenções:
+- agendamento: quer marcar consulta médica
 - reagendamento: quer mudar data/horário
 - cancelamento: quer cancelar consulta
 - confirmacao: confirma presença
-- duvida_servico: pergunta sobre serviços/tratamentos
-- duvida_valor: pergunta sobre preços/valores
-- duvida_preparo_exame: pergunta sobre preparo para exames
-- emergencia: relata dor/urgência
+- duvida_servico: pergunta sobre tratamento com cannabis/CBD, como funciona
+- duvida_valor: pergunta sobre preços/valores da consulta
+- duvida_preparo_exame: pergunta sobre documentos ou preparo para a consulta
+- emergencia: relata urgência médica
 - reclamacao: insatisfação/reclamação
-- retorno_inativo: paciente inativo voltando a fazer contato
-- financeiro: assuntos de pagamento/boleto/parcela
+- retorno_inativo: pessoa que já teve contato voltando
+- financeiro: assuntos de pagamento
 - outro: não se encaixa em nenhuma das anteriores
 
 Retorne APENAS a intenção classificada e o nível de confiança.`;
