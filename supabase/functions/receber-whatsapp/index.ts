@@ -126,23 +126,32 @@ const LOVABLE_AI_BASE_URL = "https://ai.gateway.lovable.dev";
 const FALLBACK_TECNICO = "Desculpe, tive uma dificuldade técnica momentânea. Pode repetir, por favor? 😊";
 
 // =============================
-// TRAVA DE CONCORRÊNCIA POR NÚMERO (evita respostas duplicadas quando múltiplos webhooks chegam ao mesmo tempo)
+// TRAVA DE CONCORRÊNCIA VIA BANCO DE DADOS (funciona entre múltiplos isolates)
 // =============================
-const processandoNumero = new Map<string, number>();
-const LOCK_TIMEOUT_MS = 30000; // 30 segundos
-
-function tentarObterLock(numero: string): boolean {
-  const agora = Date.now();
-  const lockTime = processandoNumero.get(numero);
-  if (lockTime && (agora - lockTime) < LOCK_TIMEOUT_MS) {
-    return false; // Já está sendo processado
+async function tentarObterLockDB(supabase: any, numero: string): Promise<boolean> {
+  try {
+    // Limpar locks expirados (>60s) antes de tentar
+    await supabase.from("locks_processamento").delete().lt("criado_em", new Date(Date.now() - 60000).toISOString());
+    
+    const { error } = await supabase.from("locks_processamento").insert({ numero });
+    if (error) {
+      // Conflito = já tem lock ativo
+      console.log(`[whatsapp] 🔒 Lock DB ativo para ${numero}: ${error.message}`);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error("[whatsapp] Erro ao obter lock DB:", e);
+    return false;
   }
-  processandoNumero.set(numero, agora);
-  return true;
 }
 
-function liberarLock(numero: string): void {
-  processandoNumero.delete(numero);
+async function liberarLockDB(supabase: any, numero: string): Promise<void> {
+  try {
+    await supabase.from("locks_processamento").delete().eq("numero", numero);
+  } catch (e) {
+    console.error("[whatsapp] Erro ao liberar lock DB:", e);
+  }
 }
 
 async function gerarRespostaOpenAI(messages: Array<{ role: string; content: any }>, usarVision: boolean): Promise<string> {
