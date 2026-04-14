@@ -564,6 +564,21 @@ export type Database = {
           },
         ]
       }
+      locks_processamento: {
+        Row: {
+          criado_em: string
+          numero: string
+        }
+        Insert: {
+          criado_em?: string
+          numero: string
+        }
+        Update: {
+          criado_em?: string
+          numero?: string
+        }
+        Relationships: []
+      }
       logs_decisao: {
         Row: {
           clinica_id: string | null
@@ -1061,6 +1076,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      limpar_locks_antigos: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "supervisao" | "analista"

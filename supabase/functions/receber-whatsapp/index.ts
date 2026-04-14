@@ -126,23 +126,32 @@ const LOVABLE_AI_BASE_URL = "https://ai.gateway.lovable.dev";
 const FALLBACK_TECNICO = "Desculpe, tive uma dificuldade técnica momentânea. Pode repetir, por favor? 😊";
 
 // =============================
-// TRAVA DE CONCORRÊNCIA POR NÚMERO (evita respostas duplicadas quando múltiplos webhooks chegam ao mesmo tempo)
+// TRAVA DE CONCORRÊNCIA VIA BANCO DE DADOS (funciona entre múltiplos isolates)
 // =============================
-const processandoNumero = new Map<string, number>();
-const LOCK_TIMEOUT_MS = 30000; // 30 segundos
-
-function tentarObterLock(numero: string): boolean {
-  const agora = Date.now();
-  const lockTime = processandoNumero.get(numero);
-  if (lockTime && (agora - lockTime) < LOCK_TIMEOUT_MS) {
-    return false; // Já está sendo processado
+async function tentarObterLockDB(supabase: any, numero: string): Promise<boolean> {
+  try {
+    // Limpar locks expirados (>60s) antes de tentar
+    await supabase.from("locks_processamento").delete().lt("criado_em", new Date(Date.now() - 60000).toISOString());
+    
+    const { error } = await supabase.from("locks_processamento").insert({ numero });
+    if (error) {
+      // Conflito = já tem lock ativo
+      console.log(`[whatsapp] 🔒 Lock DB ativo para ${numero}: ${error.message}`);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error("[whatsapp] Erro ao obter lock DB:", e);
+    return false;
   }
-  processandoNumero.set(numero, agora);
-  return true;
 }
 
-function liberarLock(numero: string): void {
-  processandoNumero.delete(numero);
+async function liberarLockDB(supabase: any, numero: string): Promise<void> {
+  try {
+    await supabase.from("locks_processamento").delete().eq("numero", numero);
+  } catch (e) {
+    console.error("[whatsapp] Erro ao liberar lock DB:", e);
+  }
 }
 
 async function gerarRespostaOpenAI(messages: Array<{ role: string; content: any }>, usarVision: boolean): Promise<string> {
@@ -1882,7 +1891,7 @@ serve(async (req) => {
     // =============================
     // TRAVA DE CONCORRÊNCIA - evitar processar mesmo número em paralelo
     // =============================
-    if (!tentarObterLock(numero)) {
+    if (!(await tentarObterLockDB(supabase, numero))) {
       console.log(`[whatsapp] 🔒 Número ${numero} já está sendo processado — ignorando webhook duplicado`);
       return new Response(JSON.stringify({ status: "processamento_em_andamento" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -1891,7 +1900,7 @@ serve(async (req) => {
 
     const bloqueioHumanoAtivo = await buscarBloqueioHumanoAtivo(supabase, numero);
     if (bloqueioHumanoAtivo) {
-      liberarLock(numero);
+      await liberarLockDB(supabase, numero);
       console.log(`[whatsapp] 🤫 Atendimento humano ativo para ${numero} até ${bloqueioHumanoAtivo.bloqueio_ate}; Maria ficará em silêncio`);
 
       supabase.from("interacoes_ia").insert({
@@ -2250,7 +2259,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     const ultimaRespostaFresca = ultimaFresca?.resposta_final;
     if (normalizarTextoComparacao(ultimaRespostaFresca) === normalizarTextoComparacao(respostaFinal)) {
       console.warn(`[whatsapp] ⚠️ Bloqueando reenvio duplicado (check fresco) para ${numero}`);
-      liberarLock(numero);
+      await liberarLockDB(supabase, numero);
       return new Response(JSON.stringify({ status: "resposta_duplicada_bloqueada" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -2259,7 +2268,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     // Verificar também se é saudação repetida quando já tem histórico
     if (ultimaFresca && ehSaudacaoPadraoMaria(respostaFinal)) {
       console.warn(`[whatsapp] ⚠️ Bloqueando saudação repetida (já existe histórico) para ${numero}`);
-      liberarLock(numero);
+      await liberarLockDB(supabase, numero);
       return new Response(JSON.stringify({ status: "saudacao_repetida_bloqueada" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -2302,13 +2311,14 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     });
     if (saveError) console.error("[whatsapp] Erro salvar interação:", saveError);
 
-    liberarLock(numero);
+    await liberarLockDB(supabase, numero);
     return new Response("ok");
   } catch (err) {
     // Tentar liberar lock mesmo em caso de erro
     try {
-      const body2 = typeof err === "object" ? "" : "";
-      // Não temos acesso fácil ao número aqui, mas o lock expira em 30s
+      const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      // Limpar todos os locks expirados como safety net
+      await sb.from("locks_processamento").delete().lt("criado_em", new Date(Date.now() - 60000).toISOString());
     } catch (_) {}
     console.error("[whatsapp] Erro geral:", err);
     return new Response("erro", { status: 500 });
