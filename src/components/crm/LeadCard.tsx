@@ -27,14 +27,7 @@ export interface Lead {
   estado?: string | null;
 }
 
-export const pipelineColumns = [
-  { key: "novo", label: "Novo", color: "bg-blue-500" },
-  { key: "triagem_recebida", label: "Triagem Recebida", color: "bg-purple-500" },
-  { key: "em_contato", label: "Em Contato", color: "bg-yellow-500" },
-  { key: "agendado", label: "Agendado", color: "bg-green-500" },
-  { key: "consultou", label: "Consultou", color: "bg-emerald-600" },
-  { key: "perdido", label: "Perdido", color: "bg-red-500" },
-];
+// Pipeline columns are now dynamic - loaded from DB via usePipelineColumns hook
 
 function formatEndereco(lead: Lead): string | null {
   const parts = [

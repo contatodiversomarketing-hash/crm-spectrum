@@ -9,16 +9,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
 import type { Lead } from "./LeadCard";
-import { pipelineColumns } from "./LeadCard";
+import type { PipelineColumn } from "@/hooks/usePipelineColumns";
 
 interface LeadEditDialogProps {
   lead: Lead;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
+  columns: PipelineColumn[];
 }
 
-export function LeadEditDialog({ lead, open, onOpenChange, onSaved }: LeadEditDialogProps) {
+export function LeadEditDialog({ lead, open, onOpenChange, onSaved, columns }: LeadEditDialogProps) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     nome: lead.nome || "",
@@ -85,8 +86,8 @@ export function LeadEditDialog({ lead, open, onOpenChange, onSaved }: LeadEditDi
               <Select value={form.status_pipeline} onValueChange={(v) => set("status_pipeline", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {pipelineColumns.map((c) => (
-                    <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>
+                  {columns.map((c) => (
+                    <SelectItem key={c.chave} value={c.chave}>{c.nome}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
