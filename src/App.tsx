@@ -11,6 +11,7 @@ import SupervisaoIA from "./pages/SupervisaoIA";
 import DashboardInteligenciaIA from "./pages/DashboardInteligenciaIA";
 import Login from "./pages/Login";
 import TreinamentoIA from "./pages/TreinamentoIA";
+import CRM from "./pages/CRM";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
