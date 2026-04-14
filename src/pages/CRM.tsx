@@ -2,14 +2,19 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search, Users, FileText, Phone, Calendar } from "lucide-react";
+import { Search, Users, FileText, Phone, Calendar, Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { KanbanBoard } from "@/components/crm/KanbanBoard";
+import { ColumnSettingsDialog } from "@/components/crm/ColumnSettingsDialog";
+import { usePipelineColumns } from "@/hooks/usePipelineColumns";
 import type { Lead } from "@/components/crm/LeadCard";
 
 export default function CRMPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const { columns, loading: colsLoading, addColumn, updateColumn, deleteColumn } = usePipelineColumns();
 
   useEffect(() => {
     fetchLeads();
@@ -49,9 +54,15 @@ export default function CRMPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">CRM — Pacientes</h1>
-        <p className="text-sm text-muted-foreground">Pipeline de leads recebidos do vitta-care.com</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">CRM — Pacientes</h1>
+          <p className="text-sm text-muted-foreground">Pipeline de leads recebidos do vitta-care.com</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
+          <Settings className="h-4 w-4 mr-1.5" />
+          Colunas
+        </Button>
       </div>
 
       {/* Stats */}
@@ -106,11 +117,20 @@ export default function CRMPage() {
       </div>
 
       {/* Kanban */}
-      {loading ? (
+      {loading || colsLoading ? (
         <p className="text-center text-muted-foreground py-12">Carregando...</p>
       ) : (
-        <KanbanBoard leads={filteredLeads} onRefresh={fetchLeads} />
+        <KanbanBoard leads={filteredLeads} onRefresh={fetchLeads} columns={columns} />
       )}
+
+      <ColumnSettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        columns={columns}
+        onAdd={addColumn}
+        onUpdate={updateColumn}
+        onDelete={deleteColumn}
+      />
     </div>
   );
 }

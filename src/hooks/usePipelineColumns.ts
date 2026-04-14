@@ -1,0 +1,85 @@
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
+export interface PipelineColumn {
+  id: string;
+  chave: string;
+  nome: string;
+  cor: string;
+  ordem: number;
+}
+
+const COLOR_OPTIONS = [
+  "bg-blue-500",
+  "bg-purple-500",
+  "bg-yellow-500",
+  "bg-green-500",
+  "bg-emerald-600",
+  "bg-red-500",
+  "bg-pink-500",
+  "bg-indigo-500",
+  "bg-orange-500",
+  "bg-teal-500",
+  "bg-cyan-500",
+  "bg-gray-500",
+];
+
+export { COLOR_OPTIONS };
+
+export function usePipelineColumns() {
+  const [columns, setColumns] = useState<PipelineColumn[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchColumns = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("pipeline_colunas")
+      .select("*")
+      .order("ordem", { ascending: true });
+
+    if (!error && data) {
+      setColumns(data as PipelineColumn[]);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchColumns();
+  }, [fetchColumns]);
+
+  const addColumn = async (nome: string, cor: string) => {
+    const chave = nome
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_|_$/g, "");
+    const ordem = columns.length;
+    const { error } = await supabase
+      .from("pipeline_colunas")
+      .insert({ chave, nome, cor, ordem });
+    if (!error) await fetchColumns();
+    return error;
+  };
+
+  const updateColumn = async (id: string, updates: { nome?: string; cor?: string }) => {
+    const col = columns.find((c) => c.id === id);
+    if (!col) return;
+    const { error } = await supabase
+      .from("pipeline_colunas")
+      .update(updates)
+      .eq("id", id);
+    if (!error) await fetchColumns();
+    return error;
+  };
+
+  const deleteColumn = async (id: string) => {
+    const { error } = await supabase
+      .from("pipeline_colunas")
+      .delete()
+      .eq("id", id);
+    if (!error) await fetchColumns();
+    return error;
+  };
+
+  return { columns, loading, fetchColumns, addColumn, updateColumn, deleteColumn };
+}

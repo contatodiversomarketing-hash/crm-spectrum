@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { PipelineColumn } from "@/hooks/usePipelineColumns";
 import { Phone, Mail, MapPin, Calendar, FileText, Eye, Pencil, StickyNote } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,14 +28,7 @@ export interface Lead {
   estado?: string | null;
 }
 
-export const pipelineColumns = [
-  { key: "novo", label: "Novo", color: "bg-blue-500" },
-  { key: "triagem_recebida", label: "Triagem Recebida", color: "bg-purple-500" },
-  { key: "em_contato", label: "Em Contato", color: "bg-yellow-500" },
-  { key: "agendado", label: "Agendado", color: "bg-green-500" },
-  { key: "consultou", label: "Consultou", color: "bg-emerald-600" },
-  { key: "perdido", label: "Perdido", color: "bg-red-500" },
-];
+// Pipeline columns are now dynamic - loaded from DB via usePipelineColumns hook
 
 function formatEndereco(lead: Lead): string | null {
   const parts = [
@@ -47,7 +41,7 @@ function formatEndereco(lead: Lead): string | null {
   return parts.length > 0 ? parts.join(", ") : null;
 }
 
-export function LeadCard({ lead, onRefresh }: { lead: Lead; onRefresh: () => void }) {
+export function LeadCard({ lead, onRefresh, columns = [] }: { lead: Lead; onRefresh: () => void; columns?: PipelineColumn[] }) {
   const [editOpen, setEditOpen] = useState(false);
   const endereco = formatEndereco(lead);
 
@@ -139,7 +133,7 @@ export function LeadCard({ lead, onRefresh }: { lead: Lead; onRefresh: () => voi
         </div>
       </div>
 
-      <LeadEditDialog lead={lead} open={editOpen} onOpenChange={setEditOpen} onSaved={onRefresh} />
+      <LeadEditDialog lead={lead} open={editOpen} onOpenChange={setEditOpen} onSaved={onRefresh} columns={columns} />
     </>
   );
 }
