@@ -529,30 +529,51 @@ export type Database = {
       leads: {
         Row: {
           clinica_id: string | null
+          cpf: string | null
           criado_em: string
+          dados_triagem: Json | null
+          email: string | null
           id: string
+          medico_preferido: string | null
           nome: string | null
+          observacoes: string | null
           origem: string | null
           status: string
+          status_pipeline: string
           telefone: string | null
+          ultima_interacao: string | null
         }
         Insert: {
           clinica_id?: string | null
+          cpf?: string | null
           criado_em?: string
+          dados_triagem?: Json | null
+          email?: string | null
           id?: string
+          medico_preferido?: string | null
           nome?: string | null
+          observacoes?: string | null
           origem?: string | null
           status?: string
+          status_pipeline?: string
           telefone?: string | null
+          ultima_interacao?: string | null
         }
         Update: {
           clinica_id?: string | null
+          cpf?: string | null
           criado_em?: string
+          dados_triagem?: Json | null
+          email?: string | null
           id?: string
+          medico_preferido?: string | null
           nome?: string | null
+          observacoes?: string | null
           origem?: string | null
           status?: string
+          status_pipeline?: string
           telefone?: string | null
+          ultima_interacao?: string | null
         }
         Relationships: [
           {
@@ -619,6 +640,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      medicos: {
+        Row: {
+          ativo: boolean
+          criado_em: string
+          crm: string | null
+          dias_atendimento: string | null
+          especialidade: string
+          horario_fim: string | null
+          horario_inicio: string | null
+          id: string
+          nome: string
+          observacoes: string | null
+          valor_consulta: number | null
+        }
+        Insert: {
+          ativo?: boolean
+          criado_em?: string
+          crm?: string | null
+          dias_atendimento?: string | null
+          especialidade?: string
+          horario_fim?: string | null
+          horario_inicio?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          valor_consulta?: number | null
+        }
+        Update: {
+          ativo?: boolean
+          criado_em?: string
+          crm?: string | null
+          dias_atendimento?: string | null
+          especialidade?: string
+          horario_fim?: string | null
+          horario_inicio?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          valor_consulta?: number | null
+        }
+        Relationships: []
       }
       memorias_ia: {
         Row: {
@@ -827,6 +890,65 @@ export type Database = {
             columns: ["clinica_id"]
             isOneToOne: false
             referencedRelation: "clinicas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      relatorios_triagem: {
+        Row: {
+          cpf: string | null
+          criado_em: string
+          dados_completos: Json | null
+          email: string | null
+          historico_saude: string | null
+          id: string
+          lead_id: string | null
+          medicamentos_atuais: string | null
+          nome: string | null
+          objetivo: string | null
+          processado: boolean
+          sintomas: string | null
+          status: string
+          telefone: string | null
+        }
+        Insert: {
+          cpf?: string | null
+          criado_em?: string
+          dados_completos?: Json | null
+          email?: string | null
+          historico_saude?: string | null
+          id?: string
+          lead_id?: string | null
+          medicamentos_atuais?: string | null
+          nome?: string | null
+          objetivo?: string | null
+          processado?: boolean
+          sintomas?: string | null
+          status?: string
+          telefone?: string | null
+        }
+        Update: {
+          cpf?: string | null
+          criado_em?: string
+          dados_completos?: Json | null
+          email?: string | null
+          historico_saude?: string | null
+          id?: string
+          lead_id?: string | null
+          medicamentos_atuais?: string | null
+          nome?: string | null
+          objetivo?: string | null
+          processado?: boolean
+          sintomas?: string | null
+          status?: string
+          telefone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relatorios_triagem_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
         ]
