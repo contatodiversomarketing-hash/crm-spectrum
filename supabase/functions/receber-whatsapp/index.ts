@@ -1891,7 +1891,7 @@ serve(async (req) => {
     // =============================
     // TRAVA DE CONCORRÊNCIA - evitar processar mesmo número em paralelo
     // =============================
-    if (!tentarObterLock(numero)) {
+    if (!(await tentarObterLockDB(supabase, numero))) {
       console.log(`[whatsapp] 🔒 Número ${numero} já está sendo processado — ignorando webhook duplicado`);
       return new Response(JSON.stringify({ status: "processamento_em_andamento" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -1900,7 +1900,7 @@ serve(async (req) => {
 
     const bloqueioHumanoAtivo = await buscarBloqueioHumanoAtivo(supabase, numero);
     if (bloqueioHumanoAtivo) {
-      liberarLock(numero);
+      await liberarLockDB(supabase, numero);
       console.log(`[whatsapp] 🤫 Atendimento humano ativo para ${numero} até ${bloqueioHumanoAtivo.bloqueio_ate}; Maria ficará em silêncio`);
 
       supabase.from("interacoes_ia").insert({
@@ -2259,7 +2259,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     const ultimaRespostaFresca = ultimaFresca?.resposta_final;
     if (normalizarTextoComparacao(ultimaRespostaFresca) === normalizarTextoComparacao(respostaFinal)) {
       console.warn(`[whatsapp] ⚠️ Bloqueando reenvio duplicado (check fresco) para ${numero}`);
-      liberarLock(numero);
+      await liberarLockDB(supabase, numero);
       return new Response(JSON.stringify({ status: "resposta_duplicada_bloqueada" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -2268,7 +2268,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     // Verificar também se é saudação repetida quando já tem histórico
     if (ultimaFresca && ehSaudacaoPadraoMaria(respostaFinal)) {
       console.warn(`[whatsapp] ⚠️ Bloqueando saudação repetida (já existe histórico) para ${numero}`);
-      liberarLock(numero);
+      await liberarLockDB(supabase, numero);
       return new Response(JSON.stringify({ status: "saudacao_repetida_bloqueada" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -2311,7 +2311,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     });
     if (saveError) console.error("[whatsapp] Erro salvar interação:", saveError);
 
-    liberarLock(numero);
+    await liberarLockDB(supabase, numero);
     return new Response("ok");
   } catch (err) {
     // Tentar liberar lock mesmo em caso de erro
