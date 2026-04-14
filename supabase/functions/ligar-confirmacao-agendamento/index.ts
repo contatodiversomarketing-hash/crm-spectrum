@@ -29,27 +29,21 @@ serve(async (req) => {
       throw new Error("Configuração da API de Gestão ausente");
     }
 
-    const pacienteRes = await fetch(`${gestaoApiUrl}/internal-api`, {
+    const pacienteRes = await fetch(gestaoApiUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${gestaoApiToken}`,
-      },
-      body: JSON.stringify({
-        action: "get_patient",
-        patient_id: paciente_externo_id,
-      }),
+      headers: { "Content-Type": "application/json", "apikey": gestaoApiToken },
+      body: JSON.stringify({ action: "buscar_paciente", params: { paciente_id: paciente_externo_id } }),
     });
 
     if (!pacienteRes.ok) {
       throw new Error(`Erro ao buscar paciente: ${pacienteRes.status}`);
     }
 
-    const paciente = await pacienteRes.json();
-    const telefone = paciente?.phone || paciente?.telefone;
-    const nomePaciente = paciente?.name || paciente?.nome || "paciente";
+    const pacienteJson = await pacienteRes.json();
+    const paciente = pacienteJson.data || pacienteJson;
+    const telefone = paciente?.telefone || paciente?.phone;
+    const nomePaciente = paciente?.nome || paciente?.name || "paciente";
 
-    // Validar telefone
     if (!telefone || typeof telefone !== "string" || telefone.trim().length < 10) {
       return new Response(
         JSON.stringify({ error: "Telefone do paciente inválido ou não encontrado" }),
@@ -57,7 +51,6 @@ serve(async (req) => {
       );
     }
 
-    // Formatar telefone (garantir prefixo +55 se necessário)
     const telefoneFormatado = telefone.startsWith("+") ? telefone : `+55${telefone.replace(/\D/g, "")}`;
 
     // Iniciar chamada via Twilio
@@ -71,14 +64,10 @@ serve(async (req) => {
 
     const twilioAuth = btoa(`${twilioSid}:${twilioToken}`);
 
-    // Buscar dados do agendamento (data/horário) se disponíveis
-    const dataConsulta = paciente?.next_appointment_date || paciente?.data_consulta || "";
-    const horarioConsulta = paciente?.next_appointment_time || paciente?.horario_consulta || "";
-
     const callParams = new URLSearchParams({
       To: telefoneFormatado,
       From: twilioPhone,
-      Url: "https://chilmuwijkkdefqizleh.supabase.co/functions/v1/twilio-voice-webhook",
+      Url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/twilio-voice-webhook`,
       Method: "POST",
     });
 
@@ -86,10 +75,7 @@ serve(async (req) => {
       `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Calls.json`,
       {
         method: "POST",
-        headers: {
-          Authorization: `Basic ${twilioAuth}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
+        headers: { Authorization: `Basic ${twilioAuth}`, "Content-Type": "application/x-www-form-urlencoded" },
         body: callParams.toString(),
       }
     );

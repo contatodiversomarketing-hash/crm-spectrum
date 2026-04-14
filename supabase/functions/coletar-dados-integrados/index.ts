@@ -17,9 +17,7 @@ interface SystemResult {
 }
 
 async function fetchWithTimeout(
-  url: string,
-  token: string,
-  timeoutMs: number,
+  url: string, headers: Record<string, string>, timeoutMs: number,
   options?: { method?: string; body?: unknown }
 ): Promise<SystemResult> {
   const start = Date.now();
@@ -29,12 +27,7 @@ async function fetchWithTimeout(
 
   try {
     const fetchOptions: RequestInit = {
-      method,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        apikey: token,
-        "Content-Type": "application/json",
-      },
+      method, headers: { ...headers, "Content-Type": "application/json" },
       signal: controller.signal,
     };
     if (options?.body && method !== "GET") {
@@ -42,7 +35,6 @@ async function fetchWithTimeout(
     }
 
     const res = await fetch(url, fetchOptions);
-
     clearTimeout(timer);
     const duration_ms = Date.now() - start;
 
@@ -59,13 +51,9 @@ async function fetchWithTimeout(
     clearTimeout(timer);
     const duration_ms = Date.now() - start;
     const message = err instanceof Error ? err.message : String(err);
-    const isTimeout = message.includes("abort");
-
     return {
-      data: null,
-      ok: false,
-      status: 0,
-      error: isTimeout ? `Timeout após ${timeoutMs}ms` : message,
+      data: null, ok: false, status: 0,
+      error: message.includes("abort") ? `Timeout após ${timeoutMs}ms` : message,
       duration_ms,
     };
   }
@@ -77,58 +65,37 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const CRM_API_URL = Deno.env.get("CRM_API_URL");
-    const CRM_API_TOKEN = Deno.env.get("CRM_API_TOKEN");
     const GESTAO_API_URL = Deno.env.get("GESTAO_API_URL");
     const GESTAO_API_TOKEN = Deno.env.get("GESTAO_API_TOKEN");
-    const FINANCEIRO_API_URL = Deno.env.get("FINANCEIRO_API_URL");
-    const FINANCEIRO_API_TOKEN = Deno.env.get("FINANCEIRO_API_TOKEN");
 
-    const missing: string[] = [];
-    if (!CRM_API_URL || !CRM_API_TOKEN) missing.push("CRM");
-    if (!GESTAO_API_URL || !GESTAO_API_TOKEN) missing.push("GESTAO");
-    if (!FINANCEIRO_API_URL || !FINANCEIRO_API_TOKEN) missing.push("FINANCEIRO");
-
-    if (missing.length > 0) {
+    if (!GESTAO_API_URL || !GESTAO_API_TOKEN) {
       return new Response(
-        JSON.stringify({ error: `Secrets não configurados: ${missing.join(", ")}` }),
+        JSON.stringify({ error: "Secrets não configurados: GESTAO" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("[coletar-dados-integrados] URLs:", {
-      crm_leads: `${CRM_API_URL}api-leads`,
-      crm_conversoes: `${CRM_API_URL}api-conversoes`,
-      gestao: `${GESTAO_API_URL}/functions/v1/internal-api`,
-      financeiro: FINANCEIRO_API_URL,
-    });
-    console.log("[coletar-dados-integrados] Tokens (primeiros 20 chars):", {
-      crm: CRM_API_TOKEN?.substring(0, 20),
-      gestao: GESTAO_API_TOKEN?.substring(0, 20),
-      financeiro: FINANCEIRO_API_TOKEN?.substring(0, 20),
-    });
-    console.log("[coletar-dados-integrados] Iniciando coleta paralela...");
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    const [crmLeads, crmConversoes, gestao, financeiro] = await Promise.all([
-      fetchWithTimeout(`${CRM_API_URL}api-leads`, CRM_API_TOKEN!, TIMEOUT_MS),
-      fetchWithTimeout(`${CRM_API_URL}api-conversoes`, CRM_API_TOKEN!, TIMEOUT_MS),
-      fetchWithTimeout(`${GESTAO_API_URL}/functions/v1/internal-api`, GESTAO_API_TOKEN!, TIMEOUT_MS, {
-        method: "POST",
-        body: { action: "list_inactive_patients", dias: 180 },
+    // Buscar dados do CRM interno + gestão em paralelo
+    const gestaoHeaders = { "apikey": GESTAO_API_TOKEN };
+
+    const [gestaoMedicos, gestaoAgendamentos, leadsResult] = await Promise.all([
+      fetchWithTimeout(GESTAO_API_URL, gestaoHeaders, TIMEOUT_MS, {
+        method: "POST", body: { action: "listar_medicos" },
       }),
-      fetchWithTimeout(`${FINANCEIRO_API_URL}/sync-caixa`, FINANCEIRO_API_TOKEN!, TIMEOUT_MS, {
-        method: "POST",
-        body: {},
+      fetchWithTimeout(GESTAO_API_URL, gestaoHeaders, TIMEOUT_MS, {
+        method: "POST", body: { action: "listar_agendamentos" },
       }),
+      supabase.from("leads").select("*").order("criado_em", { ascending: false }).limit(200),
     ]);
 
-    console.log(`[coletar-dados-integrados] CRM Leads: ${crmLeads.status} (${crmLeads.duration_ms}ms) | CRM Conversões: ${crmConversoes.status} (${crmConversoes.duration_ms}ms) | Gestão: ${gestao.status} (${gestao.duration_ms}ms) | Financeiro: ${financeiro.status} (${financeiro.duration_ms}ms)`);
+    console.log(`[coletar-dados-integrados] Gestão Médicos: ${gestaoMedicos.status} (${gestaoMedicos.duration_ms}ms) | Agendamentos: ${gestaoAgendamentos.status} (${gestaoAgendamentos.duration_ms}ms)`);
 
     return new Response(
       JSON.stringify({
-        crm: { leads: crmLeads, conversoes: crmConversoes },
-        gestao,
-        financeiro,
+        crm: { leads: { data: leadsResult.data, ok: !leadsResult.error, status: 200, duration_ms: 0 } },
+        gestao: { medicos: gestaoMedicos, agendamentos: gestaoAgendamentos },
         timestamp: new Date().toISOString(),
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -10,69 +10,58 @@ const TOP_N = 50;
 const DIAS_BLOQUEIO = 30;
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-  if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Método não permitido" }), { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method !== "POST") return new Response(JSON.stringify({ error: "Método não permitido" }), { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   try {
     const body = await req.json().catch(() => ({}));
     const clinica_id = body.clinica_id;
 
-    const GESTAO_API_URL = Deno.env.get("GESTAO_API_URL");
-    const GESTAO_API_KEY = Deno.env.get("GESTAO_API_TOKEN");
     const MEGA_API_URL = Deno.env.get("MEGA_API_URL");
     const MEGA_API_TOKEN = Deno.env.get("MEGA_API_TOKEN");
-
-    if (!GESTAO_API_URL || !GESTAO_API_KEY) return new Response(JSON.stringify({ error: "GESTAO_API não configurada" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     if (!MEGA_API_URL || !MEGA_API_TOKEN) return new Response(JSON.stringify({ error: "MEGA_API não configurada" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    const response = await fetch(`${GESTAO_API_URL}/list_inactive_patients`, { headers: { Authorization: `Bearer ${GESTAO_API_KEY}` } });
-    if (!response.ok) return new Response(JSON.stringify({ error: "Falha na API de Gestão", status: response.status }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // Buscar leads inativos do CRM interno (em vez da API de gestão antiga)
+    const dataLimite180d = new Date(Date.now() - 180 * 86400000).toISOString();
+    const { data: leadsInativos } = await supabase
+      .from("leads")
+      .select("*")
+      .lt("ultima_interacao", dataLimite180d)
+      .not("telefone", "is", null)
+      .limit(200);
 
-    const pacientes = await response.json();
+    const pacientes = leadsInativos || [];
 
     const pacientesComScore = pacientes.map((p: any) => {
-      let score = 0;
-      if (p.ticket_medio >= 500) score += 40; else if (p.ticket_medio >= 300) score += 20;
-      if (p.total_consultas >= 5) score += 30; else if (p.total_consultas >= 3) score += 20;
-      if (p.total_faltas >= 2) score -= 20;
-      if (p.total_faltas === 0) score += 10;
+      let score = 50; // base score
+      if (p.status_pipeline === "agendado") score += 20;
+      if (p.origem === "indicacao") score += 15;
       return { ...p, score };
     });
 
     pacientesComScore.sort((a: any, b: any) => b.score - a.score);
     const selecionados = pacientesComScore.slice(0, TOP_N);
 
-    const dataLimite = new Date();
-    dataLimite.setDate(dataLimite.getDate() - DIAS_BLOQUEIO);
+    const dataLimiteBloqueio = new Date();
+    dataLimiteBloqueio.setDate(dataLimiteBloqueio.getDate() - DIAS_BLOQUEIO);
 
-    let recentesQuery = supabase.from("automacoes").select("paciente_externo_id").eq("tipo", "reativacao_score").gte("criado_em", dataLimite.toISOString());
+    let recentesQuery = supabase.from("automacoes").select("paciente_externo_id").eq("tipo", "reativacao_score").gte("criado_em", dataLimiteBloqueio.toISOString());
     if (clinica_id) recentesQuery = recentesQuery.eq("clinica_id", clinica_id);
     const { data: recentes } = await recentesQuery;
     const jaEnviados = new Set((recentes || []).map((r: any) => r.paciente_externo_id));
 
-    const todosPacienteIds = selecionados.map((p: any) => `tel:${p.phone?.replace(/[^\d+]/g, "")}`);
-    let bloqQuery = supabase.from("memorias_ia").select("paciente_externo_id, bloqueio_ate").in("paciente_externo_id", todosPacienteIds).gt("bloqueio_ate", new Date().toISOString());
-    if (clinica_id) bloqQuery = bloqQuery.eq("clinica_id", clinica_id);
-    const { data: bloqueados } = await bloqQuery;
-    const bloqueadosSet = new Set((bloqueados || []).map((b: any) => b.paciente_externo_id));
-
     let enviados = 0;
 
     for (const paciente of selecionados) {
-      if (!paciente.phone) continue;
-      const telefone = paciente.phone.replace(/[^\d+]/g, "");
+      if (!paciente.telefone) continue;
+      const telefone = paciente.telefone.replace(/[^\d+]/g, "");
       const pacienteExternoId = `tel:${telefone}`;
       if (jaEnviados.has(pacienteExternoId)) continue;
-      if (bloqueadosSet.has(pacienteExternoId)) continue;
 
       const nomePrimeiro = paciente.nome ? paciente.nome.split(" ")[0] : "";
-      const mensagem = `Olá ${nomePrimeiro} 😊\nNotamos que já faz um tempo desde sua última consulta.\nQue tal agendarmos um retorno para cuidar da sua saúde?`;
+      const mensagem = `Olá ${nomePrimeiro} 😊\nNotamos que já faz um tempo desde sua última consulta na Vitta Care.\nQue tal agendarmos um retorno para cuidar da sua saúde?`;
 
       try {
         const megaRes = await fetch(`${MEGA_API_URL}/api/v1/sendText`, {
@@ -84,18 +73,11 @@ Deno.serve(async (req) => {
         await supabase.from("automacoes").insert({
           paciente_externo_id: pacienteExternoId, tipo: "reativacao_score", sistema_alvo: "megaapi",
           status: megaRes.ok ? "enviado" : "erro_envio", data_execucao: new Date().toISOString(),
-          payload: { nome: paciente.nome, telefone, score: paciente.score, ticket_medio: paciente.ticket_medio, total_consultas: paciente.total_consultas, total_faltas: paciente.total_faltas, mensagem_enviada: mensagem, mega_status: megaRes.status },
+          payload: { nome: paciente.nome, telefone, score: paciente.score, mensagem_enviada: mensagem, mega_status: megaRes.status },
           ...(clinica_id && { clinica_id }),
         });
 
-        await supabase.from("logs_decisao").insert({
-          evento: "reativacao_score_v1", decisao: megaRes.ok ? "enviado" : "erro_envio", confianca: paciente.score,
-          regra_aplicada: `score=${paciente.score}, top=${TOP_N}, bloqueio=${DIAS_BLOQUEIO}d`,
-          dados_entrada: { paciente_externo_id: pacienteExternoId, nome: paciente.nome, score: paciente.score, ticket_medio: paciente.ticket_medio, total_consultas: paciente.total_consultas, total_faltas: paciente.total_faltas },
-          ...(clinica_id && { clinica_id }),
-        });
-
-        if (megaRes.ok) { enviados++; }
+        if (megaRes.ok) enviados++;
       } catch (err) {
         console.error(`[reativacao-score] Erro ${pacienteExternoId}:`, err);
       }

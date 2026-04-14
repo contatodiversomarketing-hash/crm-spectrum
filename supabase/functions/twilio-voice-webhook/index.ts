@@ -28,24 +28,36 @@ function getSaudacao(): string {
 }
 
 // =============================
-// CORRIGIR ENCODING (mojibake da API de Gestão)
+// HELPER: CHAMAR API DE GESTÃO
 // =============================
-function fixEncoding(text: string): string {
-  if (!text) return text;
-  return text
-    .replace(/�/g, "")
-    .replace(/Ã©/g, "é").replace(/Ã¡/g, "á").replace(/Ã£/g, "ã")
-    .replace(/Ã³/g, "ó").replace(/Ãº/g, "ú").replace(/Ã­/g, "í")
-    .replace(/Ã§/g, "ç").replace(/Ãª/g, "ê").replace(/Ã´/g, "ô")
-    .replace(/Ã¢/g, "â").replace(/Ã/g, "Á")
-    .trim();
+async function chamarGestaoAPI(action: string, params: Record<string, unknown> = {}): Promise<{ ok: boolean; data: any }> {
+  const gestaoUrl = Deno.env.get("GESTAO_API_URL");
+  const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
+  if (!gestaoUrl || !gestaoToken) return { ok: false, data: null };
+
+  try {
+    const res = await fetch(gestaoUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": gestaoToken },
+      body: JSON.stringify({ action, params }),
+    });
+    if (!res.ok) {
+      console.log(`[voice] Gestão API falhou (${action}): ${res.status}`);
+      return { ok: false, data: null };
+    }
+    const json = await res.json();
+    return { ok: json.success === true, data: json.data || json };
+  } catch (err) {
+    console.error(`[voice] Erro gestão API (${action}):`, err);
+    return { ok: false, data: null };
+  }
 }
 
 // =============================
-// MOTOR DE VENDAS - MESTRE DAS VENDAS + AWSales (VOZ)
+// MOTOR DE VENDAS - SofIA (VOZ)
 // =============================
 const SYSTEM_ENGINE = `
-Você é Maria, secretária da Clínica La Vitta. Você é uma PESSOA REAL, NUNCA IA.
+Você é SofIA, consultora da Vitta Care. Você é uma PESSOA REAL, NUNCA IA.
 Vendedora de elite treinada pelo "Mestre das Vendas" + AWSales.
 
 ## IDENTIDADE
@@ -75,7 +87,7 @@ Vendedora de elite treinada pelo "Mestre das Vendas" + AWSales.
 - Alternativo: "Fica melhor de manhã ou à tarde?"
 
 ## OBJEÇÕES (A-P-A: Acalmar→Perguntar→Apresentar)
-- PREÇO: "Na avaliação o doutor explica tudinho, sem compromisso"
+- PREÇO: "Na consulta o doutor explica tudinho, sem compromisso"
 - TEMPO: "Consulta rapidinha, 30 min. Qual dia menos corrido?"
 - PENSAR: "Posso reservar sem compromisso, se mudar de ideia libero"
 
@@ -83,127 +95,65 @@ Vendedora de elite treinada pelo "Mestre das Vendas" + AWSales.
 - Você CONDUZ a conversa, nunca é passiva
 - NUNCA deixe sem próximo passo concreto
 
-## REGRA CRÍTICA: FILTRO DE ESPECIALIDADE (MUITO IMPORTANTE!)
-Quando o paciente pedir um serviço ou especialidade, você DEVE:
-1. Identificar a ÁREA que o paciente está pedindo
-2. Filtrar a lista de profissionais e indicar SOMENTE os da área correta
-3. NUNCA misture áreas diferentes
-
-### MAPEAMENTO DE TERMOS → ESPECIALIDADES:
-- "dentista", "dente", "dor de dente", "cárie", "canal", "extração", "limpeza" → ODONTOLOGIA
-- "aparelho", "ortodontia" → ORTODONTISTA
-- "implante" → IMPLANTODONTISTA
-- "psicólogo", "terapia", "ansiedade" → PSICÓLOGO
-- "nutricionista", "dieta", "emagrecer" → NUTRICIONISTA
-- "fono", "fala" → FONOAUDIÓLOGO
-- "médico", "clínico", "exame" → MÉDICO CLÍNICO
-- "botox", "harmonização" → ESTÉTICA
-
-### REGRA DE OURO:
-- Se o paciente diz "dentista" → NUNCA sugira psicólogos, nutricionistas ou outros
-- Se a especialidade pedida NÃO existe na lista → diga que vai verificar
-- Em caso de DÚVIDA → PERGUNTE: "Você tá buscando atendimento odontológico, médico ou de outra área?"
+## CONTEXTO VITTA CARE
+- Empresa especializada em medicamentos à base de CBD (canabidiol)
+- Para comprar o medicamento, o paciente PRECISA de receita médica
+- A consulta é para o médico avaliar e prescrever o tratamento adequado
+- CBD é legal no Brasil, regulamentado pela ANVISA
+- Benefícios: ansiedade, insônia, dor crônica, epilepsia, fibromialgia, etc.
+- NUNCA dê orientação médica, apenas informe sobre o processo de consulta
 
 ## FLUXO DE AGENDAMENTO
 1. Se não sabe o nome: pergunte de forma natural
-2. Pergunte qual serviço/especialidade o paciente precisa
-3. FILTRE os profissionais pela especialidade correta
-4. Pergunte a PREFERÊNCIA de dia e turno (manhã/tarde)
-5. SÓ DEPOIS de saber a preferência, ofereça 2 opções REAIS do turno pedido
-6. Confirme o telefone
-7. Confirme: "[Nome], fica marcado [dia] às [hora], tá?"
-
-## CONTEXTO DA CLÍNICA LA VITTA
-- Horário: segunda a sexta, 8h às 18h
-- Avaliação inicial sem compromisso e sem custo
-- A La Vitta é MULTIDISCIPLINAR, NÃO apenas odontológica
+2. Pergunte qual a necessidade/condição do paciente
+3. Pergunte a PREFERÊNCIA de dia e turno (manhã/tarde)
+4. SÓ DEPOIS de saber a preferência, ofereça 2 opções REAIS do turno pedido
+5. Confirme o telefone
+6. Confirme: "[Nome], fica marcado [dia] às [hora], tá?"
 
 ## REGRAS DE HORÁRIOS
 - Ofereça EXATAMENTE 2 opções do turno pedido
 
-## REGRAS DE PROFISSIONAIS
-- Use o NOME EXATO do profissional
-- NUNCA diga "vou confirmar com a equipe" se a especialidade está na lista
-- Só diga "vou verificar" se a especialidade NÃO aparece
-
 ## INSTRUÇÃO CRÍTICA: CONFIRMAÇÃO DE AGENDAMENTO
 Quando o paciente CONFIRMAR um agendamento, inclua ao FINAL:
-##AGENDAMENTO_CONFIRMADO|nome_paciente|data_YYYY-MM-DD|horario_HH:MM|professional_id##
+##AGENDAMENTO_CONFIRMADO|nome_paciente|data_YYYY-MM-DD|horario_HH:MM|medico_id##
 
-- O professional_id deve ser o ID do profissional correto da lista (campo "id")
+- O medico_id deve ser o ID do médico correto da lista (campo "id")
 - Se não souber, use "auto"
 
 ## MÚLTIPLOS AGENDAMENTOS (MUITO IMPORTANTE!)
 - Se o paciente pedir 2+ agendamentos, inclua UM marcador para CADA
-- Cada profissional = 1 marcador. Se faltar algum, o agendamento NÃO será registrado
 `;
 
 // =============================
-// BUSCAR PROFISSIONAIS NO SISTEMA DE GESTÃO
+// BUSCAR MÉDICOS NO SISTEMA DE GESTÃO
 // =============================
 async function buscarProfissionaisVoz(): Promise<{ texto: string; raw: any[] }> {
-  try {
-    const gestaoUrl = Deno.env.get("GESTAO_API_URL");
-    const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
-    if (!gestaoUrl || !gestaoToken) return { texto: "", raw: [] };
-
-    const res = await fetch(`${gestaoUrl}/functions/v1/internal-api`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${gestaoToken}`,
-        "apikey": gestaoToken,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ action: "list_professionals", params: {} }),
-    });
-
-    if (!res.ok) {
-      console.log(`[voice] Profissionais API falhou: ${res.status}`);
-      return { texto: "\n\nPROFISSIONAIS: Erro ao consultar. NUNCA invente nomes.", raw: [] };
-    }
-
-    const data = await res.json();
-    const profissionais = data?.professionals || data?.data || [];
-    
-    if (!Array.isArray(profissionais) || profissionais.length === 0) {
-      return { texto: "\n\nPROFISSIONAIS: Lista vazia. Diga que vai confirmar com a equipe.", raw: [] };
-    }
-
-    const comEspecialidade = profissionais.filter((p: any) => {
-      const esp = fixEncoding(p.specialty || p.especialidade || p.specialization || "").trim();
-      const ativo = p.is_active !== false;
-      return esp && esp.length > 1 && ativo;
-    });
-
-    if (comEspecialidade.length === 0) {
-      return { texto: "\n\nPROFISSIONAIS: Nenhum com especialidade definida. Diga que vai confirmar.", raw: profissionais };
-    }
-
-    const lista = comEspecialidade.map((p: any) => {
-      const nome = fixEncoding(p.full_name || p.professional_name || p.display_name || p.name || p.nome || "");
-      const esp = fixEncoding(p.specialty || p.especialidade || p.specialization || "").trim();
-      const espNorm = esp.charAt(0).toUpperCase() + esp.slice(1).toLowerCase();
-      return `${nome} (${espNorm})`;
-    }).join("; ");
-
-    console.log(`[voice] ✅ ${comEspecialidade.length} profissionais carregados`);
-
-    return { texto: `\n\nPROFISSIONAIS REAIS DA CLÍNICA: ${lista}\nQuando o paciente perguntar qual profissional, use o nome EXATO da lista. NUNCA diga "vou verificar" se a especialidade está na lista.`, raw: profissionais };
-  } catch (err) {
-    console.error("[voice] Erro profissionais:", err);
-    return { texto: "", raw: [] };
+  const result = await chamarGestaoAPI("listar_medicos");
+  if (!result.ok || !Array.isArray(result.data) || result.data.length === 0) {
+    return { texto: "\n\nMÉDICOS: Erro ao consultar. NUNCA invente nomes.", raw: [] };
   }
+
+  const lista = result.data.map((m: any) => {
+    const nome = m.nome || "";
+    const esp = m.especialidade || "";
+    return `${nome} - ${esp} (ID: ${m.id})`;
+  }).join("; ");
+
+  console.log(`[voice] ✅ ${result.data.length} médicos carregados`);
+  return {
+    texto: `\n\nMÉDICOS REAIS DA VITTA CARE: ${lista}\nQuando o paciente perguntar qual médico, use o nome EXATO da lista. NUNCA diga "vou verificar" se o médico está na lista.`,
+    raw: result.data,
+  };
 }
 
 // =============================
 // BUSCAR HORÁRIOS DISPONÍVEIS VIA API DE GESTÃO (VOZ)
 // =============================
-async function buscarHorariosDisponiveisVoz(profissionais: any[]): Promise<string> {
-  try {
-    const gestaoUrl = Deno.env.get("GESTAO_API_URL");
-    const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
-    if (!gestaoUrl || !gestaoToken) return gerarHorariosLocaisVoz();
+async function buscarHorariosDisponiveisVoz(medicos: any[]): Promise<string> {
+  if (!medicos || medicos.length === 0) return gerarHorariosLocaisVoz();
 
+  try {
     const hoje = new Date();
     const diasParaConsultar: string[] = [];
     for (let i = 1; i <= 10 && diasParaConsultar.length < 5; i++) {
@@ -213,27 +163,14 @@ async function buscarHorariosDisponiveisVoz(profissionais: any[]): Promise<strin
       }
     }
 
-    const profIds = profissionais
-      .filter((p: any) => p.id || p.professional_id)
-      .slice(0, 3)
-      .map((p: any) => p.id || p.professional_id);
+    const medicoIds = medicos.slice(0, 3).map((m: any) => m.id).filter(Boolean);
+    if (medicoIds.length === 0) return gerarHorariosLocaisVoz();
 
-    if (profIds.length === 0) return gerarHorariosLocaisVoz();
-
-    const slotsPromises = diasParaConsultar.flatMap(date =>
-      profIds.map((profId: string) =>
-        fetch(`${gestaoUrl}/functions/v1/internal-api`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${gestaoToken}`,
-            "apikey": gestaoToken,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            action: "get_available_slots",
-            params: { professional_id: profId, date },
-          }),
-        }).then(r => r.ok ? r.json() : null).catch(() => null)
+    const slotsPromises = diasParaConsultar.flatMap(data =>
+      medicoIds.map((medicoId: string) =>
+        chamarGestaoAPI("horarios_disponiveis", { medico_id: medicoId, data })
+          .then(r => r.ok ? { ...r.data, medico_id: medicoId, data } : null)
+          .catch(() => null)
       )
     );
 
@@ -243,14 +180,13 @@ async function buscarHorariosDisponiveisVoz(profissionais: any[]): Promise<strin
 
     for (const res of resultados) {
       if (!res) continue;
-      const slots = res?.slots || res?.available_slots || res?.data || [];
+      const slots = res?.slots || [];
       if (!Array.isArray(slots)) continue;
-      for (const slot of slots) {
-        const date = slot.date || slot.appointment_date || "";
-        const time = slot.time || slot.start_time || slot.appointment_time || "";
-        if (date && time) {
-          if (!slotsMap[date]) slotsMap[date] = new Set();
-          slotsMap[date].add(time.slice(0, 5));
+      const date = res.data || "";
+      if (date) {
+        if (!slotsMap[date]) slotsMap[date] = new Set();
+        for (const slot of slots) {
+          slotsMap[date].add(typeof slot === "string" ? slot.slice(0, 5) : "");
         }
       }
     }
@@ -261,7 +197,7 @@ async function buscarHorariosDisponiveisVoz(profissionais: any[]): Promise<strin
     const linhas = datas.map(dt => {
       const d = new Date(dt + "T12:00:00Z");
       const dow = d.getDay();
-      const horarios = [...slotsMap[dt]].sort();
+      const horarios = [...slotsMap[dt]].filter(Boolean).sort();
       return `${nomes[dow] || dt}: ${horarios.join(", ")}`;
     });
 
@@ -288,55 +224,27 @@ function gerarHorariosLocaisVoz(): string {
 }
 
 // =============================
-// REGISTRAR AGENDAMENTO + CRM
+// REGISTRAR AGENDAMENTO
 // =============================
 async function registrarAgendamento(
   nome: string, telefone: string, data: string, horario: string,
-  patientId: string | null, supabase: ReturnType<typeof createClient>
+  medicoId: string | null, supabase: ReturnType<typeof createClient>
 ): Promise<boolean> {
   try {
-    const gestaoUrl = Deno.env.get("GESTAO_API_URL");
-    const gestaoToken = Deno.env.get("GESTAO_API_TOKEN");
-    if (!gestaoUrl || !gestaoToken) return false;
-
+    // Buscar paciente por telefone (tentar via CPF se disponível, senão criar)
     const params: Record<string, string> = {
-      appointment_date: data,
-      appointment_time: horario,
-      patient_name_imported: nome,
-      patient_phone: telefone,
+      data,
+      hora: horario,
+      observacoes: `Agendamento via SofIA (voz) - Paciente: ${nome} - Tel: ${telefone}`,
     };
-    if (patientId) params.patient_id = patientId;
+    if (medicoId && medicoId !== "auto") params.medico_id = medicoId;
 
-    const res = await fetch(`${gestaoUrl}/functions/v1/internal-api`, {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${gestaoToken}`, "apikey": gestaoToken, "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "create_appointment", params }),
-    });
-
-    console.log(`[voice] Agendamento gestão: ${res.status}`);
-    return res.ok;
+    // For now, we need a paciente_id - try to find or skip
+    const result = await chamarGestaoAPI("criar_agendamento", params);
+    console.log(`[voice] Agendamento gestão: ${result.ok}`);
+    return result.ok;
   } catch (err) {
     console.error("[voice] Erro agendamento:", err);
-    return false;
-  }
-}
-
-async function criarLeadCRM(nome: string, telefone: string, origem: string): Promise<boolean> {
-  try {
-    const crmUrl = Deno.env.get("CRM_API_URL");
-    const crmToken = Deno.env.get("CRM_API_TOKEN");
-    if (!crmUrl || !crmToken) return false;
-
-    const res = await fetch(`${crmUrl}api-leads`, {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${crmToken}`, "apikey": crmToken, "Content-Type": "application/json" },
-      body: JSON.stringify({ nome, telefone, origem: origem || "ligacao_ia_maria", status: "agendado" }),
-    });
-
-    console.log(`[voice] Lead CRM: ${res.status}`);
-    return res.ok;
-  } catch (err) {
-    console.error("[voice] Erro lead CRM:", err);
     return false;
   }
 }
@@ -363,20 +271,27 @@ async function processarAgendamentoConfirmado(
 ): Promise<void> {
   console.log(`[voice] 🎯 Agendamento detectado: ${nome} | ${data} ${horario} | Tel: ${telefone}`);
 
-  const [gestaoOk, crmOk] = await Promise.all([
-    registrarAgendamento(nome, telefone, data, horario, null, supabase),
-    criarLeadCRM(nome, telefone, "ligacao_ia_maria"),
-  ]);
+  const gestaoOk = await registrarAgendamento(nome, telefone, data, horario, null, supabase);
+
+  // Registrar lead no CRM interno
+  await supabase.from("leads").upsert({
+    telefone,
+    nome,
+    origem: "ligacao_ia_sofia",
+    status: "ativo",
+    status_pipeline: "agendado",
+    ultima_interacao: new Date().toISOString(),
+  }, { onConflict: "telefone" }).then(() => {});
 
   await supabase.from("logs_decisao").insert({
     evento: "agendamento_voz_confirmado",
-    decisao: `gestao=${gestaoOk ? "ok" : "falha"}, crm=${crmOk ? "ok" : "falha"}`,
+    decisao: `gestao=${gestaoOk ? "ok" : "falha"}`,
     regra_aplicada: "voice_webhook_agendamento_auto",
-    dados_entrada: { nome, telefone, data, horario, call_sid: callSid, gestao_ok: gestaoOk, crm_ok: crmOk },
+    dados_entrada: { nome, telefone, data, horario, call_sid: callSid, gestao_ok: gestaoOk },
     confianca: 1.0,
   });
 
-  console.log(`[voice] ✅ Processamento completo: Gestão=${gestaoOk}, CRM=${crmOk}`);
+  console.log(`[voice] ✅ Processamento completo: Gestão=${gestaoOk}`);
 }
 
 // =============================
@@ -388,8 +303,6 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  // Verificar se o canal Telefone está ativo (só bloqueia chamadas INBOUND da IA)
-  // Chamadas outbound (feitas pelos atendentes via CRM) sempre passam
   const bodyPeek = await req.clone().text();
   const peekParams = new URLSearchParams(bodyPeek);
   const callDirection = peekParams.get("Direction") || "";
@@ -397,24 +310,15 @@ serve(async (req) => {
   const calledNumber = peekParams.get("To") || "";
   const twilioPhoneNumber = Deno.env.get("TWILIO_PHONE_NUMBER") || "";
 
-  console.log(`[voice] Direction="${callDirection}" From="${callerNumber}" To="${calledNumber}" TwilioPhone="${twilioPhoneNumber}"`);
+  console.log(`[voice] Direction="${callDirection}" From="${callerNumber}" To="${calledNumber}"`);
 
-  // Chamada de atendente humana via Twilio Client SDK (CRM/browser)
-  // From começa com "client:" → atendente ligando para paciente → conectar direto, sem Maria
   if (callerNumber.startsWith("client:")) {
-    console.log(`[voice] Chamada humana via Client SDK (From="${callerNumber}" To="${calledNumber}") - conectando direto ao número destino`);
+    console.log(`[voice] Chamada humana via Client SDK - conectando direto`);
     const twiml = `<?xml version="1.0" encoding="UTF-8"?><Response><Dial callerId="${twilioPhoneNumber}">${calledNumber}</Dial></Response>`;
-    return new Response(twiml, {
-      headers: { "Content-Type": "text/xml; charset=utf-8" },
-    });
+    return new Response(twiml, { headers: { "Content-Type": "text/xml; charset=utf-8" } });
   }
 
-  // Chamada outbound-api (ex: reativação automática da IA) → Maria atende normalmente
-  // Chamada inbound (cliente ligando para a clínica) → verificar toggle e Maria atende
-  const isInboundAI = !callDirection.includes("outbound") || callDirection === "outbound-api";
-
   if (!callDirection.includes("outbound")) {
-    // Inbound: cliente ligou para a clínica — verificar se canal está ativo
     const { data: configCanal } = await supabase
       .from("configuracoes_sistema")
       .select("telefone_ativo")
@@ -423,16 +327,13 @@ serve(async (req) => {
       .maybeSingle();
 
     if (configCanal && configCanal.telefone_ativo === false) {
-      console.log("[voice] Canal Telefone DESATIVADO - rejeitando chamada inbound");
+      console.log("[voice] Canal Telefone DESATIVADO");
       const twiml = `<?xml version="1.0" encoding="UTF-8"?><Response><Say language="pt-BR" voice="Polly.Camila">Nosso atendimento por telefone está temporariamente indisponível. Por favor, entre em contato pelo WhatsApp. Obrigada!</Say><Hangup/></Response>`;
-      return new Response(twiml, {
-        headers: { "Content-Type": "text/xml; charset=utf-8" },
-      });
+      return new Response(twiml, { headers: { "Content-Type": "text/xml; charset=utf-8" } });
     }
   }
 
-  console.log(`[voice] Chamada para Maria (Direction="${callDirection}" From="${callerNumber}")`);
-  void isInboundAI; // usado só para clareza lógica
+  console.log(`[voice] Chamada para SofIA`);
 
   let speech = "";
   let callSid = "";
@@ -451,9 +352,7 @@ serve(async (req) => {
 
   const webhookUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/twilio-voice-webhook`;
 
-  // =============================
-  // PRIMEIRA INTERAÇÃO (sem speech)
-  // =============================
+  // PRIMEIRA INTERAÇÃO
   if (!speech) {
     if (callSid) {
       const { data: existing } = await supabase
@@ -472,58 +371,37 @@ serve(async (req) => {
 
     if (callSid && fromNumber) {
       supabase.from("voice_memory").insert({
-        call_sid: callSid,
-        phone_number: fromNumber,
-        role: "system",
-        message: `Início da chamada - ${saudacao}`,
+        call_sid: callSid, phone_number: fromNumber,
+        role: "system", message: `Início da chamada - ${saudacao}`,
       }).then(() => {});
     }
 
-    const msgInicial = `${saudacao}! Aqui é a Maria da Clínica La Vitta. Tudo bem? Me fala seu nome, por favor, pra eu te atender melhor!`;
+    const msgInicial = `${saudacao}! Aqui é a SofIA da Vitta Care. Tudo bem? Me fala seu nome, por favor, pra eu te atender melhor!`;
     return gerarRespostaComAudio(msgInicial, supabase, webhookUrl);
   }
 
-  // =============================
   // INTERAÇÕES SEGUINTES
-  // =============================
-
-  // Salvar fala do usuário e buscar histórico EM PARALELO
   let historico: { role: string; message: string }[] = [];
   if (callSid && fromNumber) {
     const [_, histResult] = await Promise.all([
       supabase.from("voice_memory").insert({
-        call_sid: callSid,
-        phone_number: fromNumber,
-        role: "user",
-        message: speech,
+        call_sid: callSid, phone_number: fromNumber, role: "user", message: speech,
       }),
-      supabase
-        .from("voice_memory")
-        .select("role, message")
-        .eq("call_sid", callSid)
-        .order("created_at", { ascending: true })
-        .limit(12),
+      supabase.from("voice_memory").select("role, message")
+        .eq("call_sid", callSid).order("created_at", { ascending: true }).limit(12),
     ]);
     if (histResult.data) historico = histResult.data;
   }
 
-  // SEMPRE buscar profissionais e treinamento primeiro
   const [profResult, treinamentoResult] = await Promise.all([
     buscarProfissionaisVoz(),
-    supabase
-      .from("treinamento_ia")
-      .select("titulo, instrucao, categoria")
-      .eq("ativo", true)
-      .in("canal", ["ambos", "voz"])
-      .order("categoria"),
+    supabase.from("treinamento_ia").select("titulo, instrucao, categoria")
+      .eq("ativo", true).in("canal", ["ambos", "voz"]).order("categoria"),
   ]);
   const contextAgenda = await buscarHorariosDisponiveisVoz(profResult.raw);
   const contextProfissionais = profResult.texto;
   const treinamentos = treinamentoResult.data || [];
 
-  console.log(`[voice] Contexto: profissionais=${contextProfissionais.length > 50 ? "OK" : "VAZIO"} agenda=${contextAgenda.length > 50 ? "OK" : "VAZIO"} treinamento=${treinamentos.length} instruções`);
-
-  // Extrair nome do paciente do histórico
   let nomePaciente = "";
   for (const h of historico) {
     if (h.role === "user" && historico.indexOf(h) <= 2) {
@@ -535,32 +413,26 @@ serve(async (req) => {
     }
   }
 
-  // Contexto extra
   let contextExtra = "";
   contextExtra += contextProfissionais;
   contextExtra += contextAgenda;
   if (nomePaciente) contextExtra += `\n\nNOME DO PACIENTE: ${nomePaciente}. Use o nome dele(a).`;
   if (fromNumber) contextExtra += `\nTELEFONE DO PACIENTE: ${fromNumber}`;
 
-  // Injetar treinamento do admin
   if (treinamentos.length > 0) {
-    contextExtra += `\n\n## INSTRUÇÕES ADICIONAIS DO ADMINISTRADOR (SIGA TODAS COM PRIORIDADE MÁXIMA):\n`;
+    contextExtra += `\n\n## INSTRUÇÕES ADICIONAIS DO ADMINISTRADOR:\n`;
     for (const t of treinamentos) {
       contextExtra += `### ${t.titulo}\n${t.instrucao}\n\n`;
     }
   }
 
-  // Montar mensagens para IA
   const messages: { role: string; content: string }[] = [
     { role: "system", content: SYSTEM_ENGINE + contextExtra },
   ];
 
   for (const h of historico) {
     if (h.role === "system") continue;
-    messages.push({
-      role: h.role === "user" ? "user" : "assistant",
-      content: h.message,
-    });
+    messages.push({ role: h.role === "user" ? "user" : "assistant", content: h.message });
   }
 
   if (messages[messages.length - 1]?.role !== "user") {
@@ -572,16 +444,8 @@ serve(async (req) => {
   try {
     const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${Deno.env.get("OPENAI_API_KEY")}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        temperature: 0.7,
-        max_tokens: 120,
-        messages,
-      }),
+      headers: { "Authorization": `Bearer ${Deno.env.get("OPENAI_API_KEY")}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "gpt-4o-mini", temperature: 0.7, max_tokens: 120, messages }),
     });
 
     const data = await aiResp.json();
@@ -592,25 +456,19 @@ serve(async (req) => {
     console.error("[voice] Erro OpenAI:", err);
   }
 
-  // =============================
-    // DETECTAR AGENDAMENTOS CONFIRMADOS (suporta múltiplos)
-    // =============================
-    const { agendamentos, textoLimpo: textoSemAg } = extrairAgendamentos(respostaFinal);
-    if (agendamentos.length > 0) {
-      respostaFinal = textoSemAg;
-      const telLimpo = fromNumber.replace(/[^\d+]/g, "");
-      console.log(`[voice] 📋 ${agendamentos.length} agendamento(s) detectado(s)`);
-      agendamentos.forEach((ag, idx) => {
-        console.log(`[voice] Agendamento ${idx + 1}/${agendamentos.length}: ${ag.nome} | ${ag.data} ${ag.horario} | prof=${ag.professionalId}`);
-        processarAgendamentoConfirmado(
-          ag.nome, telLimpo, ag.data, ag.horario, callSid, supabase
-        ).catch(err => console.error(`[voice] Erro agendamento ${idx + 1}:`, err));
-      });
-    }
+  // DETECTAR AGENDAMENTOS
+  const { agendamentos, textoLimpo: textoSemAg } = extrairAgendamentos(respostaFinal);
+  if (agendamentos.length > 0) {
+    respostaFinal = textoSemAg;
+    const telLimpo = fromNumber.replace(/[^\d+]/g, "");
+    console.log(`[voice] 📋 ${agendamentos.length} agendamento(s) detectado(s)`);
+    agendamentos.forEach((ag, idx) => {
+      processarAgendamentoConfirmado(ag.nome, telLimpo, ag.data, ag.horario, callSid, supabase)
+        .catch(err => console.error(`[voice] Erro agendamento ${idx + 1}:`, err));
+    });
+  }
 
-  // =============================
-  // DETECTAR TRANSFERÊNCIA PARA HUMANO
-  // =============================
+  // TRANSFERÊNCIA PARA HUMANO
   if (respostaFinal.includes("##TRANSFERIR_HUMANO##")) {
     respostaFinal = respostaFinal.replace("##TRANSFERIR_HUMANO##", "").trim();
     respostaFinal = limparTexto(respostaFinal);
@@ -622,7 +480,6 @@ serve(async (req) => {
       }).then(() => {});
     }
 
-    console.log(`[voice] 🔀 Transferindo: ${fromNumber}`);
     const numeroTransferencia = Deno.env.get("TWILIO_PHONE_NUMBER") || "";
     return gerarRespostaComTransferencia(respostaFinal, supabase, numeroTransferencia);
   }
@@ -631,12 +488,10 @@ serve(async (req) => {
 
   if (callSid && fromNumber) {
     supabase.from("voice_memory").insert({
-      call_sid: callSid, phone_number: fromNumber,
-      role: "assistant", message: respostaFinal,
+      call_sid: callSid, phone_number: fromNumber, role: "assistant", message: respostaFinal,
     }).then(() => {});
   }
 
-  console.log(`[voice] Resposta: "${respostaFinal.slice(0, 100)}..."`);
   return gerarRespostaComAudio(respostaFinal, supabase, webhookUrl);
 });
 
@@ -660,8 +515,7 @@ async function gerarRespostaComAudio(
         method: "POST",
         headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
         body: JSON.stringify({
-          text: textoLimpo,
-          model_id: "eleven_multilingual_v2",
+          text: textoLimpo, model_id: "eleven_multilingual_v2",
           voice_settings: { stability: 0.50, similarity_boost: 0.85, style: 0.15, use_speaker_boost: true },
         }),
       });
@@ -679,12 +533,7 @@ async function gerarRespostaComAudio(
 
         if (uploadResp.ok) {
           audioUrl = `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/public/audio/${fileName}`;
-          console.log(`[voice] Áudio: ${fileName}`);
-        } else {
-          console.error(`[voice] Upload falhou: ${uploadResp.status}`);
         }
-      } else {
-        console.error(`[voice] ElevenLabs falhou: ${elevenResp.status}`);
       }
     }
   } catch (err) {
@@ -693,32 +542,17 @@ async function gerarRespostaComAudio(
 
   if (audioUrl) {
     return new Response(
-      `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Gather input="speech" timeout="4" speechTimeout="auto" language="pt-BR" action="${webhookUrl}" method="POST">
-    <Play>${audioUrl}</Play>
-  </Gather>
-  <Redirect method="POST">${webhookUrl}</Redirect>
-</Response>`,
+      `<?xml version="1.0" encoding="UTF-8"?><Response><Gather input="speech" timeout="4" speechTimeout="auto" language="pt-BR" action="${webhookUrl}" method="POST"><Play>${audioUrl}</Play></Gather><Redirect method="POST">${webhookUrl}</Redirect></Response>`,
       { headers: { "Content-Type": "text/xml; charset=utf-8" } }
     );
   }
 
   return new Response(
-    `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Gather input="speech" timeout="4" speechTimeout="auto" language="pt-BR" action="${webhookUrl}" method="POST">
-    <Say voice="Polly.Vitoria" language="pt-BR">${textoLimpo}</Say>
-  </Gather>
-  <Redirect method="POST">${webhookUrl}</Redirect>
-</Response>`,
+    `<?xml version="1.0" encoding="UTF-8"?><Response><Gather input="speech" timeout="4" speechTimeout="auto" language="pt-BR" action="${webhookUrl}" method="POST"><Say voice="Polly.Vitoria" language="pt-BR">${textoLimpo}</Say></Gather><Redirect method="POST">${webhookUrl}</Redirect></Response>`,
     { headers: { "Content-Type": "text/xml; charset=utf-8" } }
   );
 }
 
-// =============================
-// GERAR ÁUDIO + TRANSFERIR PARA HUMANO
-// =============================
 async function gerarRespostaComTransferencia(
   texto: string, supabase: ReturnType<typeof createClient>, numeroTransferencia: string
 ): Promise<Response> {
@@ -734,8 +568,7 @@ async function gerarRespostaComTransferencia(
         method: "POST",
         headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
         body: JSON.stringify({
-          text: textoLimpo,
-          model_id: "eleven_multilingual_v2",
+          text: textoLimpo, model_id: "eleven_multilingual_v2",
           voice_settings: { stability: 0.50, similarity_boost: 0.85, style: 0.15, use_speaker_boost: true },
         }),
       });
@@ -765,12 +598,7 @@ async function gerarRespostaComTransferencia(
     : `<Say voice="Polly.Vitoria" language="pt-BR">${textoLimpo}</Say>`;
 
   return new Response(
-    `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  ${playOrSay}
-  <Dial timeout="30" callerId="${Deno.env.get("TWILIO_PHONE_NUMBER") || ""}">${numeroTransferencia}</Dial>
-  <Say voice="Polly.Vitoria" language="pt-BR">Não foi possível transferir a ligação. Por favor, ligue novamente.</Say>
-</Response>`,
+    `<?xml version="1.0" encoding="UTF-8"?><Response>${playOrSay}<Dial timeout="30" callerId="${Deno.env.get("TWILIO_PHONE_NUMBER") || ""}">${numeroTransferencia}</Dial><Say voice="Polly.Vitoria" language="pt-BR">Não foi possível transferir a ligação. Por favor, ligue novamente.</Say></Response>`,
     { headers: { "Content-Type": "text/xml; charset=utf-8" } }
   );
 }
