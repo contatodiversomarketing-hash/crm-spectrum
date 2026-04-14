@@ -1,0 +1,2 @@
+ALTER TABLE public.pipeline_colunas DROP CONSTRAINT IF EXISTS pipeline_colunas_chave_key;
+ALTER TABLE public.pipeline_colunas ADD CONSTRAINT pipeline_colunas_chave_pipeline_unique UNIQUE (chave, pipeline_id);
