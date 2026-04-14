@@ -109,7 +109,7 @@ export default function CRMPage() {
       {loading ? (
         <p className="text-center text-muted-foreground py-12">Carregando...</p>
       ) : (
-        <KanbanBoard leads={filteredLeads} />
+        <KanbanBoard leads={filteredLeads} onRefresh={fetchLeads} />
       )}
     </div>
   );
