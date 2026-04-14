@@ -30,7 +30,7 @@ export function KanbanBoard({ leads, onRefresh, columns }: KanbanBoardProps) {
                 {colLeads.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-8">Nenhum lead</p>
                 ) : (
-                  colLeads.map((lead) => <LeadCard key={lead.id} lead={lead} onRefresh={onRefresh} />)
+                  colLeads.map((lead) => <LeadCard key={lead.id} lead={lead} onRefresh={onRefresh} columns={columns} />)
                 )}
               </div>
             </ScrollArea>
