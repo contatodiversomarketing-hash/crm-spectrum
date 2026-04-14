@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { PipelineColumn } from "@/hooks/usePipelineColumns";
 import { Phone, Mail, MapPin, Calendar, FileText, Eye, Pencil, StickyNote } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,7 +41,7 @@ function formatEndereco(lead: Lead): string | null {
   return parts.length > 0 ? parts.join(", ") : null;
 }
 
-export function LeadCard({ lead, onRefresh }: { lead: Lead; onRefresh: () => void }) {
+export function LeadCard({ lead, onRefresh, columns = [] }: { lead: Lead; onRefresh: () => void; columns?: PipelineColumn[] }) {
   const [editOpen, setEditOpen] = useState(false);
   const endereco = formatEndereco(lead);
 
@@ -132,7 +133,7 @@ export function LeadCard({ lead, onRefresh }: { lead: Lead; onRefresh: () => voi
         </div>
       </div>
 
-      <LeadEditDialog lead={lead} open={editOpen} onOpenChange={setEditOpen} onSaved={onRefresh} />
+      <LeadEditDialog lead={lead} open={editOpen} onOpenChange={setEditOpen} onSaved={onRefresh} columns={columns} />
     </>
   );
 }
