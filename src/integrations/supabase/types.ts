@@ -528,14 +528,21 @@ export type Database = {
       }
       leads: {
         Row: {
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
           clinica_id: string | null
           cpf: string | null
           criado_em: string
           dados_triagem: Json | null
+          data_nascimento: string | null
           email: string | null
+          estado: string | null
           id: string
+          logradouro: string | null
           medico_preferido: string | null
           nome: string | null
+          numero: string | null
           observacoes: string | null
           origem: string | null
           status: string
@@ -544,14 +551,21 @@ export type Database = {
           ultima_interacao: string | null
         }
         Insert: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
           clinica_id?: string | null
           cpf?: string | null
           criado_em?: string
           dados_triagem?: Json | null
+          data_nascimento?: string | null
           email?: string | null
+          estado?: string | null
           id?: string
+          logradouro?: string | null
           medico_preferido?: string | null
           nome?: string | null
+          numero?: string | null
           observacoes?: string | null
           origem?: string | null
           status?: string
@@ -560,14 +574,21 @@ export type Database = {
           ultima_interacao?: string | null
         }
         Update: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
           clinica_id?: string | null
           cpf?: string | null
           criado_em?: string
           dados_triagem?: Json | null
+          data_nascimento?: string | null
           email?: string | null
+          estado?: string | null
           id?: string
+          logradouro?: string | null
           medico_preferido?: string | null
           nome?: string | null
+          numero?: string | null
           observacoes?: string | null
           origem?: string | null
           status?: string
