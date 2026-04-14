@@ -1,8 +1,8 @@
-import { Brain, Eye, BarChart3, GraduationCap, LogOut } from "lucide-react";
+import { Brain, Eye, BarChart3, GraduationCap, LogOut, Users } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import logo from "@/assets/logo-la-vitta.png";
+import logo from "@/assets/vitta_care_logo.png";
 
 import {
   Sidebar,
@@ -20,6 +20,7 @@ import {
 
 const menuItems = [
   { title: "Painel Principal", url: "/", icon: Brain },
+  { title: "CRM / Leads", url: "/crm", icon: Users },
   { title: "Supervisão IA", url: "/supervisao", icon: Eye },
   { title: "Dashboard IA", url: "/dashboard-ia", icon: BarChart3 },
   { title: "Treinamento IA", url: "/treinamento-ia", icon: GraduationCap },
@@ -35,11 +36,11 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <img src={logo} alt="La Vitta" className="h-8 w-8 rounded-md object-contain" />
+          <img src={logo} alt="Vitta Care" className="h-8 w-8 rounded-md object-contain" />
           {!collapsed && (
             <div>
-              <p className="text-sm font-bold text-sidebar-primary-foreground">Core IA</p>
-              <p className="text-[10px] text-sidebar-foreground/60">La Vitta Clínica</p>
+              <p className="text-sm font-bold text-sidebar-primary-foreground">SofIA</p>
+              <p className="text-[10px] text-sidebar-foreground/60">Vitta Care</p>
             </div>
           )}
         </div>

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { LogIn, UserPlus, Shield, Zap, BarChart3 } from "lucide-react";
-import logoLaVitta from "@/assets/logo-la-vitta.png";
+import logoVittaCare from "@/assets/vitta_care_logo.png";
 
 const Login = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -46,7 +46,7 @@ const Login = () => {
   return (
     <div className="min-h-screen flex">
       {/* Left panel - branding */}
-      <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden bg-gradient-to-br from-primary via-[hsl(150,30%,28%)] to-[hsl(150,25%,18%)] text-primary-foreground flex-col justify-between p-12">
+      <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden bg-gradient-to-br from-[hsl(150,25%,38%)] via-[hsl(150,30%,28%)] to-[hsl(150,25%,18%)] text-white flex-col justify-between p-12">
         {/* Decorative elements */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-white/5 -translate-y-1/2 translate-x-1/3" />
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full bg-white/5 translate-y-1/3 -translate-x-1/4" />
@@ -54,18 +54,18 @@ const Login = () => {
 
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-2">
-            <img src={logoLaVitta} alt="La Vitta" className="h-12 w-auto brightness-0 invert" />
-            <span className="text-lg font-semibold tracking-tight">La Vitta — CORE IA</span>
+            <img src={logoVittaCare} alt="Vitta Care" className="h-14 w-auto brightness-0 invert" />
+            <span className="text-lg font-semibold tracking-tight">Vitta Care — SofIA</span>
           </div>
         </div>
 
         <div className="relative z-10 space-y-8">
           <div>
             <h2 className="text-3xl font-bold leading-tight mb-3">
-              Inteligência Artificial<br />para sua Clínica
+              Cannabis Medicinal<br />com Inteligência
             </h2>
             <p className="text-white/70 text-base leading-relaxed max-w-md">
-              Automatize atendimentos, analise ligações e tome decisões estratégicas com IA avançada.
+              Automatize o atendimento, receba triagens e agende consultas médicas com a SofIA — sua assistente inteligente.
             </p>
           </div>
 
@@ -75,8 +75,8 @@ const Login = () => {
                 <Zap className="h-4 w-4" />
               </div>
               <div>
-                <p className="font-medium text-sm">Automação Inteligente</p>
-                <p className="text-white/60 text-xs mt-0.5">Reativação, prospecção e confirmação automáticas</p>
+                <p className="font-medium text-sm">Atendimento Inteligente</p>
+                <p className="text-white/60 text-xs mt-0.5">SofIA conversa com leads e agenda consultas automaticamente</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -84,8 +84,8 @@ const Login = () => {
                 <BarChart3 className="h-4 w-4" />
               </div>
               <div>
-                <p className="font-medium text-sm">Análise Estratégica</p>
-                <p className="text-white/60 text-xs mt-0.5">Insights, previsões e relatórios em tempo real</p>
+                <p className="font-medium text-sm">CRM Integrado</p>
+                <p className="text-white/60 text-xs mt-0.5">Triagens do site, pipeline de leads e métricas em tempo real</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -101,7 +101,7 @@ const Login = () => {
         </div>
 
         <div className="relative z-10">
-          <p className="text-white/40 text-xs">© 2026 La Vitta · Todos os direitos reservados</p>
+          <p className="text-white/40 text-xs">© 2026 Vitta Care · Todos os direitos reservados</p>
         </div>
       </div>
 
@@ -111,7 +111,7 @@ const Login = () => {
           {/* Mobile logo */}
           <div className="text-center space-y-3 lg:space-y-4">
             <div className="lg:hidden mx-auto">
-              <img src={logoLaVitta} alt="La Vitta" className="h-14 w-auto" />
+              <img src={logoVittaCare} alt="Vitta Care" className="h-14 w-auto mx-auto" />
             </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-foreground">
