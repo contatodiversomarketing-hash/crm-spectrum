@@ -2316,8 +2316,9 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
   } catch (err) {
     // Tentar liberar lock mesmo em caso de erro
     try {
-      const body2 = typeof err === "object" ? "" : "";
-      // Não temos acesso fácil ao número aqui, mas o lock expira em 30s
+      const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      // Limpar todos os locks expirados como safety net
+      await sb.from("locks_processamento").delete().lt("criado_em", new Date(Date.now() - 60000).toISOString());
     } catch (_) {}
     console.error("[whatsapp] Erro geral:", err);
     return new Response("erro", { status: 500 });
