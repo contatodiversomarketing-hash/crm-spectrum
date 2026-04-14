@@ -545,6 +545,7 @@ export type Database = {
           numero: string | null
           observacoes: string | null
           origem: string | null
+          pipeline_id: string | null
           status: string
           status_pipeline: string
           telefone: string | null
@@ -568,6 +569,7 @@ export type Database = {
           numero?: string | null
           observacoes?: string | null
           origem?: string | null
+          pipeline_id?: string | null
           status?: string
           status_pipeline?: string
           telefone?: string | null
@@ -591,6 +593,7 @@ export type Database = {
           numero?: string | null
           observacoes?: string | null
           origem?: string | null
+          pipeline_id?: string | null
           status?: string
           status_pipeline?: string
           telefone?: string | null
@@ -602,6 +605,13 @@ export type Database = {
             columns: ["clinica_id"]
             isOneToOne: false
             referencedRelation: "clinicas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
             referencedColumns: ["id"]
           },
         ]
@@ -791,6 +801,7 @@ export type Database = {
           id: string
           nome: string
           ordem: number
+          pipeline_id: string
         }
         Insert: {
           chave: string
@@ -799,6 +810,7 @@ export type Database = {
           id?: string
           nome: string
           ordem?: number
+          pipeline_id?: string
         }
         Update: {
           chave?: string
@@ -807,6 +819,33 @@ export type Database = {
           id?: string
           nome?: string
           ordem?: number
+          pipeline_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_colunas_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pipelines: {
+        Row: {
+          criado_em: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          criado_em?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          criado_em?: string
+          id?: string
+          nome?: string
         }
         Relationships: []
       }
