@@ -3,9 +3,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface KanbanBoardProps {
   leads: Lead[];
+  onRefresh: () => void;
 }
 
-export function KanbanBoard({ leads }: KanbanBoardProps) {
+export function KanbanBoard({ leads, onRefresh }: KanbanBoardProps) {
   return (
     <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: "calc(100vh - 280px)" }}>
       {pipelineColumns.map((col) => {
@@ -15,7 +16,6 @@ export function KanbanBoard({ leads }: KanbanBoardProps) {
             key={col.key}
             className="flex-shrink-0 w-[280px] flex flex-col bg-muted/40 rounded-xl border border-border"
           >
-            {/* Column header */}
             <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border">
               <div className={`w-2.5 h-2.5 rounded-full ${col.color}`} />
               <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
@@ -23,14 +23,12 @@ export function KanbanBoard({ leads }: KanbanBoardProps) {
                 {colLeads.length}
               </span>
             </div>
-
-            {/* Cards */}
             <ScrollArea className="flex-1 p-2">
               <div className="space-y-2">
                 {colLeads.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-8">Nenhum lead</p>
                 ) : (
-                  colLeads.map((lead) => <LeadCard key={lead.id} lead={lead} />)
+                  colLeads.map((lead) => <LeadCard key={lead.id} lead={lead} onRefresh={onRefresh} />)
                 )}
               </div>
             </ScrollArea>
