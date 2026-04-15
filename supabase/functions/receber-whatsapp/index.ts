@@ -843,10 +843,10 @@ IMPORTANTE: O paciente JÁ está cadastrado. Você pode agendar DIRETAMENTE sem 
       }
     }
 
-    // Tentar também no CRM
+    // Tentar também no CRM (skip se URL é placeholder)
     const crmUrl = Deno.env.get("CRM_API_URL");
     const crmToken = Deno.env.get("CRM_API_TOKEN");
-    if (crmUrl && crmToken) {
+    if (crmUrl && crmToken && !crmUrl.includes("PLACEHOLDER")) {
       try {
         const crmRes = await fetch(`${crmUrl}paciente-por-telefone`, {
           method: "POST",
