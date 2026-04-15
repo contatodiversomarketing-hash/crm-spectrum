@@ -605,13 +605,18 @@ function gestaoUrl() {
 
 async function chamarGestao(action: string, params: Record<string, unknown> = {}): Promise<any> {
   const url = gestaoUrl();
-  const res = await fetch(`${url}/functions/v1/internal-api`, {
-    method: "POST",
-    headers: gestaoHeaders(),
-    body: JSON.stringify({ action, params }),
-  });
-  const data = await res.json();
-  return { ok: res.ok, status: res.status, data };
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: gestaoHeaders(),
+      body: JSON.stringify({ action, ...params }),
+    });
+    const data = await res.json();
+    return { ok: res.ok, status: res.status, data };
+  } catch (err) {
+    console.error(`[whatsapp] chamarGestao(${action}) erro:`, err);
+    return { ok: false, status: 0, data: null };
+  }
 }
 
 // =============================
