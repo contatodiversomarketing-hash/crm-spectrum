@@ -1087,7 +1087,7 @@ INSTRUÇÃO: Se o paciente já informou data+horário+profissional, CONFIRME o a
 
     const slotsPromises = diasParaConsultar.flatMap(date =>
       profIds.map(prof =>
-        chamarGestao("get_available_slots", { professional_id: prof.id, date })
+        chamarGestao("horarios_disponiveis", { medico_id: prof.id, data: date })
           .then(r => ({ ...r, profNome: prof.nome, profId: prof.id, date }))
           .catch(() => null)
       )
@@ -1207,8 +1207,8 @@ async function validarDiaProfissional(professionalId: string, dataISO: string): 
   // Também verificar pelo nome do profissional consultando a API de gestão
   try {
     if (Deno.env.get("GESTAO_API_URL") && Deno.env.get("GESTAO_API_TOKEN")) {
-      const result = await chamarGestao("list_professionals", {});
-      const profs = result.data?.professionals || result.data?.data || result.data || [];
+      const result = await chamarGestao("listar_medicos");
+      const profs = result.data?.data || result.data?.professionals || result.data || [];
       if (Array.isArray(profs)) {
         for (const p of profs) {
           const id = p.id || p.professional_id || "";
@@ -1263,16 +1263,15 @@ async function registrarAgendamento(nome: string, telefone: string, data: string
     }
 
     const params: Record<string, unknown> = {
-      appointment_date: data,
-      appointment_time: horario,
-      patient_name_imported: nome,
-      patient_phone: telefone,
-      professional_id: professionalId,
+      data: data,
+      hora: horario,
+      medico_id: professionalId,
+      observacoes: `Agendado via WhatsApp - Paciente: ${nome} - Tel: ${telefone}`,
     };
 
-    if (pacienteId) params.patient_id = pacienteId;
+    if (pacienteId) params.paciente_id = pacienteId;
 
-    const result = await chamarGestao("create_appointment", params);
+    const result = await chamarGestao("criar_agendamento", params);
     const payload = result.data || {};
     const logicalError = payload?.error === true || payload?.success === false || Number(payload?.statusCode || 0) >= 400;
     const created = isAppointmentCreatedResponse(payload);
