@@ -622,6 +622,64 @@ function respostaGestaoTemErro(data: unknown): boolean {
   return false;
 }
 
+function extrairSlotsGestao(data: unknown): string[] {
+  if (!data) return [];
+
+  const fontes = [
+    data,
+    (data as Record<string, unknown>)?.data,
+    (data as Record<string, unknown>)?.payload,
+    (data as Record<string, unknown>)?.result,
+    ((data as Record<string, unknown>)?.data as Record<string, unknown>)?.data,
+    ((data as Record<string, unknown>)?.data as Record<string, unknown>)?.payload,
+    ((data as Record<string, unknown>)?.data as Record<string, unknown>)?.result,
+  ].filter(Boolean);
+
+  for (const fonte of fontes) {
+    if (Array.isArray(fonte)) {
+      return fonte
+        .map((slot) => {
+          if (typeof slot === "string") return slot.trim();
+          if (!slot || typeof slot !== "object") return "";
+
+          const valor = (slot as Record<string, unknown>).time
+            || (slot as Record<string, unknown>).hora
+            || (slot as Record<string, unknown>).start_time
+            || (slot as Record<string, unknown>).appointment_time
+            || (slot as Record<string, unknown>).slot;
+
+          return typeof valor === "string" ? valor.trim() : "";
+        })
+        .filter((slot) => slot.length > 0);
+    }
+
+    if (fonte && typeof fonte === "object") {
+      const objeto = fonte as Record<string, unknown>;
+      const possiveisSlots = [objeto.slots, objeto.available_slots, objeto.horarios, objeto.times];
+
+      for (const possivel of possiveisSlots) {
+        if (!Array.isArray(possivel)) continue;
+        return possivel
+          .map((slot) => {
+            if (typeof slot === "string") return slot.trim();
+            if (!slot || typeof slot !== "object") return "";
+
+            const valor = (slot as Record<string, unknown>).time
+              || (slot as Record<string, unknown>).hora
+              || (slot as Record<string, unknown>).start_time
+              || (slot as Record<string, unknown>).appointment_time
+              || (slot as Record<string, unknown>).slot;
+
+            return typeof valor === "string" ? valor.trim() : "";
+          })
+          .filter((slot) => slot.length > 0);
+      }
+    }
+  }
+
+  return [];
+}
+
 async function chamarGestao(action: string, params: Record<string, unknown> = {}): Promise<any> {
   const url = gestaoUrl();
   const tentativas = [
@@ -1164,11 +1222,13 @@ INSTRUÇÃO: Se o paciente já informou data+horário+profissional, CONFIRME o a
 
     for (const res of resultados) {
       if (!res || !res.ok) continue;
-      const slots = res.data?.available_slots || res.data?.slots || res.data?.data || [];
-      if (!Array.isArray(slots)) continue;
+      const slots = extrairSlotsGestao(res.data);
+      if (slots.length === 0) {
+        console.log(`[whatsapp] horarios_disponiveis sem slots utilizáveis para ${res.profNome} em ${res.date}: ${JSON.stringify(res.data).slice(0, 250)}`);
+        continue;
+      }
       for (const slot of slots) {
-        // API returns slots as plain strings like "07:00" OR as objects with time property
-        const time = typeof slot === "string" ? slot : (slot.time || slot.start_time || slot.appointment_time || "");
+        const time = typeof slot === "string" ? slot : "";
         if (time) {
           slotsInfo.push({ date: res.date, time: time.slice(0, 5), profNome: res.profNome, profId: res.profId });
         }
