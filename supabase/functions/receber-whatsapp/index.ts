@@ -335,6 +335,11 @@ async function buscarBloqueioHumanoAtivo(supabase: any, numero: string) {
 
   if (!data?.bloqueio_ate) return null;
   if (new Date(data.bloqueio_ate).getTime() <= Date.now()) return null;
+  const resumoContextual = (data.resumo_contextual || "").toLowerCase().trim();
+  if (resumoContextual.startsWith("encaminhado_humano:")) {
+    console.log(`[whatsapp] 🔓 Ignorando bloqueio automático antigo para ${numero}; aguardando somente bloqueio por atendente real`);
+    return null;
+  }
   return data;
 }
 
@@ -1244,7 +1249,7 @@ INSTRUÇÃO CRÍTICA - SIGA ESTA REGRA:
 - NUNCA invente datas ou horários. Você NÃO sabe a disponibilidade real.
 - Pergunte a preferência de dia e turno do paciente e informe que vai verificar a agenda com a equipe.
 - Se o paciente insistir em um horário específico, diga: "Vou verificar essa disponibilidade e confirmo em instantes!"
-- Inclua ##ENCAMINHAR_HUMANO## para que a equipe confirme manualmente.
+- NÃO inclua ##ENCAMINHAR_HUMANO## só porque a agenda voltou vazia; continue a conversa normalmente.
 - Profissionais disponíveis: ${profListaIds}
 - Horário de funcionamento: segunda a sexta, 8h às 18h
 - NUNCA confirme agendamento com datas que você inventou`;
@@ -2481,7 +2486,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     if (respostaFinal.includes("##ENCAMINHAR_HUMANO##")) {
       respostaFinal = respostaFinal.replace("##ENCAMINHAR_HUMANO##", "").trim();
       encaminharHumano = true;
-      await registrarBloqueioHumano(supabase, numero, `encaminhado_humano:${mensagem.slice(0, 200)}`);
+      console.log(`[whatsapp] 📣 Encaminhamento interno solicitado para ${numero} sem silenciar a SofIA`);
     }
 
     // =============================
