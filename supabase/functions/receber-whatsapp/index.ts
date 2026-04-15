@@ -605,13 +605,18 @@ function gestaoUrl() {
 
 async function chamarGestao(action: string, params: Record<string, unknown> = {}): Promise<any> {
   const url = gestaoUrl();
-  const res = await fetch(`${url}/functions/v1/internal-api`, {
-    method: "POST",
-    headers: gestaoHeaders(),
-    body: JSON.stringify({ action, params }),
-  });
-  const data = await res.json();
-  return { ok: res.ok, status: res.status, data };
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: gestaoHeaders(),
+      body: JSON.stringify({ action, ...params }),
+    });
+    const data = await res.json();
+    return { ok: res.ok, status: res.status, data };
+  } catch (err) {
+    console.error(`[whatsapp] chamarGestao(${action}) erro:`, err);
+    return { ok: false, status: 0, data: null };
+  }
 }
 
 // =============================
@@ -813,7 +818,7 @@ async function buscarPacientePorTelefone(telefone: string): Promise<{ texto: str
     }
 
     for (const tel of tentativas) {
-      const result = await chamarGestao("search_patients", { phone: tel });
+      const result = await chamarGestao("buscar_paciente_cpf", { cpf: tel });
       if (result.ok) {
         const pacientes = result.data?.patients || result.data?.data || [];
         if (Array.isArray(pacientes) && pacientes.length > 0) {
@@ -838,10 +843,10 @@ IMPORTANTE: O paciente JÁ está cadastrado. Você pode agendar DIRETAMENTE sem 
       }
     }
 
-    // Tentar também no CRM
+    // Tentar também no CRM (skip se URL é placeholder)
     const crmUrl = Deno.env.get("CRM_API_URL");
     const crmToken = Deno.env.get("CRM_API_TOKEN");
-    if (crmUrl && crmToken) {
+    if (crmUrl && crmToken && !crmUrl.includes("PLACEHOLDER")) {
       try {
         const crmRes = await fetch(`${crmUrl}paciente-por-telefone`, {
           method: "POST",
@@ -906,13 +911,13 @@ async function buscarProfissionais(): Promise<{ texto: string; raw: any[] }> {
       return { texto: "", raw: [] };
     }
 
-    const result = await chamarGestao("list_professionals");
+    const result = await chamarGestao("listar_medicos");
     if (!result.ok) {
-      console.log(`[whatsapp] Profissionais API falhou: ${result.status}`);
+      console.log(`[whatsapp] Profissionais API falhou: ${result.status}`, JSON.stringify(result.data)?.slice(0, 200));
       return { texto: "\n\nPROFISSIONAIS: Erro ao consultar.", raw: [] };
     }
 
-    const profissionais = result.data?.professionals || result.data?.data || [];
+    const profissionais = result.data?.data || result.data?.professionals || result.data || [];
     if (!Array.isArray(profissionais) || profissionais.length === 0) {
       return { texto: "\n\nPROFISSIONAIS: Lista vazia.", raw: [] };
     }
@@ -1082,7 +1087,7 @@ INSTRUÇÃO: Se o paciente já informou data+horário+profissional, CONFIRME o a
 
     const slotsPromises = diasParaConsultar.flatMap(date =>
       profIds.map(prof =>
-        chamarGestao("get_available_slots", { professional_id: prof.id, date })
+        chamarGestao("horarios_disponiveis", { medico_id: prof.id, data: date })
           .then(r => ({ ...r, profNome: prof.nome, profId: prof.id, date }))
           .catch(() => null)
       )
@@ -1202,8 +1207,8 @@ async function validarDiaProfissional(professionalId: string, dataISO: string): 
   // Também verificar pelo nome do profissional consultando a API de gestão
   try {
     if (Deno.env.get("GESTAO_API_URL") && Deno.env.get("GESTAO_API_TOKEN")) {
-      const result = await chamarGestao("list_professionals", {});
-      const profs = result.data?.professionals || result.data?.data || result.data || [];
+      const result = await chamarGestao("listar_medicos");
+      const profs = result.data?.data || result.data?.professionals || result.data || [];
       if (Array.isArray(profs)) {
         for (const p of profs) {
           const id = p.id || p.professional_id || "";
@@ -1258,16 +1263,15 @@ async function registrarAgendamento(nome: string, telefone: string, data: string
     }
 
     const params: Record<string, unknown> = {
-      appointment_date: data,
-      appointment_time: horario,
-      patient_name_imported: nome,
-      patient_phone: telefone,
-      professional_id: professionalId,
+      data: data,
+      hora: horario,
+      medico_id: professionalId,
+      observacoes: `Agendado via WhatsApp - Paciente: ${nome} - Tel: ${telefone}`,
     };
 
-    if (pacienteId) params.patient_id = pacienteId;
+    if (pacienteId) params.paciente_id = pacienteId;
 
-    const result = await chamarGestao("create_appointment", params);
+    const result = await chamarGestao("criar_agendamento", params);
     const payload = result.data || {};
     const logicalError = payload?.error === true || payload?.success === false || Number(payload?.statusCode || 0) >= 400;
     const created = isAppointmentCreatedResponse(payload);
