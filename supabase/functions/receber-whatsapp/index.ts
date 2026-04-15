@@ -1752,18 +1752,62 @@ async function extrairTextoPDF(base64PDF: string): Promise<string> {
   }
 }
 
+function parseMegaResponseBody(responseText: string): unknown {
+  const trimmed = responseText.trim();
+  if (!trimmed) return null;
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return trimmed;
+  }
+}
+
+function megaResponseIndicaSucesso(status: number, parsedBody: unknown): boolean {
+  if (status < 200 || status >= 300) return false;
+  if (parsedBody == null) return true;
+
+  if (typeof parsedBody === "string") {
+    const normalized = parsedBody.toLowerCase();
+    if (normalized.includes("not_found") || normalized.includes("resource \"/\" not found") || normalized.includes("error")) {
+      return false;
+    }
+    return true;
+  }
+
+  if (typeof parsedBody === "object") {
+    const body = parsedBody as Record<string, unknown>;
+    const explicitError = body.error === true;
+    const nestedStatusCode = typeof body.statusCode === "number" ? body.statusCode : null;
+    const nestedStatus = typeof body.status === "number" ? body.status : null;
+    const nestedName = typeof body.name === "string" ? body.name.toLowerCase() : "";
+    const nestedMessage = typeof body.message === "string" ? body.message.toLowerCase() : "";
+
+    if (explicitError) return false;
+    if (nestedStatusCode !== null && nestedStatusCode >= 400) return false;
+    if (nestedStatus !== null && nestedStatus >= 400) return false;
+    if (nestedName.includes("not_found")) return false;
+    if (nestedMessage.includes("not found") || nestedMessage.includes("invalid") || nestedMessage.includes("unauthorized")) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 // =============================
 // ENVIAR MENSAGEM VIA MEGAAPI
 // =============================
-async function enviarTexto(numero: string, texto: string, instanceKey = ""): Promise<void> {
+async function enviarTexto(numero: string, texto: string, instanceKey = ""): Promise<boolean> {
   const MEGA_API_URL = Deno.env.get("MEGA_API_URL");
   const MEGA_API_TOKEN = Deno.env.get("MEGA_API_TOKEN");
   if (!MEGA_API_URL || !MEGA_API_TOKEN) {
     console.error("[whatsapp] MEGA_API não configurada");
-    return;
+    return false;
   }
 
   const candidates = buildMegaTextCandidates(MEGA_API_URL, MEGA_API_TOKEN, numero, texto, instanceKey);
+  let lastFailurePreview = "";
 
   for (const candidate of candidates) {
     try {
@@ -1773,14 +1817,27 @@ async function enviarTexto(numero: string, texto: string, instanceKey = ""): Pro
         body: JSON.stringify(candidate.body),
       });
       const responseText = await res.text();
-      console.log(`[whatsapp] Envio texto (${candidate.label}): ${res.status} via ${candidate.url} | ${responseText.slice(0, 160)}`);
-      if (res.ok) return;
+      const parsedBody = parseMegaResponseBody(responseText);
+      const sucesso = megaResponseIndicaSucesso(res.status, parsedBody);
+      const preview = responseText.slice(0, 160);
+
+      console.log(`[whatsapp] Envio texto (${candidate.label}): ${res.status} via ${candidate.url} | ${preview}`);
+
+      if (sucesso) {
+        console.log(`[whatsapp] ✅ MegaAPI aceitou envio por ${candidate.label}`);
+        return true;
+      }
+
+      lastFailurePreview = `${candidate.label}: ${preview}`;
+      console.warn(`[whatsapp] ⚠️ MegaAPI rejeitou candidate ${candidate.label} apesar do HTTP ${res.status}`);
     } catch (error) {
       console.error(`[whatsapp] Falha ao enviar texto (${candidate.label})`, error);
+      lastFailurePreview = `${candidate.label}: ${String(error)}`;
     }
   }
 
-  console.error("[whatsapp] Nenhum endpoint da MegaAPI aceitou o envio do texto");
+  console.error(`[whatsapp] Nenhum endpoint da MegaAPI aceitou o envio do texto${lastFailurePreview ? ` | último erro: ${lastFailurePreview}` : ""}`);
+  return false;
 }
 
 async function enviarAudio(numero: string, audioUrl: string): Promise<void> {
@@ -2296,7 +2353,15 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     const delayMs = 3000 + Math.random() * 1500;
     await new Promise(resolve => setTimeout(resolve, delayMs));
 
-    await enviarTexto(numero, respostaFinal, instanceKey);
+    const envioOk = await enviarTexto(numero, respostaFinal, instanceKey);
+
+    if (!envioOk) {
+      await liberarLockDB(supabase, numero);
+      return new Response(JSON.stringify({ status: "erro_envio_megaapi" }), {
+        status: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Gerar e enviar áudio em background
     gerarAudioElevenLabs(respostaFinal, supabase).then(async (audioUrl) => {
