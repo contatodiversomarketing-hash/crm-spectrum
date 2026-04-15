@@ -233,10 +233,10 @@ async function gerarRespostaOpenAI(messages: Array<{ role: string; content: any 
   if (LOVABLE_API_KEY) {
     try {
       const model = usarVision ? "openai/gpt-5" : "openai/gpt-5-mini";
-      const maxTokens = usarVision ? 1024 : 600;
+      const maxTokens = usarVision ? 1024 : 1024;
 
       // Tentar com tokens normais, e se falhar por limite, retry com mais tokens
-      for (const tokens of [maxTokens, maxTokens * 2]) {
+      for (const tokens of [maxTokens, maxTokens * 2, maxTokens * 4]) {
         const aiResp = await fetch(`${LOVABLE_AI_BASE_URL}/v1/chat/completions`, {
           method: "POST",
           headers: {
@@ -257,8 +257,14 @@ async function gerarRespostaOpenAI(messages: Array<{ role: string; content: any 
             console.log(`[whatsapp] ✅ Resposta via Lovable AI (${model}, tokens=${tokens})`);
             return resposta;
           }
-          console.warn(`[whatsapp] ⚠️ Lovable AI sem choices: ${JSON.stringify(data).slice(0, 300)}`);
-          break; // não faz sentido retry se ok mas sem content
+          const finishReason = data?.choices?.[0]?.finish_reason;
+          console.warn(`[whatsapp] ⚠️ Lovable AI content vazio (finish_reason=${finishReason}, tokens=${tokens}): ${JSON.stringify(data).slice(0, 300)}`);
+          // Se finish_reason é "length", precisa de mais tokens — retry
+          if (finishReason === "length") {
+            console.log(`[whatsapp] 🔄 Retentando com max_completion_tokens=${tokens * 2} (finish_reason=length)`);
+            continue;
+          }
+          break;
         } else {
           const errBody = await aiResp.text();
           console.error(`[whatsapp] ❌ Lovable AI HTTP ${aiResp.status} (tokens=${tokens}): ${errBody.slice(0, 500)}`);
