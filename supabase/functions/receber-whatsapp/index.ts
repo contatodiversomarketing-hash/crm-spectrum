@@ -911,13 +911,13 @@ async function buscarProfissionais(): Promise<{ texto: string; raw: any[] }> {
       return { texto: "", raw: [] };
     }
 
-    const result = await chamarGestao("list_professionals");
+    const result = await chamarGestao("listar_medicos");
     if (!result.ok) {
-      console.log(`[whatsapp] Profissionais API falhou: ${result.status}`);
+      console.log(`[whatsapp] Profissionais API falhou: ${result.status}`, JSON.stringify(result.data)?.slice(0, 200));
       return { texto: "\n\nPROFISSIONAIS: Erro ao consultar.", raw: [] };
     }
 
-    const profissionais = result.data?.professionals || result.data?.data || [];
+    const profissionais = result.data?.data || result.data?.professionals || result.data || [];
     if (!Array.isArray(profissionais) || profissionais.length === 0) {
       return { texto: "\n\nPROFISSIONAIS: Lista vazia.", raw: [] };
     }
