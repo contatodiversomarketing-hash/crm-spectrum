@@ -2353,7 +2353,15 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     const delayMs = 3000 + Math.random() * 1500;
     await new Promise(resolve => setTimeout(resolve, delayMs));
 
-    await enviarTexto(numero, respostaFinal, instanceKey);
+    const envioOk = await enviarTexto(numero, respostaFinal, instanceKey);
+
+    if (!envioOk) {
+      await liberarLockDB(supabase, numero);
+      return new Response(JSON.stringify({ status: "erro_envio_megaapi" }), {
+        status: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Gerar e enviar áudio em background
     gerarAudioElevenLabs(respostaFinal, supabase).then(async (audioUrl) => {
