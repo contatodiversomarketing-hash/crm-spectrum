@@ -593,7 +593,6 @@ async function processarMensagemFromMe(supabase: any, numero: string, texto: str
 function gestaoHeaders() {
   const token = Deno.env.get("GESTAO_API_TOKEN")!;
   return {
-    "Authorization": `Bearer ${token}`,
     "apikey": token,
     "Content-Type": "application/json",
   };
@@ -603,20 +602,88 @@ function gestaoUrl() {
   return Deno.env.get("GESTAO_API_URL")!;
 }
 
+function parseJsonSeguro(texto: string) {
+  try {
+    return JSON.parse(texto);
+  } catch {
+    return texto;
+  }
+}
+
+function respostaGestaoTemErro(data: unknown): boolean {
+  if (!data || typeof data !== "object") return false;
+
+  const payload = data as Record<string, unknown>;
+  if (payload.error === true) return true;
+  if (payload.success === false) return true;
+  if (typeof payload.statusCode === "number" && payload.statusCode >= 400) return true;
+  if (typeof payload.status === "number" && payload.status >= 400) return true;
+  if (typeof payload.error === "string" && payload.error.trim().length > 0) return true;
+  return false;
+}
+
 async function chamarGestao(action: string, params: Record<string, unknown> = {}): Promise<any> {
   const url = gestaoUrl();
+  const tentativas = [
+    { label: "params-wrapper", body: Object.keys(params).length > 0 ? { action, params } : { action } },
+    { label: "flat-body", body: { action, ...params } },
+  ];
+
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: gestaoHeaders(),
-      body: JSON.stringify({ action, ...params }),
-    });
-    const data = await res.json();
-    return { ok: res.ok, status: res.status, data };
+    let ultimaResposta = { ok: false, status: 0, data: null as unknown, mode: "none" };
+
+    for (const tentativa of tentativas) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: gestaoHeaders(),
+        body: JSON.stringify(tentativa.body),
+      });
+
+      const texto = await res.text();
+      const data = parseJsonSeguro(texto);
+      const logicalError = respostaGestaoTemErro(data);
+      const ok = res.ok && !logicalError;
+
+      ultimaResposta = { ok, status: res.status, data, mode: tentativa.label };
+
+      if (ok) {
+        if (tentativa.label === "flat-body") {
+          console.warn(`[whatsapp] Gestão aceitou fallback flat-body para ${action}`);
+        }
+        return ultimaResposta;
+      }
+    }
+
+    return ultimaResposta;
   } catch (err) {
     console.error(`[whatsapp] chamarGestao(${action}) erro:`, err);
     return { ok: false, status: 0, data: null };
   }
+}
+
+function nomeProfissional(profissional: any): string {
+  return fixEncoding(
+    profissional?.full_name ||
+      profissional?.professional_name ||
+      profissional?.display_name ||
+      profissional?.name ||
+      profissional?.nome ||
+      "",
+  ).trim();
+}
+
+function especialidadeProfissional(profissional: any): string {
+  return fixEncoding(profissional?.specialty || profissional?.especialidade || profissional?.specialization || "").trim();
+}
+
+function extrairCpfTexto(texto: string | null | undefined): string | null {
+  if (!texto) return null;
+
+  const match = texto.match(/(?:cpf\D*)?(\d{3}\.?\d{3}\.?\d{3}-?\d{2}|\d{11})/i);
+  if (!match) return null;
+
+  const cpf = match[1].replace(/\D/g, "");
+  return cpf.length === 11 ? cpf : null;
 }
 
 // =============================
@@ -803,45 +870,7 @@ REGRAS DO MARCADOR:
 // =============================
 async function buscarPacientePorTelefone(telefone: string): Promise<{ texto: string; paciente: any | null }> {
   try {
-    if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) {
-      return { texto: "", paciente: null };
-    }
-
-    // Tentar diferentes formatos de telefone
     const telLimpo = telefone.replace(/\D/g, "");
-    const tentativas = [telLimpo];
-    if (telLimpo.startsWith("55") && telLimpo.length >= 12) {
-      tentativas.push(telLimpo.slice(2)); // sem DDI
-    }
-    if (telLimpo.length === 10) {
-      tentativas.push(telLimpo.slice(0, 2) + "9" + telLimpo.slice(2)); // add 9
-    }
-
-    for (const tel of tentativas) {
-      const result = await chamarGestao("buscar_paciente_cpf", { cpf: tel });
-      if (result.ok) {
-        const pacientes = result.data?.patients || result.data?.data || [];
-        if (Array.isArray(pacientes) && pacientes.length > 0) {
-          const p = pacientes[0];
-          const nome = fixEncoding(p.full_name || p.patient_name || p.name || p.nome || "");
-          const cpf = p.cpf || p.document || p.cpf_cnpj || "";
-          const email = p.email || "";
-          const patientId = p.id || p.patient_id || "";
-          
-          console.log(`[whatsapp] ✅ Paciente encontrado: ${nome} (ID: ${patientId}, CPF: ${cpf ? "sim" : "não"})`);
-          
-          let texto = `\n\n## CADASTRO DO PACIENTE (ENCONTRADO NO SISTEMA):
-- Nome: ${nome}
-- Telefone: ${tel}
-- CPF: ${cpf || "não cadastrado (peça DEPOIS do agendamento, NÃO antes)"}
-- Email: ${email || "não informado"}
-- ID no sistema: ${patientId}
-IMPORTANTE: O paciente JÁ está cadastrado. Você pode agendar DIRETAMENTE sem pedir mais dados. CPF é OPCIONAL e deve ser pedido APÓS o agendamento, nunca antes.`;
-
-          return { texto, paciente: { id: patientId, nome, cpf, email, telefone: tel } };
-        }
-      }
-    }
 
     // Tentar também no CRM (skip se URL é placeholder)
     const crmUrl = Deno.env.get("CRM_API_URL");
@@ -887,6 +916,40 @@ Você DEVE coletar: nome completo e CPF do paciente para criar o cadastro e agen
   }
 }
 
+async function buscarPacientePorCPF(cpf: string): Promise<any | null> {
+  try {
+    const cpfLimpo = cpf.replace(/\D/g, "");
+    if (cpfLimpo.length !== 11) return null;
+    if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) return null;
+
+    const result = await chamarGestao("buscar_paciente_cpf", { cpf: cpfLimpo });
+    if (!result.ok) {
+      console.log(`[whatsapp] Buscar paciente por CPF falhou: ${result.status}`);
+      return null;
+    }
+
+    const bruto = result.data?.data ?? result.data?.patient ?? result.data;
+    const paciente = Array.isArray(bruto) ? bruto[0] : bruto;
+    if (!paciente || typeof paciente !== "object") return null;
+
+    const nome = fixEncoding((paciente as any).full_name || (paciente as any).patient_name || (paciente as any).name || (paciente as any).nome || "");
+    const id = (paciente as any).id || (paciente as any).patient_id || "";
+    if (!id) return null;
+
+    console.log(`[whatsapp] ✅ Paciente encontrado por CPF: ${nome || "sem nome"} (ID: ${id})`);
+    return {
+      id,
+      nome,
+      cpf: (paciente as any).cpf || cpfLimpo,
+      email: (paciente as any).email || "",
+      telefone: (paciente as any).telefone || (paciente as any).phone || "",
+    };
+  } catch (err) {
+    console.error("[whatsapp] Erro buscar paciente por CPF:", err);
+    return null;
+  }
+}
+
 // =============================
 // ATUALIZAR CPF DO PACIENTE NO GESTÃO
 // =============================
@@ -923,7 +986,7 @@ async function buscarProfissionais(): Promise<{ texto: string; raw: any[] }> {
     }
 
     const comEspecialidade = profissionais.filter((p: any) => {
-      const esp = fixEncoding(p.specialty || p.especialidade || p.specialization || "").trim();
+      const esp = especialidadeProfissional(p);
       const ativo = p.is_active !== false;
       return esp && esp.length > 1 && ativo;
     });
@@ -934,8 +997,8 @@ async function buscarProfissionais(): Promise<{ texto: string; raw: any[] }> {
 
     const lista = comEspecialidade.map((p: any) => {
       const id = p.id || p.professional_id || "";
-      const nome = fixEncoding(p.full_name || p.professional_name || p.display_name || p.name || p.nome || "");
-      const esp = fixEncoding(p.specialty || p.especialidade || p.specialization || "").trim();
+      const nome = nomeProfissional(p);
+      const esp = especialidadeProfissional(p);
       const espNorm = esp.charAt(0).toUpperCase() + esp.slice(1).toLowerCase();
       return `- ${nome} (${espNorm}) [ID: ${id}]`;
     }).join("\n");
@@ -1000,7 +1063,7 @@ function filtrarProfissionaisPorEspecialidade(profissionais: any[], especialidad
   const normsPermitidas = especialidadesPermitidas.map(e => e.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
 
   const filtrados = profissionais.filter((p: any) => {
-    const espRaw = fixEncoding(p.specialty || p.especialidade || p.specialization || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    const espRaw = especialidadeProfissional(p).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
     
     // Correspondência mais precisa: verificar se a especialidade do profissional 
     // corresponde exatamente a alguma especialidade permitida (palavra completa)
@@ -1021,8 +1084,8 @@ function filtrarProfissionaisPorEspecialidade(profissionais: any[], especialidad
   
   // Log dos profissionais filtrados para debug
   filtrados.forEach((p: any) => {
-    const nome = fixEncoding(p.full_name || p.name || "");
-    const esp = fixEncoding(p.specialty || p.especialidade || "");
+    const nome = nomeProfissional(p);
+    const esp = especialidadeProfissional(p);
     console.log(`[whatsapp]   → ${nome} (${esp})`);
   });
   
@@ -1036,7 +1099,7 @@ function detectarProfissionalPorNome(mensagem: string, profissionais: any[]): an
   const msgNorm = mensagem.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   
   for (const p of profissionais) {
-    const nomeCompleto = fixEncoding(p.full_name || p.professional_name || p.display_name || p.name || p.nome || "");
+    const nomeCompleto = nomeProfissional(p);
     if (!nomeCompleto) continue;
     
     // Extrair primeiro nome e sobrenome
@@ -1078,7 +1141,7 @@ INSTRUÇÃO: Mesmo assim, se o paciente informou data, horário e profissional, 
     const profIds = profissionais
       .filter((p: any) => p.id || p.professional_id)
       .slice(0, 5)
-      .map((p: any) => ({ id: p.id || p.professional_id, nome: fixEncoding(p.full_name || p.professional_name || p.name || "") }));
+      .map((p: any) => ({ id: p.id || p.professional_id, nome: nomeProfissional(p) }));
 
     if (profIds.length === 0) {
       return `\n\nHORÁRIOS: Nenhum profissional com ID encontrado.
@@ -1212,7 +1275,7 @@ async function validarDiaProfissional(professionalId: string, dataISO: string): 
       if (Array.isArray(profs)) {
         for (const p of profs) {
           const id = p.id || p.professional_id || "";
-          const nome = fixEncoding(p.full_name || p.professional_name || p.name || p.nome || "").toLowerCase();
+          const nome = nomeProfissional(p).toLowerCase();
           
           if (String(id) === String(professionalId)) {
             const dia = new Date(dataISO + "T12:00:00Z").getDay();
@@ -2043,9 +2106,27 @@ serve(async (req) => {
     ]);
 
     const historico = historicoResult.data;
-    const contextPaciente = pacienteResult.texto;
-    const pacienteEncontrado = pacienteResult.paciente;
+    let contextPaciente = pacienteResult.texto;
+    let pacienteEncontrado = pacienteResult.paciente;
     const treinamentos = treinamentoResult.data || [];
+
+    if (!pacienteEncontrado) {
+      const cpfDaConversa = extrairCpfTexto(
+        [mensagem, ...(historico?.map((item) => item.mensagem_usuario || "") || [])].join("\n"),
+      );
+
+      if (cpfDaConversa) {
+        const pacientePorCpf = await buscarPacientePorCPF(cpfDaConversa);
+        if (pacientePorCpf) {
+          pacienteEncontrado = pacientePorCpf;
+          contextPaciente += `\n\n## CADASTRO DO PACIENTE (ENCONTRADO PELO CPF INFORMADO):
+- Nome: ${pacientePorCpf.nome || "não informado"}
+- CPF: ${cpfDaConversa}
+- ID no sistema: ${pacientePorCpf.id}
+IMPORTANTE: O paciente já existe no sistema. Pode seguir com o agendamento usando o cadastro localizado pelo CPF.`;
+        }
+      }
+    }
 
     // Detectar profissional mencionado pelo NOME na mensagem atual
     const profMencionado = detectarProfissionalPorNome(mensagem, profResult.raw);
@@ -2067,7 +2148,7 @@ serve(async (req) => {
       if (filtrados.length > 0) {
         profissionaisParaContexto = filtrados;
         profissionaisParaAgenda = filtrados;
-        console.log(`[whatsapp] ✅ Profissionais filtrados: ${filtrados.map((p: any) => fixEncoding(p.full_name || p.name || "")).join(", ")}`);
+        console.log(`[whatsapp] ✅ Profissionais filtrados: ${filtrados.map((p: any) => nomeProfissional(p)).join(", ")}`);
       } else {
         console.log(`[whatsapp] ⚠️ Nenhum profissional encontrado para especialidade, mostrando todos`);
       }
@@ -2078,8 +2159,8 @@ serve(async (req) => {
     if (profissionaisParaContexto.length > 0) {
       const lista = profissionaisParaContexto.map((p: any) => {
         const id = p.id || p.professional_id || "";
-        const nome = fixEncoding(p.full_name || p.professional_name || p.display_name || p.name || p.nome || "");
-        const esp = fixEncoding(p.specialty || p.especialidade || p.specialization || "").trim();
+        const nome = nomeProfissional(p);
+        const esp = especialidadeProfissional(p);
         const espNorm = esp.charAt(0).toUpperCase() + esp.slice(1).toLowerCase();
         return `- ${nome} (${espNorm}) [ID: ${id}]`;
       }).join("\n");
@@ -2092,7 +2173,7 @@ serve(async (req) => {
 ${lista}
 
 REGRA ABSOLUTA: Use SOMENTE os profissionais listados acima. NÃO sugira outros profissionais. NÃO confunda nomes.
-${profMencionado ? `⚠️ O paciente PERGUNTOU ESPECIFICAMENTE por ${fixEncoding(profMencionado.full_name || profMencionado.name || "")}. Responda sobre ESTE profissional, não outro.` : ""}
+${profMencionado ? `⚠️ O paciente PERGUNTOU ESPECIFICAMENTE por ${nomeProfissional(profMencionado)}. Responda sobre ESTE profissional, não outro.` : ""}
 ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectadas.join(", ")}. Ofereça APENAS profissionais desta área.` : ""}`;
     } else {
       contextProfissionais = profResult.texto;
@@ -2204,6 +2285,11 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         atualizarPacienteCPF(pacienteEncontrado.id, cpfDetectado.cpf)
           .then(ok => console.log(`[whatsapp] CPF atualizado: ${ok}`))
           .catch(err => console.error("[whatsapp] Erro atualizar CPF:", err));
+      } else {
+        const pacientePorCpf = await buscarPacientePorCPF(cpfDetectado.cpf);
+        if (pacientePorCpf) {
+          pacienteEncontrado = pacientePorCpf;
+        }
       }
     }
 
@@ -2375,9 +2461,41 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     const delayMs = 3000 + Math.random() * 1500;
     await new Promise(resolve => setTimeout(resolve, delayMs));
 
+    const mensagemPersistida = (midia ? `[${midia.type}] ` : "") + mensagem.slice(0, 5000);
+    const payloadInteracao = {
+      paciente_externo_id: numero,
+      canal: "whatsapp",
+      sistema_origem: "megaapi",
+      mensagem_usuario: mensagemPersistida,
+      resposta_final: respostaFinal.slice(0, 5000),
+      intencao_detectada: agendamentos.length > 0
+        ? (agendamentosConfirmados > 0 ? "agendamento" : "agendamento_pendente")
+        : (encaminharHumano ? "encaminhar_humano" : null),
+      estado_conversa: agendamentos.length > 0 && agendamentosConfirmados === agendamentos.length
+        ? "finalizado"
+        : "em_andamento",
+      supervisionado: false,
+    };
+
+    const { data: interacaoSalva, error: preSaveError } = await supabase
+      .from("interacoes_ia")
+      .insert(payloadInteracao)
+      .select("id")
+      .maybeSingle();
+
+    if (preSaveError) {
+      console.error("[whatsapp] Erro ao pré-salvar interação antes do envio:", preSaveError);
+    }
+
     const envioOk = await enviarTexto(numero, respostaFinal, instanceKey);
 
     if (!envioOk) {
+      if (interacaoSalva?.id) {
+        await supabase
+          .from("interacoes_ia")
+          .update({ intencao_detectada: "erro_envio", estado_conversa: "erro_envio" })
+          .eq("id", interacaoSalva.id);
+      }
       await liberarLockDB(supabase, numero);
       return new Response(JSON.stringify({ status: "erro_envio_megaapi" }), {
         status: 502,
@@ -2397,25 +2515,6 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
           enviarTexto(adminNumber, `⚠️ *Paciente precisa de atendimento humano*\n📱 Número: ${numero}\n💬 Última msg: "${mensagem.slice(0, 100)}"\n\nPor favor, entre em contato.`, instanceKey).catch(() => {});
       }
     }
-
-    // =============================
-    // SALVAR INTERAÇÃO NO BANCO (AWAIT para garantir que o lock cobre o insert)
-    // =============================
-    const { error: saveError } = await supabase.from("interacoes_ia").insert({
-      paciente_externo_id: numero,
-      canal: "whatsapp",
-      sistema_origem: "megaapi",
-      mensagem_usuario: (midia ? `[${midia.type}] ` : "") + mensagem.slice(0, 5000),
-      resposta_final: respostaFinal.slice(0, 5000),
-      intencao_detectada: agendamentos.length > 0
-        ? (agendamentosConfirmados > 0 ? "agendamento" : "agendamento_pendente")
-        : (encaminharHumano ? "encaminhar_humano" : null),
-      estado_conversa: agendamentos.length > 0 && agendamentosConfirmados === agendamentos.length
-        ? "finalizado"
-        : "em_andamento",
-      supervisionado: false,
-    });
-    if (saveError) console.error("[whatsapp] Erro salvar interação:", saveError);
 
     await liberarLockDB(supabase, numero);
     return new Response("ok");
