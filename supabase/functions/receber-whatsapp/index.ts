@@ -818,7 +818,7 @@ async function buscarPacientePorTelefone(telefone: string): Promise<{ texto: str
     }
 
     for (const tel of tentativas) {
-      const result = await chamarGestao("search_patients", { phone: tel });
+      const result = await chamarGestao("buscar_paciente_cpf", { cpf: tel });
       if (result.ok) {
         const pacientes = result.data?.patients || result.data?.data || [];
         if (Array.isArray(pacientes) && pacientes.length > 0) {
