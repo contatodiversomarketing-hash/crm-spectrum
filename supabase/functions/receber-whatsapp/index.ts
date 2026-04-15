@@ -125,6 +125,77 @@ function ehRespostaRepetidaOuIntroducao(resposta: string, historico: HistoricoIn
 const LOVABLE_AI_BASE_URL = "https://ai.gateway.lovable.dev";
 const FALLBACK_TECNICO = "Desculpe, tive uma dificuldade técnica momentânea. Pode repetir, por favor? 😊";
 
+function normalizeExternalUrl(url?: string | null): string {
+  if (!url) return "";
+  const trimmed = url.trim();
+  if (!trimmed) return "";
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  return withProtocol.replace(/\/$/, "");
+}
+
+type MegaRequestCandidate = {
+  url: string;
+  headers: Record<string, string>;
+  body: Record<string, unknown>;
+  label: string;
+};
+
+function buildMegaTextCandidates(rawUrl: string, token: string, numero: string, texto: string, instanceKey = ""): MegaRequestCandidate[] {
+  const normalized = normalizeExternalUrl(rawUrl);
+  if (!normalized) return [];
+
+  let origin = normalized;
+  try {
+    origin = new URL(normalized).origin;
+  } catch {
+    origin = normalized;
+  }
+
+  const candidates: MegaRequestCandidate[] = [];
+  const pushCandidate = (candidate: MegaRequestCandidate) => {
+    if (!candidate.url) return;
+    if (!candidates.some((item) => item.url === candidate.url && item.label === candidate.label)) {
+      candidates.push(candidate);
+    }
+  };
+
+  pushCandidate({
+    url: normalized,
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+    body: { number: numero, text: texto },
+    label: "configured-url-bearer",
+  });
+
+  pushCandidate({
+    url: `${origin}/api/v1/sendText`,
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+    body: { number: numero, text: texto },
+    label: "api-v1-sendText",
+  });
+
+  pushCandidate({
+    url: `${origin}/message/sendText/${token}`,
+    headers: { "Content-Type": "application/json" },
+    body: { number: numero, text: texto },
+    label: "message-sendText-token-path",
+  });
+
+  if (instanceKey) {
+    pushCandidate({
+      url: `${origin}/rest/sendMessage/${instanceKey}/text`,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+        "apikey": token,
+      },
+      body: { messageData: { to: `${numero}@s.whatsapp.net`, text: texto } },
+      label: "rest-sendMessage-instance",
+    });
+  }
+
+  return candidates;
+}
+
 // =============================
 // TRAVA DE CONCORRÊNCIA VIA BANCO DE DADOS (funciona entre múltiplos isolates)
 // =============================
@@ -1684,7 +1755,7 @@ async function extrairTextoPDF(base64PDF: string): Promise<string> {
 // =============================
 // ENVIAR MENSAGEM VIA MEGAAPI
 // =============================
-async function enviarTexto(numero: string, texto: string): Promise<void> {
+async function enviarTexto(numero: string, texto: string, instanceKey = ""): Promise<void> {
   const MEGA_API_URL = Deno.env.get("MEGA_API_URL");
   const MEGA_API_TOKEN = Deno.env.get("MEGA_API_TOKEN");
   if (!MEGA_API_URL || !MEGA_API_TOKEN) {
@@ -1692,12 +1763,24 @@ async function enviarTexto(numero: string, texto: string): Promise<void> {
     return;
   }
 
-  const res = await fetch(MEGA_API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${MEGA_API_TOKEN}` },
-    body: JSON.stringify({ messageData: { to: `${numero}@s.whatsapp.net`, text: texto } }),
-  });
-  console.log(`[whatsapp] Envio texto: ${res.status}`);
+  const candidates = buildMegaTextCandidates(MEGA_API_URL, MEGA_API_TOKEN, numero, texto, instanceKey);
+
+  for (const candidate of candidates) {
+    try {
+      const res = await fetch(candidate.url, {
+        method: "POST",
+        headers: candidate.headers,
+        body: JSON.stringify(candidate.body),
+      });
+      const responseText = await res.text();
+      console.log(`[whatsapp] Envio texto (${candidate.label}): ${res.status} via ${candidate.url} | ${responseText.slice(0, 160)}`);
+      if (res.ok) return;
+    } catch (error) {
+      console.error(`[whatsapp] Falha ao enviar texto (${candidate.label})`, error);
+    }
+  }
+
+  console.error("[whatsapp] Nenhum endpoint da MegaAPI aceitou o envio do texto");
 }
 
 async function enviarAudio(numero: string, audioUrl: string): Promise<void> {
@@ -1728,6 +1811,7 @@ serve(async (req) => {
     console.log("[whatsapp] Webhook recebido:", JSON.stringify(body).slice(0, 800));
     console.log("[whatsapp] Webhook top-level keys:", Object.keys(body).join(", "));
     if (body.message) console.log("[whatsapp] message keys:", Object.keys(body.message).join(", "));
+    const instanceKey = body.instance_key || body.instanceKey || body.data?.instance_key || "";
 
     // Extrair mensagem e número (formato MegaAPI)
     const msg = body.message || {};
@@ -2111,7 +2195,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
           // Notificar admin sobre confirmação sem agendamento real
           const adminNumber = Deno.env.get("ADMIN_WHATSAPP_NUMBER");
           if (adminNumber) {
-            enviarTexto(adminNumber, `⚠️ *SofIA confirmou agendamento verbalmente mas NÃO registrou na agenda*\n📱 Paciente: ${numero}\n💬 Resposta: "${respostaFinal.slice(0, 200)}"\n\n⚡ Favor verificar e registrar manualmente.`).catch(() => {});
+            enviarTexto(adminNumber, `⚠️ *SofIA confirmou agendamento verbalmente mas NÃO registrou na agenda*\n📱 Paciente: ${numero}\n💬 Resposta: "${respostaFinal.slice(0, 200)}"\n\n⚡ Favor verificar e registrar manualmente.`, instanceKey).catch(() => {});
           }
         }
       }
@@ -2160,7 +2244,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         const adminNumber = Deno.env.get("ADMIN_WHATSAPP_NUMBER");
         if (adminNumber) {
           const falhaDetalhes = falharam.map((f) => `${f.ag.nome} | ${f.ag.data} ${f.ag.horario} | prof=${f.ag.professionalId || "sem_id"}`).join("; ");
-          enviarTexto(adminNumber, `⚠️ *AGENDAMENTO FALHOU NO SISTEMA*\n📱 Paciente: ${numero}\n📋 Dados: ${falhaDetalhes}\n\n⚡ Favor registrar/validar manualmente no sistema de gestão.`).catch(() => {});
+          enviarTexto(adminNumber, `⚠️ *AGENDAMENTO FALHOU NO SISTEMA*\n📱 Paciente: ${numero}\n📋 Dados: ${falhaDetalhes}\n\n⚡ Favor registrar/validar manualmente no sistema de gestão.`, instanceKey).catch(() => {});
         }
       }
     }
@@ -2212,7 +2296,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     const delayMs = 3000 + Math.random() * 1500;
     await new Promise(resolve => setTimeout(resolve, delayMs));
 
-    await enviarTexto(numero, respostaFinal);
+    await enviarTexto(numero, respostaFinal, instanceKey);
 
     // Gerar e enviar áudio em background
     gerarAudioElevenLabs(respostaFinal, supabase).then(async (audioUrl) => {
@@ -2223,7 +2307,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     if (encaminharHumano) {
       const adminNumber = Deno.env.get("ADMIN_WHATSAPP_NUMBER");
       if (adminNumber) {
-        enviarTexto(adminNumber, `⚠️ *Paciente precisa de atendimento humano*\n📱 Número: ${numero}\n💬 Última msg: "${mensagem.slice(0, 100)}"\n\nPor favor, entre em contato.`).catch(() => {});
+          enviarTexto(adminNumber, `⚠️ *Paciente precisa de atendimento humano*\n📱 Número: ${numero}\n💬 Última msg: "${mensagem.slice(0, 100)}"\n\nPor favor, entre em contato.`, instanceKey).catch(() => {});
       }
     }
 
