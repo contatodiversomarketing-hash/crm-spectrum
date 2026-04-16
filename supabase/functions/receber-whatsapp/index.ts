@@ -1170,7 +1170,8 @@ async function criarLeadCRM(nome: string, telefone: string): Promise<boolean> {
 // EXTRAIR MARCADORES DA RESPOSTA
 // =============================
 function extrairAgendamentos(resposta: string): { agendamentos: Array<{ nome: string; data: string; horario: string; professionalId: string }>; textoLimpo: string } {
-  const regex = /##AGENDAMENTO_CONFIRMADO\|([^|]+)\|(\d{4}-\d{2}-\d{2})\|(\d{2}:\d{2})\|?([^#]*)##/g;
+  // Aceitar marcador com ou sem ## de fechamento (a IA às vezes omite o ## final)
+  const regex = /##AGENDAMENTO_CONFIRMADO\|([^|]+)\|(\d{4}-\d{2}-\d{2})\|(\d{2}:\d{2})\|?([^#\n]*?)(?:##|$)/g;
   const agendamentos: Array<{ nome: string; data: string; horario: string; professionalId: string }> = [];
   let match;
   while ((match = regex.exec(resposta)) !== null) {
@@ -1181,7 +1182,8 @@ function extrairAgendamentos(resposta: string): { agendamentos: Array<{ nome: st
       professionalId: (match[4] || "auto").trim(),
     });
   }
-  const textoLimpo = resposta.replace(/##AGENDAMENTO_CONFIRMADO\|[^#]*##/g, "").trim();
+  // Limpar marcador com ou sem ## de fechamento
+  const textoLimpo = resposta.replace(/##AGENDAMENTO_CONFIRMADO\|[^#\n]*?(?:##|$)/g, "").trim();
   return { agendamentos, textoLimpo };
 }
 
