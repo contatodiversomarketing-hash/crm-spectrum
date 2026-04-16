@@ -813,7 +813,7 @@ Você está atendendo pelo WhatsApp.
 - Se uma informação NÃO está no contexto, diga: "Vou confirmar com a equipe e já retorno!"
 - Mensagens curtas (máximo 3-4 linhas), SEMPRE termine com pergunta diretiva ou ação
 - NÃO repita informações já ditas na conversa
-- Se não conseguir entender após 2 tentativas, diga que vai chamar uma colega e inclua: ##ENCAMINHAR_HUMANO##
+- Se não conseguir entender após 2 tentativas, peça desculpas e tente reformular a pergunta de outra forma
 
 ## TÉCNICAS DE VENDA (use SEMPRE, 1-2 por mensagem, de forma NATURAL)
 - ESPECIFICIDADE: números exatos, detalhes concretos
@@ -883,7 +883,7 @@ Se você disser "agendado" ou "marcado" sem incluir o marcador, o paciente ficar
 REGRAS DO MARCADOR:
 - O professional_id é OBRIGATÓRIO e deve ser o ID real do profissional na lista (campo "id")
 - NÃO use "auto" quando o profissional existir na lista
-- Se não houver ID válido, NÃO confirme agendamento automaticamente; peça para a equipe confirmar e inclua ##ENCAMINHAR_HUMANO##
+- Se não houver ID válido, NÃO confirme agendamento automaticamente; informe que vai verificar com a equipe e retorna
 - PRIORIDADE MÁXIMA: se já tem nome + profissional + data + horário + ID válido → INCLUA O MARCADOR E CONFIRME.
 
 ## REGRA ANTI-LOOP (PRIORIDADE ABSOLUTA)
@@ -1249,7 +1249,7 @@ INSTRUÇÃO CRÍTICA - SIGA ESTA REGRA:
 - NUNCA invente datas ou horários. Você NÃO sabe a disponibilidade real.
 - Pergunte a preferência de dia e turno do paciente e informe que vai verificar a agenda com a equipe.
 - Se o paciente insistir em um horário específico, diga: "Vou verificar essa disponibilidade e confirmo em instantes!"
-- NÃO inclua ##ENCAMINHAR_HUMANO## só porque a agenda voltou vazia; continue a conversa normalmente.
+- Se a agenda voltou vazia, continue a conversa normalmente oferecendo outros dias/horários.
 - Profissionais disponíveis: ${profListaIds}
 - Horário de funcionamento: segunda a sexta, 8h às 18h
 - NUNCA confirme agendamento com datas que você inventou`;
@@ -2106,11 +2106,7 @@ serve(async (req) => {
     }
 
     if (isFromMe) {
-      const participant = body.key?.participant || body.key?.participantPn || body.data?.key?.participant || "";
-      const participantNumber = participant.replace("@s.whatsapp.net", "").replace("@lid", "").replace(/\D/g, "").trim();
-      const pushName = body.pushName || "";
-      console.log(`[whatsapp] 📤 fromMe: paciente=${numero} participant=${participant} pushName="${pushName}" lid=${body.lid || ""} key=${JSON.stringify(body.key || {})}`);
-      await processarMensagemFromMe(supabase, numero, mensagemTexto || mensagem, participantNumber || undefined, pushName || undefined);
+      console.log(`[whatsapp] 📤 fromMe detectado para ${numero} — ignorando (sem bloqueio humano)`);
       return new Response("ok");
     }
 
@@ -2124,28 +2120,7 @@ serve(async (req) => {
       });
     }
 
-    const bloqueioHumanoAtivo = await buscarBloqueioHumanoAtivo(supabase, numero);
-    if (bloqueioHumanoAtivo) {
-      await liberarLockDB(supabase, numero);
-      console.log(`[whatsapp] 🤫 Atendimento humano ativo para ${numero} até ${bloqueioHumanoAtivo.bloqueio_ate}; SofIA ficará em silêncio`);
-
-      supabase.from("interacoes_ia").insert({
-        paciente_externo_id: numero,
-        canal: "whatsapp",
-        sistema_origem: "megaapi",
-        mensagem_usuario: (midia ? `[${midia.type}] ` : "") + mensagem.slice(0, 5000),
-        resposta_final: null,
-        intencao_detectada: "silenciado_humano",
-        estado_conversa: "handoff_humano",
-        supervisionado: true,
-      }).then(({ error }) => {
-        if (error) console.error("[whatsapp] Erro ao salvar mensagem silenciada:", error);
-      });
-
-      return new Response(JSON.stringify({ status: "silenciado_humano" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Bloqueio humano removido — SofIA SEMPRE responde. Para pausar, desative o canal WhatsApp no painel.
 
     console.log(`[whatsapp] 📩 De ${numero}: "${mensagem.slice(0, 100)}"${imagemBase64ParaIA ? " [+imagem]" : ""}`);
 
@@ -2482,12 +2457,8 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     // =============================
     // DETECTAR ENCAMINHAMENTO HUMANO
     // =============================
-    let encaminharHumano = false;
-    if (respostaFinal.includes("##ENCAMINHAR_HUMANO##")) {
-      respostaFinal = respostaFinal.replace("##ENCAMINHAR_HUMANO##", "").trim();
-      encaminharHumano = true;
-      console.log(`[whatsapp] 📣 Encaminhamento interno solicitado para ${numero} sem silenciar a SofIA`);
-    }
+    // Limpar qualquer marcador residual de encaminhamento (não usado mais)
+    respostaFinal = respostaFinal.replace(/##ENCAMINHAR_HUMANO##/g, "").trim();
 
     // =============================
     // ENVIAR RESPOSTA (com verificação FRESCA de duplicação no banco)
@@ -2535,7 +2506,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       resposta_final: respostaFinal.slice(0, 5000),
       intencao_detectada: agendamentos.length > 0
         ? (agendamentosConfirmados > 0 ? "agendamento" : "agendamento_pendente")
-        : (encaminharHumano ? "encaminhar_humano" : null),
+        : null,
       estado_conversa: agendamentos.length > 0 && agendamentosConfirmados === agendamentos.length
         ? "finalizado"
         : "em_andamento",
@@ -2573,13 +2544,6 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       if (audioUrl) await enviarAudio(numero, audioUrl);
     }).catch(err => console.error("[whatsapp] Erro envio áudio:", err));
 
-    // Notificar admin se encaminhar humano
-    if (encaminharHumano) {
-      const adminNumber = Deno.env.get("ADMIN_WHATSAPP_NUMBER");
-      if (adminNumber) {
-          enviarTexto(adminNumber, `⚠️ *Paciente precisa de atendimento humano*\n📱 Número: ${numero}\n💬 Última msg: "${mensagem.slice(0, 100)}"\n\nPor favor, entre em contato.`, instanceKey).catch(() => {});
-      }
-    }
 
     await liberarLockDB(supabase, numero);
     return new Response("ok");
