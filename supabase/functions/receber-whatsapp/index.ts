@@ -544,15 +544,24 @@ Você está atendendo pelo WhatsApp.
 3. Explique brevemente como funciona (consulta online → prescrição → suporte ANVISA → tratamento)
 4. Pergunte a PREFERÊNCIA de dia e turno (manhã/tarde)
 5. SÓ DEPOIS de saber a preferência, ofereça 2 opções REAIS (se disponíveis na agenda)
-6. Com o nome do paciente e horário confirmado:
+6. ANTES de confirmar, colete: nome completo, CPF, e data de nascimento. Peça de forma natural: "Para finalizar seu cadastro, preciso do nome completo, CPF e data de nascimento 😊"
+7. Com TODOS os dados coletados + horário confirmado:
    a) Confirme: "[Nome], consulta marcada para [dia] às [hora]. ✅"
-7. APÓS confirmar, pergunte se tem alguma dúvida sobre o tratamento
+8. APÓS confirmar, pergunte se tem alguma dúvida sobre o tratamento
 
-## COLETA DE DADOS PARA AGENDAMENTO
-- O CPF é OPCIONAL. NUNCA bloqueie um agendamento por falta de CPF.
-- Se o paciente já disse o nome → isso é SUFICIENTE para agendar.
-- O sistema CRIA AUTOMATICAMENTE o cadastro do paciente no sistema de gestão ao confirmar o agendamento. Não se preocupe se o paciente "não existe" no sistema.
-- Se o paciente fornecer o CPF voluntariamente, inclua: ##ATUALIZAR_CPF|cpf_informado##
+## COLETA DE DADOS PARA CADASTRO E AGENDAMENTO
+- Para finalizar o cadastro e agendar, você PRECISA coletar:
+  1. **Nome completo** (nome + sobrenome)
+  2. **CPF** (11 dígitos)
+  3. **Telefone** (já temos do WhatsApp, mas confirme se deseja usar outro)
+  4. **Data de nascimento** (dia/mês/ano)
+- Colete esses dados de forma NATURAL e CONVERSACIONAL, não como uma lista fria
+- Se o paciente já disse o nome parcial, peça o sobrenome completo de forma gentil: "Para eu finalizar o cadastro, poderia me confirmar seu nome completo e data de nascimento? 😊"
+- Peça os dados ANTES de confirmar o agendamento, em UMA ou DUAS mensagens no máximo
+- Se o paciente resistir a fornecer o CPF, diga que é necessário para o cadastro no sistema e emissão de receita médica
+- O sistema CRIA AUTOMATICAMENTE o cadastro do paciente no sistema de gestão ao confirmar o agendamento
+- Quando o paciente fornecer CPF, inclua: ##ATUALIZAR_CPF|cpf_informado##
+- Quando o paciente fornecer data de nascimento, inclua: ##ATUALIZAR_NASCIMENTO|YYYY-MM-DD##
 - Você mesma conduz o agendamento no sistema. NUNCA diga que não consegue editar, lançar ou colocar na agenda.
 
 ## INSTRUÇÃO CRÍTICA: CONFIRMAÇÃO DE AGENDAMENTO (PRIORIDADE MÁXIMA!)
@@ -571,8 +580,8 @@ REGRAS DO MARCADOR:
 ## REGRA ANTI-LOOP (PRIORIDADE ABSOLUTA)
 - NUNCA repita a mesma resposta mais de 1 vez
 - Se já pediu nome e o paciente já forneceu → NÃO peça de novo
-- Prefira AGENDAR e ajustar depois do que ficar pedindo dados
-- NUNCA peça CPF ANTES de agendar. Agende PRIMEIRO, peça CPF DEPOIS de forma casual.
+- Prefira avançar no fluxo do que ficar repetindo perguntas
+- Colete nome completo, CPF e data de nascimento ANTES de confirmar o agendamento
 
 ## FINALIZAÇÃO DE CONVERSA
 - Quando o paciente AGRADECER ou SE DESPEDIR → encerre com mensagem CALOROSA e BREVE (2-3 linhas)
@@ -1063,7 +1072,7 @@ async function validarDiaProfissional(professionalId: string, dataISO: string): 
 // =============================
 // CRIAR PACIENTE NO SISTEMA DE GESTÃO
 // =============================
-async function criarPacienteGestao(nome: string, telefone: string, cpf?: string, email?: string): Promise<string | null> {
+async function criarPacienteGestao(nome: string, telefone: string, cpf?: string, email?: string, dataNascimento?: string): Promise<string | null> {
   try {
     if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) return null;
 
@@ -1073,6 +1082,7 @@ async function criarPacienteGestao(nome: string, telefone: string, cpf?: string,
     };
     if (cpf) params.cpf = cpf.replace(/\D/g, "");
     if (email) params.email = email.trim();
+    if (dataNascimento) params.data_nascimento = dataNascimento;
 
     console.log(`[whatsapp] 📝 Criando paciente no gestão: ${nome} | tel: ${telefone}`);
     const result = await chamarGestao("criar_paciente", params);
@@ -1198,6 +1208,13 @@ function extrairCPF(resposta: string): { cpf: string; textoLimpo: string } | nul
   const match = resposta.match(regex);
   if (!match) return null;
   return { cpf: match[1].trim(), textoLimpo: resposta.replace(regex, "").trim() };
+}
+
+function extrairNascimento(resposta: string): { nascimento: string; textoLimpo: string } | null {
+  const regex = /##ATUALIZAR_NASCIMENTO\|([^#]+)##/;
+  const match = resposta.match(regex);
+  if (!match) return null;
+  return { nascimento: match[1].trim(), textoLimpo: resposta.replace(regex, "").trim() };
 }
 
 // =============================
@@ -2071,6 +2088,19 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         if (pacientePorCpf) {
           pacienteEncontrado = pacientePorCpf;
         }
+      }
+    }
+
+    // =============================
+    // DETECTAR ATUALIZAÇÃO DE DATA DE NASCIMENTO
+    // =============================
+    const nascimentoDetectado = extrairNascimento(respostaFinal);
+    if (nascimentoDetectado) {
+      respostaFinal = nascimentoDetectado.textoLimpo;
+      if (pacienteEncontrado?.id) {
+        chamarGestao("update_patient", { patient_id: pacienteEncontrado.id, data_nascimento: nascimentoDetectado.nascimento })
+          .then(r => console.log(`[whatsapp] Data nascimento atualizada: ${r.ok}`))
+          .catch(err => console.error("[whatsapp] Erro atualizar nascimento:", err));
       }
     }
 
