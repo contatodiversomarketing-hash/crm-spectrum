@@ -73,6 +73,7 @@ Regras obrigatórias:
 - NÃO dê orientação médica. Encaminhe para consulta.
 - NÃO use emojis em excesso (máximo 1-2)
 - Se não souber uma informação, diga que vai confirmar com a equipe
+- Ao perguntar o objetivo/sintoma, SEMPRE mencione: ansiedade, depressão, insônia, dor crônica, TDAH, autismo
 - Responda APENAS com o texto da mensagem, sem aspas, sem prefixos`;
 
     const userPrompt = `Contexto:
