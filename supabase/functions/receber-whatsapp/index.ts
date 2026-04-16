@@ -1278,19 +1278,143 @@ async function registrarAgendamento(
   }
 }
 
-async function criarLeadCRM(nome: string, telefone: string): Promise<boolean> {
+async function obterPipelinePacientesId(supabase: ReturnType<typeof createClient>): Promise<string | null> {
   try {
+    const { data, error } = await supabase
+      .from("pipelines")
+      .select("id")
+      .eq("nome", "Pacientes")
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error("[whatsapp] Erro ao buscar pipeline Pacientes:", error);
+      return "00000000-0000-0000-0000-000000000001";
+    }
+
+    return data?.id || "00000000-0000-0000-0000-000000000001";
+  } catch (err) {
+    console.error("[whatsapp] Falha ao obter pipeline Pacientes:", err);
+    return "00000000-0000-0000-0000-000000000001";
+  }
+}
+
+async function criarLeadCRM(
+  supabase: ReturnType<typeof createClient>,
+  nome: string,
+  telefone: string,
+  dados?: { cpf?: string; email?: string; dataNascimento?: string; data?: string; horario?: string },
+): Promise<boolean> {
+  try {
+    const pipelineId = await obterPipelinePacientesId(supabase);
+    if (!pipelineId) return false;
+
+    const nomeLimpo = nome.trim().replace(/\s+/g, " ");
+    const telefoneNormalizado = normalizarTelefoneGestao(telefone);
+    const telefoneBruto = telefone.replace(/\D/g, "");
+    const cpfLimpo = dados?.cpf?.replace(/\D/g, "") || null;
+    const emailLimpo = dados?.email?.trim() || null;
+    const observacaoAgendamento = dados?.data && dados?.horario
+      ? `Agendamento confirmado via WhatsApp para ${dados.data} às ${dados.horario}.`
+      : "Lead criado automaticamente após confirmação de agendamento via WhatsApp.";
+
+    let leadExistente: { id: string; observacoes?: string | null } | null = null;
+
+    if (cpfLimpo) {
+      const { data: leadsCpf, error: cpfError } = await supabase
+        .from("leads")
+        .select("id, observacoes")
+        .eq("cpf", cpfLimpo)
+        .order("criado_em", { ascending: false })
+        .limit(1);
+
+      if (cpfError) {
+        console.error("[whatsapp] Erro ao buscar lead por CPF:", cpfError);
+      } else {
+        leadExistente = leadsCpf?.[0] || null;
+      }
+    }
+
+    if (!leadExistente) {
+      const telefonesBusca = Array.from(new Set([
+        telefoneNormalizado,
+        telefoneBruto,
+        telefone,
+        telefoneNormalizado ? `55${telefoneNormalizado}` : "",
+        telefoneNormalizado ? `+55${telefoneNormalizado}` : "",
+      ].filter((item) => !!item)));
+
+      const { data: leadsTelefone, error: telError } = await supabase
+        .from("leads")
+        .select("id, observacoes")
+        .in("telefone", telefonesBusca)
+        .order("criado_em", { ascending: false })
+        .limit(1);
+
+      if (telError) {
+        console.error("[whatsapp] Erro ao buscar lead por telefone:", telError);
+      } else {
+        leadExistente = leadsTelefone?.[0] || null;
+      }
+    }
+
+    const payloadLead = {
+      nome: nomeLimpo,
+      telefone: telefoneNormalizado || telefoneBruto || telefone,
+      email: emailLimpo,
+      cpf: cpfLimpo,
+      data_nascimento: dados?.dataNascimento || null,
+      origem: "whatsapp_ia_sofia",
+      pipeline_id: pipelineId,
+      status: "agendado",
+      status_pipeline: "agendado",
+      ultima_interacao: new Date().toISOString(),
+      observacoes: leadExistente?.observacoes
+        ? `${leadExistente.observacoes}\n${observacaoAgendamento}`.slice(0, 5000)
+        : observacaoAgendamento,
+    };
+
+    if (leadExistente?.id) {
+      const { error: updateError } = await supabase
+        .from("leads")
+        .update(payloadLead)
+        .eq("id", leadExistente.id);
+
+      if (updateError) {
+        console.error("[whatsapp] Erro ao atualizar lead local:", updateError);
+        return false;
+      }
+
+      console.log(`[whatsapp] ✅ Lead local atualizado na pipeline: ${leadExistente.id}`);
+    } else {
+      const { error: insertError } = await supabase
+        .from("leads")
+        .insert(payloadLead);
+
+      if (insertError) {
+        console.error("[whatsapp] Erro ao criar lead local:", insertError);
+        return false;
+      }
+
+      console.log(`[whatsapp] ✅ Lead local criado na pipeline para ${nomeLimpo}`);
+    }
+
     const crmUrl = Deno.env.get("CRM_API_URL");
     const crmToken = Deno.env.get("CRM_API_TOKEN");
-    if (!crmUrl || !crmToken) return false;
+    if (crmUrl && crmToken) {
+      try {
+        const res = await fetch(`${crmUrl}api-leads`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${crmToken}`, "apikey": crmToken, "Content-Type": "application/json" },
+          body: JSON.stringify({ nome: nomeLimpo, telefone: telefoneNormalizado || telefoneBruto, origem: "whatsapp_ia_maria", status: "agendado" }),
+        });
+        console.log(`[whatsapp] Lead CRM externo: ${res.status}`);
+      } catch (crmErr) {
+        console.error("[whatsapp] Falha no CRM externo (lead local já salvo):", crmErr);
+      }
+    }
 
-    const res = await fetch(`${crmUrl}api-leads`, {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${crmToken}`, "apikey": crmToken, "Content-Type": "application/json" },
-      body: JSON.stringify({ nome, telefone, origem: "whatsapp_ia_maria", status: "agendado" }),
-    });
-    console.log(`[whatsapp] Lead CRM: ${res.status}`);
-    return res.ok;
+    return true;
   } catch (err) {
     console.error("[whatsapp] Erro lead:", err);
     return false;
@@ -2310,7 +2434,13 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
             email: pacienteEncontrado?.email || undefined,
             dataNascimento: nascimentoColetado || undefined,
           }),
-          idx === 0 ? criarLeadCRM(ag.nome, numero) : Promise.resolve(true),
+          idx === 0 ? criarLeadCRM(supabase, ag.nome, numero, {
+            cpf: cpfColetado || pacienteEncontrado?.cpf || undefined,
+            email: pacienteEncontrado?.email || undefined,
+            dataNascimento: nascimentoColetado || undefined,
+            data: ag.data,
+            horario: ag.horario,
+          }) : Promise.resolve(true),
         ]);
 
         await supabase.from("logs_decisao").insert({
