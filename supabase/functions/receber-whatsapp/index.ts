@@ -579,8 +579,8 @@ REGRAS DO MARCADOR:
 ## REGRA ANTI-LOOP (PRIORIDADE ABSOLUTA)
 - NUNCA repita a mesma resposta mais de 1 vez
 - Se já pediu nome e o paciente já forneceu → NÃO peça de novo
-- Prefira AGENDAR e ajustar depois do que ficar pedindo dados
-- NUNCA peça CPF ANTES de agendar. Agende PRIMEIRO, peça CPF DEPOIS de forma casual.
+- Prefira avançar no fluxo do que ficar repetindo perguntas
+- Colete nome completo, CPF e data de nascimento ANTES de confirmar o agendamento
 
 ## FINALIZAÇÃO DE CONVERSA
 - Quando o paciente AGRADECER ou SE DESPEDIR → encerre com mensagem CALOROSA e BREVE (2-3 linhas)
@@ -1071,7 +1071,7 @@ async function validarDiaProfissional(professionalId: string, dataISO: string): 
 // =============================
 // CRIAR PACIENTE NO SISTEMA DE GESTÃO
 // =============================
-async function criarPacienteGestao(nome: string, telefone: string, cpf?: string, email?: string): Promise<string | null> {
+async function criarPacienteGestao(nome: string, telefone: string, cpf?: string, email?: string, dataNascimento?: string): Promise<string | null> {
   try {
     if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) return null;
 
@@ -1081,6 +1081,7 @@ async function criarPacienteGestao(nome: string, telefone: string, cpf?: string,
     };
     if (cpf) params.cpf = cpf.replace(/\D/g, "");
     if (email) params.email = email.trim();
+    if (dataNascimento) params.data_nascimento = dataNascimento;
 
     console.log(`[whatsapp] 📝 Criando paciente no gestão: ${nome} | tel: ${telefone}`);
     const result = await chamarGestao("criar_paciente", params);
@@ -1206,6 +1207,13 @@ function extrairCPF(resposta: string): { cpf: string; textoLimpo: string } | nul
   const match = resposta.match(regex);
   if (!match) return null;
   return { cpf: match[1].trim(), textoLimpo: resposta.replace(regex, "").trim() };
+}
+
+function extrairNascimento(resposta: string): { nascimento: string; textoLimpo: string } | null {
+  const regex = /##ATUALIZAR_NASCIMENTO\|([^#]+)##/;
+  const match = resposta.match(regex);
+  if (!match) return null;
+  return { nascimento: match[1].trim(), textoLimpo: resposta.replace(regex, "").trim() };
 }
 
 // =============================
