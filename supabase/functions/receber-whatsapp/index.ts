@@ -1425,8 +1425,10 @@ async function criarLeadCRM(
 // EXTRAIR MARCADORES DA RESPOSTA
 // =============================
 function extrairAgendamentos(resposta: string): { agendamentos: Array<{ nome: string; data: string; horario: string; professionalId: string }>; textoLimpo: string } {
-  // Aceitar marcador com ou sem ## de fechamento (a IA às vezes omite o ## final)
-  const regex = /##AGENDAMENTO_CONFIRMADO\|([^|]+)\|(\d{4}-\d{2}-\d{2})\|(\d{2}:\d{2})\|?([^#\n]*?)(?:##|$)/g;
+  // Aceitar marcador com ou sem ## de fechamento, esteja ele no fim OU no meio da mensagem.
+  // Caso real: a IA confirma o agendamento, insere o marcador em uma linha separada e depois ainda pergunta
+  // se o paciente tem dúvidas. O parser antigo só detectava quando o marcador estava no fim da resposta.
+  const regex = /##AGENDAMENTO_CONFIRMADO\|([^|\n]+)\|(\d{4}-\d{2}-\d{2})\|(\d{2}:\d{2})\|([^\n#]+?)(?:##)?(?=\n|$)/g;
   const agendamentos: Array<{ nome: string; data: string; horario: string; professionalId: string }> = [];
   let match;
   while ((match = regex.exec(resposta)) !== null) {
@@ -1437,8 +1439,11 @@ function extrairAgendamentos(resposta: string): { agendamentos: Array<{ nome: st
       professionalId: (match[4] || "auto").trim(),
     });
   }
-  // Limpar marcador com ou sem ## de fechamento
-  const textoLimpo = resposta.replace(/##AGENDAMENTO_CONFIRMADO\|[^#\n]*?(?:##|$)/g, "").trim();
+  // Limpar a linha do marcador com ou sem ## de fechamento, preservando o restante da mensagem.
+  const textoLimpo = resposta
+    .replace(/\n?##AGENDAMENTO_CONFIRMADO\|[^\n#]*?(?:##)?(?=\n|$)/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
   return { agendamentos, textoLimpo };
 }
 
