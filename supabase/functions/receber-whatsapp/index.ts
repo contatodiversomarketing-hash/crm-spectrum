@@ -647,7 +647,7 @@ async function buscarPacientePorTelefone(telefone: string): Promise<{ texto: str
 - Telefone: ${telLimpo}
 - CPF: ${crmData.cpf || "NÃO CADASTRADO - PEÇA AO PACIENTE"}
 
-⚠️ Paciente encontrado no CRM mas talvez não no sistema de gestão. Colete nome completo e CPF para garantir o cadastro.`,
+⚠️ Paciente encontrado no CRM mas talvez não no sistema de gestão. Antes de confirmar o agendamento, colete nome completo, CPF e data de nascimento para garantir o cadastro completo.`,
               paciente: { id: "", nome, cpf: crmData.cpf || "", email: "", telefone: telLimpo },
             };
           }
@@ -661,7 +661,7 @@ async function buscarPacientePorTelefone(telefone: string): Promise<{ texto: str
     return {
       texto: `\n\n## CADASTRO DO PACIENTE: NÃO ENCONTRADO
 O telefone ${telLimpo} não foi encontrado no sistema.
-Você PODE seguir com o agendamento coletando o nome completo. CPF é opcional e pode ser pedido depois. O cadastro será criado automaticamente ao confirmar o horário.`,
+Antes de confirmar o agendamento, você DEVE coletar nome completo, CPF e data de nascimento. O telefone já é o do WhatsApp, apenas confirme se deseja usar outro. O cadastro será criado automaticamente ao confirmar o horário.`,
       paciente: null,
     };
   } catch (err) {
@@ -1072,6 +1072,20 @@ async function validarDiaProfissional(professionalId: string, dataISO: string): 
 // =============================
 // CRIAR PACIENTE NO SISTEMA DE GESTÃO
 // =============================
+function extrairIdPacienteGestao(data: any): string | null {
+  const payloads = [data?.data, data?.patient, data?.paciente, data].filter(Boolean);
+
+  for (const payload of payloads) {
+    const paciente = Array.isArray(payload) ? payload[0] : payload;
+    const id = paciente?.id || paciente?.patient_id || paciente?.paciente_id || "";
+    if (typeof id === "string" && id.trim().length > 0) {
+      return id.trim();
+    }
+  }
+
+  return null;
+}
+
 async function criarPacienteGestao(nome: string, telefone: string, cpf?: string, email?: string, dataNascimento?: string): Promise<string | null> {
   try {
     if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) return null;
@@ -1084,25 +1098,32 @@ async function criarPacienteGestao(nome: string, telefone: string, cpf?: string,
     if (email) params.email = email.trim();
     if (dataNascimento) params.data_nascimento = dataNascimento;
 
-    console.log(`[whatsapp] 📝 Criando paciente no gestão: ${nome} | tel: ${telefone}`);
-    const result = await chamarGestao("criar_paciente", params);
-    
-    if (!result.ok) {
-      console.error(`[whatsapp] ❌ Criar paciente falhou: status=${result.status} data=${JSON.stringify(result.data).slice(0, 300)}`);
-      return null;
+    for (const action of ["cadastrar_paciente", "criar_paciente"]) {
+      console.log(`[whatsapp] 📝 Criando paciente no gestão via ${action}: ${nome} | tel: ${telefone}`);
+      const result = await chamarGestao(action, params);
+
+      if (!result.ok) {
+        console.warn(`[whatsapp] ⚠️ ${action} falhou: status=${result.status} data=${JSON.stringify(result.data).slice(0, 300)}`);
+        continue;
+      }
+
+      const id = extrairIdPacienteGestao(result.data);
+      if (id) {
+        console.log(`[whatsapp] ✅ Paciente criado/localizado no gestão com ID: ${id}`);
+        return id;
+      }
+
+      console.warn(`[whatsapp] ⚠️ ${action} respondeu sem ID retornado: ${JSON.stringify(result.data).slice(0, 300)}`);
     }
 
-    // Extrair o ID do paciente criado
-    const payload = result.data?.data ?? result.data?.patient ?? result.data;
-    const paciente = Array.isArray(payload) ? payload[0] : payload;
-    const id = paciente?.id || paciente?.patient_id || paciente?.paciente_id || "";
-
-    if (id) {
-      console.log(`[whatsapp] ✅ Paciente criado no gestão com ID: ${id}`);
-      return String(id);
+    if (cpf) {
+      const pacienteExistente = await buscarPacientePorCPF(cpf);
+      if (pacienteExistente?.id) {
+        console.log(`[whatsapp] ✅ Paciente recuperado por CPF após falha de cadastro: ${pacienteExistente.id}`);
+        return pacienteExistente.id;
+      }
     }
 
-    console.warn(`[whatsapp] ⚠️ Paciente criado mas sem ID retornado: ${JSON.stringify(result.data).slice(0, 300)}`);
     return null;
   } catch (err) {
     console.error("[whatsapp] Erro criar paciente:", err);
@@ -1110,7 +1131,15 @@ async function criarPacienteGestao(nome: string, telefone: string, cpf?: string,
   }
 }
 
-async function registrarAgendamento(nome: string, telefone: string, data: string, horario: string, professionalId: string, pacienteId: string): Promise<boolean> {
+async function registrarAgendamento(
+  nome: string,
+  telefone: string,
+  data: string,
+  horario: string,
+  professionalId: string,
+  pacienteId: string,
+  dadosPaciente?: { cpf?: string; email?: string; dataNascimento?: string },
+): Promise<boolean> {
   try {
     if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) return false;
 
@@ -1130,7 +1159,13 @@ async function registrarAgendamento(nome: string, telefone: string, data: string
     let patientIdFinal = pacienteId;
     if (!patientIdFinal) {
       console.log(`[whatsapp] 🔄 Paciente sem ID — tentando criar cadastro antes de agendar...`);
-      const novoId = await criarPacienteGestao(nome, telefone);
+      const novoId = await criarPacienteGestao(
+        nome,
+        telefone,
+        dadosPaciente?.cpf,
+        dadosPaciente?.email,
+        dadosPaciente?.dataNascimento,
+      );
       if (novoId) {
         patientIdFinal = novoId;
         console.log(`[whatsapp] ✅ Paciente criado automaticamente: ID=${novoId}`);
@@ -1907,6 +1942,8 @@ serve(async (req) => {
     let contextPaciente = pacienteResult.texto;
     let pacienteEncontrado = pacienteResult.paciente;
     const treinamentos = treinamentoResult.data || [];
+    let cpfColetado = pacienteEncontrado?.cpf || extrairCpfTexto(mensagem) || "";
+    let nascimentoColetado = "";
 
     if (!pacienteEncontrado) {
       const cpfDaConversa = extrairCpfTexto(
@@ -2079,6 +2116,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     const cpfDetectado = extrairCPF(respostaFinal);
     if (cpfDetectado) {
       respostaFinal = cpfDetectado.textoLimpo;
+      cpfColetado = cpfDetectado.cpf.replace(/\D/g, "");
       if (pacienteEncontrado?.id) {
         atualizarPacienteCPF(pacienteEncontrado.id, cpfDetectado.cpf)
           .then(ok => console.log(`[whatsapp] CPF atualizado: ${ok}`))
@@ -2087,6 +2125,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         const pacientePorCpf = await buscarPacientePorCPF(cpfDetectado.cpf);
         if (pacientePorCpf) {
           pacienteEncontrado = pacientePorCpf;
+          cpfColetado = pacientePorCpf.cpf || cpfColetado;
         }
       }
     }
@@ -2097,6 +2136,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     const nascimentoDetectado = extrairNascimento(respostaFinal);
     if (nascimentoDetectado) {
       respostaFinal = nascimentoDetectado.textoLimpo;
+      nascimentoColetado = nascimentoDetectado.nascimento;
       if (pacienteEncontrado?.id) {
         chamarGestao("update_patient", { patient_id: pacienteEncontrado.id, data_nascimento: nascimentoDetectado.nascimento })
           .then(r => console.log(`[whatsapp] Data nascimento atualizada: ${r.ok}`))
@@ -2185,7 +2225,11 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       const results = await Promise.all(agendamentos.map(async (ag, idx) => {
         console.log(`[whatsapp] Agendamento ${idx + 1}/${agendamentos.length}: ${ag.nome} | ${ag.data} ${ag.horario} | prof=${ag.professionalId}`);
         const [gestaoOk, crmOk] = await Promise.all([
-          registrarAgendamento(ag.nome, numero, ag.data, ag.horario, ag.professionalId, patientId),
+          registrarAgendamento(ag.nome, numero, ag.data, ag.horario, ag.professionalId, patientId, {
+            cpf: cpfColetado || pacienteEncontrado?.cpf || undefined,
+            email: pacienteEncontrado?.email || undefined,
+            dataNascimento: nascimentoColetado || undefined,
+          }),
           idx === 0 ? criarLeadCRM(ag.nome, numero) : Promise.resolve(true),
         ]);
 
