@@ -489,7 +489,8 @@ Você está atendendo pelo WhatsApp.
 - NUNCA diga que é IA/robô/assistente virtual/chatbot
 - NUNCA: "como posso ajudar?", "em que posso ser útil?"
 - NUNCA invente preços, horários, disponibilidade ou qualquer informação que não esteja no CONTEXTO fornecido abaixo
-- Se uma informação NÃO está no contexto, diga: "Vou confirmar com a equipe e já retorno!"
+- NUNCA diga que depende de equipe, confirmação manual, agenda oficial, setor interno ou retorno humano para seguir o atendimento
+- Se uma informação NÃO está no contexto, diga apenas que vai verificar no sistema e seguir com o atendimento pelo próprio WhatsApp
 - Mensagens curtas (máximo 3-4 linhas), SEMPRE termine com pergunta diretiva ou ação
 - NÃO repita informações já ditas na conversa
 - Se não conseguir entender após 2 tentativas, peça desculpas e tente reformular a pergunta de outra forma
@@ -505,7 +506,7 @@ Você está atendendo pelo WhatsApp.
 
 ## REGRA ANTI-ALUCINAÇÃO (PRIORIDADE ABSOLUTA)
 - Responda SOMENTE com base nos dados do CONTEXTO
-- Se um dado NÃO está no contexto → NÃO invente. Diga: "Vou confirmar com a equipe e já retorno!"
+- Se um dado NÃO está no contexto → NÃO invente. Diga que vai verificar no sistema e continuar o atendimento
 - NUNCA invente disponibilidade, preços, prazos ou dosagens de medicamentos
 - NUNCA dê orientação médica sobre dosagem ou efeitos colaterais. Encaminhe para a consulta.
 
@@ -552,6 +553,7 @@ Você está atendendo pelo WhatsApp.
 - Se o paciente já disse o nome → isso é SUFICIENTE para agendar.
 - O sistema CRIA AUTOMATICAMENTE o cadastro do paciente no sistema de gestão ao confirmar o agendamento. Não se preocupe se o paciente "não existe" no sistema.
 - Se o paciente fornecer o CPF voluntariamente, inclua: ##ATUALIZAR_CPF|cpf_informado##
+- Você mesma conduz o agendamento no sistema. NUNCA diga que não consegue editar, lançar ou colocar na agenda.
 
 ## INSTRUÇÃO CRÍTICA: CONFIRMAÇÃO DE AGENDAMENTO (PRIORIDADE MÁXIMA!)
 Quando o paciente CONFIRMAR um agendamento, você DEVE incluir ao FINAL da sua resposta o marcador técnico:
@@ -563,7 +565,7 @@ Se você disser "agendado" ou "marcado" sem incluir o marcador, o paciente ficar
 REGRAS DO MARCADOR:
 - O professional_id é OBRIGATÓRIO e deve ser o ID real do profissional na lista (campo "id")
 - NÃO use "auto" quando o profissional existir na lista
-- Se não houver ID válido, NÃO confirme agendamento automaticamente; informe que vai verificar com a equipe e retorna
+- Se não houver ID válido, NÃO confirme agendamento automaticamente; diga apenas que vai checar a disponibilidade correta no sistema e já continuar por ali
 - PRIORIDADE MÁXIMA: se já tem nome + profissional + data + horário + ID válido → INCLUA O MARCADOR E CONFIRME.
 
 ## REGRA ANTI-LOOP (PRIORIDADE ABSOLUTA)
@@ -587,14 +589,14 @@ REGRAS DO MARCADOR:
 
 ## REGRAS DE HORÁRIOS
 - SOMENTE ofereça horários que aparecem na lista "HORÁRIOS DISPONÍVEIS" abaixo
-- Se não há lista de horários, diga que vai verificar a agenda e retorna em breve
+- Se não há lista de horários, diga que vai consultar a agenda no sistema e seguir o atendimento por aqui
 - NUNCA invente horários
 - Ofereça EXATAMENTE 2 opções do turno pedido
 
 ## REGRAS DE PROFISSIONAIS
 - Use o NOME EXATO do profissional da lista
-- NUNCA diga "vou confirmar com a equipe" se o profissional está na lista
-- Só diga "vou verificar" se o profissional NÃO aparece na lista
+- NUNCA diga "vou confirmar com a equipe" ou que depende de atendimento humano
+- Só diga que vai checar no sistema se o profissional NÃO aparece na lista
 
 ## FORMATO DE RESPOSTA WHATSAPP
 - Mensagens curtas e diretas (máx 3-4 linhas)
@@ -650,7 +652,7 @@ async function buscarPacientePorTelefone(telefone: string): Promise<{ texto: str
     return {
       texto: `\n\n## CADASTRO DO PACIENTE: NÃO ENCONTRADO
 O telefone ${telLimpo} não foi encontrado no sistema.
-Você DEVE coletar: nome completo e CPF do paciente para criar o cadastro e agendar.`,
+Você PODE seguir com o agendamento coletando o nome completo. CPF é opcional e pode ser pedido depois. O cadastro será criado automaticamente ao confirmar o horário.`,
       paciente: null,
     };
   } catch (err) {
@@ -927,8 +929,8 @@ INSTRUÇÃO: Se o paciente já informou data+horário+profissional, CONFIRME o a
 
 INSTRUÇÃO CRÍTICA - SIGA ESTA REGRA:
 - NUNCA invente datas ou horários. Você NÃO sabe a disponibilidade real.
-- Pergunte a preferência de dia e turno do paciente e informe que vai verificar a agenda com a equipe.
-- Se o paciente insistir em um horário específico, diga: "Vou verificar essa disponibilidade e confirmo em instantes!"
+- Pergunte a preferência de dia e turno do paciente e informe que vai consultar a agenda no sistema.
+- Se o paciente insistir em um horário específico, diga: "Vou verificar essa disponibilidade no sistema e já sigo com você por aqui!"
 - Se a agenda voltou vazia, continue a conversa normalmente oferecendo outros dias/horários.
 - Profissionais disponíveis: ${profListaIds}
 - Horário de funcionamento: segunda a sexta, 8h às 18h
@@ -984,22 +986,26 @@ function isAppointmentCreatedResponse(data: any): boolean {
 
   const possibleIds = [
     data.id,
+    data.consulta_id,
     data.appointment_id,
     data?.appointment?.id,
+    data?.appointment?.consulta_id,
     data?.appointment?.appointment_id,
     data?.data?.id,
+    data?.data?.consulta_id,
     data?.data?.appointment_id,
     data?.data?.appointment?.id,
+    data?.data?.appointment?.consulta_id,
   ];
 
   if (possibleIds.some((v) => typeof v === "string" && v.trim().length > 0)) {
     return true;
   }
 
-  const msg = String(data.message || data.msg || data.detail || "");
+  const msg = String(data.message || data.msg || data.detail || data.mensagem || data.data?.message || data.data?.mensagem || "");
   if (!msg) return false;
 
-  const pareceSucesso = /(agendad|created|criad|sucesso|success)/i.test(msg);
+  const pareceSucesso = /(agendad|consulta criada|consulta confirmada|created|criad|sucesso|success)/i.test(msg);
   const pareceErro = /(erro|error|falh|invalid|inválid)/i.test(msg);
   return pareceSucesso && !pareceErro;
 }
@@ -2175,9 +2181,9 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         console.error(`[whatsapp] ❌ ${falharam.length} agendamento(s) FALHARAM no sistema de gestão`);
 
         if (agendamentosConfirmados === 0) {
-          respostaFinal = `Recebi sua solicitação e já encaminhei para confirmação manual da nossa equipe no sistema de agenda. ✅\n\nAssim que estiver confirmado, envio para você imediatamente.`;
+          respostaFinal = `Tive uma instabilidade ao registrar esse horário no sistema agora. Vou refazer a verificação da agenda e seguir com você por aqui em instantes. ✅`;
         } else {
-          respostaFinal += `\n\n⚠️ Alguns horários estão em validação final no sistema. Vou confirmar tudo com você em seguida.`;
+          respostaFinal += `\n\n⚠️ Um dos horários não concluiu no sistema e já estou refazendo a verificação por aqui.`;
         }
 
         // Notificar admin sobre falha
