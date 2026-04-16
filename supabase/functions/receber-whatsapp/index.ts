@@ -550,6 +550,7 @@ Você está atendendo pelo WhatsApp.
 ## COLETA DE DADOS PARA AGENDAMENTO
 - O CPF é OPCIONAL. NUNCA bloqueie um agendamento por falta de CPF.
 - Se o paciente já disse o nome → isso é SUFICIENTE para agendar.
+- O sistema CRIA AUTOMATICAMENTE o cadastro do paciente no sistema de gestão ao confirmar o agendamento. Não se preocupe se o paciente "não existe" no sistema.
 - Se o paciente fornecer o CPF voluntariamente, inclua: ##ATUALIZAR_CPF|cpf_informado##
 
 ## INSTRUÇÃO CRÍTICA: CONFIRMAÇÃO DE AGENDAMENTO (PRIORIDADE MÁXIMA!)
