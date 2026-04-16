@@ -294,6 +294,30 @@ function parseJsonSeguro(texto: string) {
   }
 }
 
+function normalizarTelefoneGestao(telefone: string): string {
+  const digits = telefone.replace(/\D/g, "");
+  if (digits.startsWith("55") && digits.length > 11) {
+    return digits.slice(2);
+  }
+  return digits;
+}
+
+function valorTextoOuNumero(value: unknown): string | null {
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value.trim();
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  if (typeof value === "bigint") {
+    return String(value);
+  }
+
+  return null;
+}
+
 function respostaGestaoTemErro(data: unknown): boolean {
   if (!data || typeof data !== "object") return false;
 
@@ -997,17 +1021,25 @@ function isAppointmentCreatedResponse(data: any): boolean {
     data.id,
     data.consulta_id,
     data.appointment_id,
+    data?.consulta?.id,
+    data?.consulta?.consulta_id,
     data?.appointment?.id,
     data?.appointment?.consulta_id,
     data?.appointment?.appointment_id,
     data?.data?.id,
     data?.data?.consulta_id,
     data?.data?.appointment_id,
+    data?.data?.consulta?.id,
+    data?.data?.consulta?.consulta_id,
     data?.data?.appointment?.id,
     data?.data?.appointment?.consulta_id,
+    data?.data?.data?.id,
+    data?.data?.data?.consulta_id,
+    data?.payload?.id,
+    data?.payload?.consulta_id,
   ];
 
-  if (possibleIds.some((v) => typeof v === "string" && v.trim().length > 0)) {
+   if (possibleIds.some((v) => !!valorTextoOuNumero(v))) {
     return true;
   }
 
@@ -1073,13 +1105,24 @@ async function validarDiaProfissional(professionalId: string, dataISO: string): 
 // CRIAR PACIENTE NO SISTEMA DE GESTÃO
 // =============================
 function extrairIdPacienteGestao(data: any): string | null {
-  const payloads = [data?.data, data?.patient, data?.paciente, data].filter(Boolean);
+  const payloads = [
+    data?.data?.data,
+    data?.data?.patient,
+    data?.data?.paciente,
+    data?.data,
+    data?.payload,
+    data?.patient,
+    data?.paciente,
+    data,
+  ].filter(Boolean);
 
   for (const payload of payloads) {
     const paciente = Array.isArray(payload) ? payload[0] : payload;
-    const id = paciente?.id || paciente?.patient_id || paciente?.paciente_id || "";
-    if (typeof id === "string" && id.trim().length > 0) {
-      return id.trim();
+    const id = valorTextoOuNumero(
+      paciente?.id ?? paciente?.patient_id ?? paciente?.paciente_id ?? paciente?.data?.id ?? paciente?.data?.patient_id,
+    );
+    if (id) {
+      return id;
     }
   }
 
@@ -1090,34 +1133,71 @@ async function criarPacienteGestao(nome: string, telefone: string, cpf?: string,
   try {
     if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) return null;
 
-    const params: Record<string, unknown> = {
-      nome: nome.trim(),
-      telefone: telefone.replace(/\D/g, ""),
+    const nomeLimpo = nome.trim().replace(/\s+/g, " ");
+    const cpfLimpo = cpf?.replace(/\D/g, "") || "";
+    const telefoneOriginal = telefone.replace(/\D/g, "");
+    const telefoneGestao = normalizarTelefoneGestao(telefone);
+    const emailLimpo = email?.trim() || "";
+
+    const payloads: Array<{ label: string; params: Record<string, unknown> }> = [];
+    const adicionarPayload = (label: string, params: Record<string, unknown>) => {
+      const serialized = JSON.stringify(params);
+      if (!payloads.some((item) => JSON.stringify(item.params) === serialized)) {
+        payloads.push({ label, params });
+      }
     };
-    if (cpf) params.cpf = cpf.replace(/\D/g, "");
-    if (email) params.email = email.trim();
-    if (dataNascimento) params.data_nascimento = dataNascimento;
 
-    for (const action of ["cadastrar_paciente", "criar_paciente"]) {
-      console.log(`[whatsapp] 📝 Criando paciente no gestão via ${action}: ${nome} | tel: ${telefone}`);
-      const result = await chamarGestao(action, params);
+    const montarParams = (telefonePayload: string, incluirNascimento: boolean) => {
+      const params: Record<string, unknown> = {
+        nome: nomeLimpo,
+        telefone: telefonePayload,
+      };
+      if (cpfLimpo) params.cpf = cpfLimpo;
+      if (emailLimpo) params.email = emailLimpo;
+      if (incluirNascimento && dataNascimento) params.data_nascimento = dataNascimento;
+      return params;
+    };
 
-      if (!result.ok) {
-        console.warn(`[whatsapp] ⚠️ ${action} falhou: status=${result.status} data=${JSON.stringify(result.data).slice(0, 300)}`);
-        continue;
+    adicionarPayload("telefone-local", montarParams(telefoneGestao, false));
+    if (telefoneOriginal && telefoneOriginal !== telefoneGestao) {
+      adicionarPayload("telefone-whatsapp", montarParams(telefoneOriginal, false));
+    }
+    if (dataNascimento) {
+      adicionarPayload("telefone-local-com-nascimento", montarParams(telefoneGestao, true));
+      if (telefoneOriginal && telefoneOriginal !== telefoneGestao) {
+        adicionarPayload("telefone-whatsapp-com-nascimento", montarParams(telefoneOriginal, true));
       }
-
-      const id = extrairIdPacienteGestao(result.data);
-      if (id) {
-        console.log(`[whatsapp] ✅ Paciente criado/localizado no gestão com ID: ${id}`);
-        return id;
-      }
-
-      console.warn(`[whatsapp] ⚠️ ${action} respondeu sem ID retornado: ${JSON.stringify(result.data).slice(0, 300)}`);
     }
 
-    if (cpf) {
-      const pacienteExistente = await buscarPacientePorCPF(cpf);
+    for (const action of ["criar_paciente", "cadastrar_paciente"]) {
+      for (const payload of payloads) {
+        console.log(`[whatsapp] 📝 Criando paciente no gestão via ${action}/${payload.label}: ${nomeLimpo} | tel: ${String(payload.params.telefone)}`);
+        const result = await chamarGestao(action, payload.params);
+
+        if (!result.ok) {
+          console.warn(`[whatsapp] ⚠️ ${action}/${payload.label} falhou: status=${result.status} data=${JSON.stringify(result.data).slice(0, 300)}`);
+          continue;
+        }
+
+        const id = extrairIdPacienteGestao(result.data);
+        if (id) {
+          console.log(`[whatsapp] ✅ Paciente criado/localizado no gestão com ID: ${id}`);
+
+          if (dataNascimento) {
+            chamarGestao("update_patient", { patient_id: id, data_nascimento: dataNascimento })
+              .then((updateResult) => console.log(`[whatsapp] Atualização de nascimento pós-cadastro: ${updateResult.ok ? "OK" : "FALHA"}`))
+              .catch((updateErr) => console.error("[whatsapp] Erro ao atualizar nascimento pós-cadastro:", updateErr));
+          }
+
+          return id;
+        }
+
+        console.warn(`[whatsapp] ⚠️ ${action}/${payload.label} respondeu sem ID retornado: ${JSON.stringify(result.data).slice(0, 300)}`);
+      }
+    }
+
+    if (cpfLimpo) {
+      const pacienteExistente = await buscarPacientePorCPF(cpfLimpo);
       if (pacienteExistente?.id) {
         console.log(`[whatsapp] ✅ Paciente recuperado por CPF após falha de cadastro: ${pacienteExistente.id}`);
         return pacienteExistente.id;
