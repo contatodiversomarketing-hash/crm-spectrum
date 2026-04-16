@@ -550,6 +550,7 @@ Você está atendendo pelo WhatsApp.
 ## COLETA DE DADOS PARA AGENDAMENTO
 - O CPF é OPCIONAL. NUNCA bloqueie um agendamento por falta de CPF.
 - Se o paciente já disse o nome → isso é SUFICIENTE para agendar.
+- O sistema CRIA AUTOMATICAMENTE o cadastro do paciente no sistema de gestão ao confirmar o agendamento. Não se preocupe se o paciente "não existe" no sistema.
 - Se o paciente fornecer o CPF voluntariamente, inclua: ##ATUALIZAR_CPF|cpf_informado##
 
 ## INSTRUÇÃO CRÍTICA: CONFIRMAÇÃO DE AGENDAMENTO (PRIORIDADE MÁXIMA!)
@@ -1053,6 +1054,46 @@ async function validarDiaProfissional(professionalId: string, dataISO: string): 
   return { valido: true };
 }
 
+// =============================
+// CRIAR PACIENTE NO SISTEMA DE GESTÃO
+// =============================
+async function criarPacienteGestao(nome: string, telefone: string, cpf?: string, email?: string): Promise<string | null> {
+  try {
+    if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) return null;
+
+    const params: Record<string, unknown> = {
+      nome: nome.trim(),
+      telefone: telefone.replace(/\D/g, ""),
+    };
+    if (cpf) params.cpf = cpf.replace(/\D/g, "");
+    if (email) params.email = email.trim();
+
+    console.log(`[whatsapp] 📝 Criando paciente no gestão: ${nome} | tel: ${telefone}`);
+    const result = await chamarGestao("criar_paciente", params);
+    
+    if (!result.ok) {
+      console.error(`[whatsapp] ❌ Criar paciente falhou: status=${result.status} data=${JSON.stringify(result.data).slice(0, 300)}`);
+      return null;
+    }
+
+    // Extrair o ID do paciente criado
+    const payload = result.data?.data ?? result.data?.patient ?? result.data;
+    const paciente = Array.isArray(payload) ? payload[0] : payload;
+    const id = paciente?.id || paciente?.patient_id || paciente?.paciente_id || "";
+
+    if (id) {
+      console.log(`[whatsapp] ✅ Paciente criado no gestão com ID: ${id}`);
+      return String(id);
+    }
+
+    console.warn(`[whatsapp] ⚠️ Paciente criado mas sem ID retornado: ${JSON.stringify(result.data).slice(0, 300)}`);
+    return null;
+  } catch (err) {
+    console.error("[whatsapp] Erro criar paciente:", err);
+    return null;
+  }
+}
+
 async function registrarAgendamento(nome: string, telefone: string, data: string, horario: string, professionalId: string, pacienteId: string): Promise<boolean> {
   try {
     if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) return false;
@@ -1069,6 +1110,19 @@ async function registrarAgendamento(nome: string, telefone: string, data: string
       return false;
     }
 
+    // Se não tem paciente_id, criar o paciente primeiro no sistema de gestão
+    let patientIdFinal = pacienteId;
+    if (!patientIdFinal) {
+      console.log(`[whatsapp] 🔄 Paciente sem ID — tentando criar cadastro antes de agendar...`);
+      const novoId = await criarPacienteGestao(nome, telefone);
+      if (novoId) {
+        patientIdFinal = novoId;
+        console.log(`[whatsapp] ✅ Paciente criado automaticamente: ID=${novoId}`);
+      } else {
+        console.warn(`[whatsapp] ⚠️ Não foi possível criar paciente. Tentando agendar sem paciente_id...`);
+      }
+    }
+
     const params: Record<string, unknown> = {
       data: data,
       hora: horario,
@@ -1076,7 +1130,7 @@ async function registrarAgendamento(nome: string, telefone: string, data: string
       observacoes: `Agendado via WhatsApp - Paciente: ${nome} - Tel: ${telefone}`,
     };
 
-    if (pacienteId) params.paciente_id = pacienteId;
+    if (patientIdFinal) params.paciente_id = patientIdFinal;
 
     const result = await chamarGestao("criar_agendamento", params);
     const payload = result.data || {};
@@ -1084,7 +1138,7 @@ async function registrarAgendamento(nome: string, telefone: string, data: string
     const created = isAppointmentCreatedResponse(payload);
     const ok = result.ok && !logicalError && created;
 
-    console.log(`[whatsapp] Agendamento gestão: status=${result.status} http_ok=${result.ok} logical_error=${logicalError} created=${created} payload=${JSON.stringify(payload).slice(0, 300)}`);
+    console.log(`[whatsapp] Agendamento gestão: status=${result.status} http_ok=${result.ok} logical_error=${logicalError} created=${created} patient_id=${patientIdFinal || "NENHUM"} payload=${JSON.stringify(payload).slice(0, 300)}`);
 
     return ok;
   } catch (err) {
