@@ -2091,6 +2091,19 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     }
 
     // =============================
+    // DETECTAR ATUALIZAÇÃO DE DATA DE NASCIMENTO
+    // =============================
+    const nascimentoDetectado = extrairNascimento(respostaFinal);
+    if (nascimentoDetectado) {
+      respostaFinal = nascimentoDetectado.textoLimpo;
+      if (pacienteEncontrado?.id) {
+        chamarGestao("update_patient", { patient_id: pacienteEncontrado.id, data_nascimento: nascimentoDetectado.nascimento })
+          .then(r => console.log(`[whatsapp] Data nascimento atualizada: ${r.ok}`))
+          .catch(err => console.error("[whatsapp] Erro atualizar nascimento:", err));
+      }
+    }
+
+    // =============================
     // DETECTAR AGENDAMENTOS CONFIRMADOS (suporta múltiplos)
     // =============================
     let agendamentosConfirmados = 0;
