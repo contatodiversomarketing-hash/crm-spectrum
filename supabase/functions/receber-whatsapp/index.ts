@@ -2506,7 +2506,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       resposta_final: respostaFinal.slice(0, 5000),
       intencao_detectada: agendamentos.length > 0
         ? (agendamentosConfirmados > 0 ? "agendamento" : "agendamento_pendente")
-        : (encaminharHumano ? "encaminhar_humano" : null),
+        : null,
       estado_conversa: agendamentos.length > 0 && agendamentosConfirmados === agendamentos.length
         ? "finalizado"
         : "em_andamento",
@@ -2544,13 +2544,6 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       if (audioUrl) await enviarAudio(numero, audioUrl);
     }).catch(err => console.error("[whatsapp] Erro envio áudio:", err));
 
-    // Notificar admin se encaminhar humano
-    if (encaminharHumano) {
-      const adminNumber = Deno.env.get("ADMIN_WHATSAPP_NUMBER");
-      if (adminNumber) {
-          enviarTexto(adminNumber, `⚠️ *Paciente precisa de atendimento humano*\n📱 Número: ${numero}\n💬 Última msg: "${mensagem.slice(0, 100)}"\n\nPor favor, entre em contato.`, instanceKey).catch(() => {});
-      }
-    }
 
     await liberarLockDB(supabase, numero);
     return new Response("ok");
