@@ -2859,8 +2859,8 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         console.log(`[whatsapp] 📝 Triagem encontrada — anexando às observações do agendamento (${triagemTexto.length} chars)`);
       }
 
-      // 🏷️ Decidir TIPO DE CONSULTA (clínico geral x especialista) com base na triagem (determinístico)
-      const decisaoConsulta = decidirTipoConsultaPelaTriagem(triagemTexto || "");
+      // 🏷️ Decidir TIPO DE CONSULTA (clínico geral x especialista) — IA decide livremente com base na triagem (fallback regex)
+      const decisaoConsulta = await decidirTipoConsultaPelaTriagem(triagemTexto || "");
       console.log(`[whatsapp] 🏷️ Tipo de consulta decidido pela triagem: ${decisaoConsulta.tag} | ${decisaoConsulta.valorTexto}`);
 
       // Processar TODOS os agendamentos em paralelo - AGUARDAR resultado antes de enviar mensagem
