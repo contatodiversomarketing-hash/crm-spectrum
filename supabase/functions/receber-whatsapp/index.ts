@@ -2446,6 +2446,19 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       ? [...historico].sort((a, b) => new Date(a.criado_em).getTime() - new Date(b.criado_em).getTime())
       : [];
 
+    // =============================
+    // DETECTAR COMPROVANTE DE PAGAMENTO → tentar baixa automática + notificar admin
+    // =============================
+    if (ehComprovantePagamento(mensagem, midia?.type || null, historicoOrdenado)) {
+      console.log(`[whatsapp] 💰 Comprovante de pagamento detectado para ${numero} — disparando baixa automática`);
+      darBaixaPagamento(supabase, numero, pacienteEncontrado?.id || null, {
+        tipo: midia?.type || "texto",
+        mimetype: midia?.mimetype || "text/plain",
+        descricao: mensagem.slice(0, 200),
+      }).catch((e) => console.error("[whatsapp] Erro baixa pagamento:", e));
+    }
+
+
     const messages: Array<{ role: string; content: any }> = [
       { role: "system", content: SYSTEM_ENGINE_WHATSAPP + contextExtra },
     ];
