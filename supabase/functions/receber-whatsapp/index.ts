@@ -1326,7 +1326,58 @@ async function registrarAgendamento(
 }
 
 // =============================
+// BUSCAR TRIAGEM NO SISTEMA EXTERNO (vitta-care.com)
+// =============================
+async function buscarTriagemVittaCare(
+  telefone: string,
+  cpf?: string,
+): Promise<any | null> {
+  const url = Deno.env.get("VITTA_TRIAGEM_API_URL");
+  const token = Deno.env.get("VITTA_TRIAGEM_API_TOKEN");
+  if (!url || !token) {
+    console.warn("[whatsapp] VITTA_TRIAGEM_API_URL/TOKEN não configurados");
+    return null;
+  }
+
+  try {
+    const body: Record<string, string> = {};
+    if (cpf) body.cpf = cpf.replace(/\D/g, "");
+    if (telefone) body.telefone = telefone.replace(/\D/g, "");
+    if (!body.cpf && !body.telefone) return null;
+
+    const ctrl = new AbortController();
+    const timeoutId = setTimeout(() => ctrl.abort(), 8000);
+
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-token": token,
+      },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!resp.ok) {
+      console.warn(`[whatsapp] Triagem API vitta-care retornou ${resp.status}`);
+      return null;
+    }
+    const data = await resp.json();
+    if (data?.encontrado && data?.triagem) {
+      console.log("[whatsapp] ✅ Triagem encontrada no vitta-care.com");
+      return data.triagem;
+    }
+    return null;
+  } catch (err) {
+    console.error("[whatsapp] Erro ao consultar API de triagem vitta-care:", err);
+    return null;
+  }
+}
+
+// =============================
 // BUSCAR RELATÓRIO DE TRIAGEM DO LEAD (para anexar nas observações do agendamento)
+// Prioridade: 1) API externa vitta-care.com  2) Fallback DB local relatorios_triagem
 // =============================
 async function buscarTriagemDoLead(
   supabase: ReturnType<typeof createClient>,
@@ -1334,18 +1385,29 @@ async function buscarTriagemDoLead(
   cpf?: string,
 ): Promise<string> {
   try {
+    // 1) Fonte primária: API do vitta-care.com (sistema oficial de triagem)
+    const triagemExterna = await buscarTriagemVittaCare(telefone, cpf);
+    if (triagemExterna) {
+      return formatarTriagemTexto({
+        nome: triagemExterna.nome,
+        cpf: triagemExterna.cpf,
+        telefone: triagemExterna.telefone,
+        email: triagemExterna.email,
+        objetivo: triagemExterna.objetivo,
+        sintomas: triagemExterna.sintomas,
+        historico_saude: triagemExterna.historico_saude,
+        medicamentos_atuais: triagemExterna.medicamentos_atuais,
+        dados_completos: triagemExterna.respostas_completas || triagemExterna.dados_completos,
+      });
+    }
+
+    // 2) Fallback: tabela local
     const telDigits = telefone.replace(/\D/g, "");
     const variacoes = Array.from(new Set([
       telDigits,
       telDigits.startsWith("55") ? telDigits.slice(2) : `55${telDigits}`,
       telefone,
     ].filter(Boolean)));
-
-    let query = supabase
-      .from("relatorios_triagem")
-      .select("nome, cpf, telefone, email, sintomas, objetivo, historico_saude, medicamentos_atuais, dados_completos, criado_em")
-      .order("criado_em", { ascending: false })
-      .limit(1);
 
     if (cpf) {
       const cpfLimpo = cpf.replace(/\D/g, "");
@@ -1359,7 +1421,13 @@ async function buscarTriagemDoLead(
       if (porCpf) return formatarTriagemTexto(porCpf);
     }
 
-    const { data } = await query.in("telefone", variacoes).maybeSingle();
+    const { data } = await supabase
+      .from("relatorios_triagem")
+      .select("nome, cpf, telefone, email, sintomas, objetivo, historico_saude, medicamentos_atuais, dados_completos, criado_em")
+      .in("telefone", variacoes)
+      .order("criado_em", { ascending: false })
+      .limit(1)
+      .maybeSingle();
     if (data) return formatarTriagemTexto(data);
     return "";
   } catch (err) {
@@ -1381,7 +1449,7 @@ export interface DecisaoConsulta {
   tag: string; // "CLÍNICO GERAL" ou "ESPECIALISTA - Psiquiatria"
 }
 
-function decidirTipoConsultaPelaTriagem(triagemTexto: string): DecisaoConsulta {
+function decidirTipoConsultaPorRegex(triagemTexto: string): DecisaoConsulta {
   const txt = (triagemTexto || "").toLowerCase();
 
   // Mapa de gatilhos para ESPECIALISTA + especialidade
@@ -1425,6 +1493,86 @@ function decidirTipoConsultaPelaTriagem(triagemTexto: string): DecisaoConsulta {
     justificativa: "verifiquei sua triagem e, para o seu caso, o clínico geral resolve perfeitamente",
     tag: "CLÍNICO GERAL",
   };
+}
+
+// Decisor IA: a SofIA escolhe livremente clínico geral x especialista (com especialidade) com base na triagem completa
+// Fallback: se IA falhar ou triagem vazia, cai no regex determinístico
+async function decidirTipoConsultaPelaTriagem(triagemTexto: string): Promise<DecisaoConsulta> {
+  const txt = (triagemTexto || "").trim();
+  if (!txt) return decidirTipoConsultaPorRegex("");
+
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) {
+    console.warn("[whatsapp] LOVABLE_API_KEY ausente — usando regex p/ decidir consulta");
+    return decidirTipoConsultaPorRegex(txt);
+  }
+
+  try {
+    const systemPrompt = `Você é uma triadora médica da Vitta Care (clínica de cannabis medicinal/CBD). Com base na triagem do paciente, decida se a consulta inicial deve ser com:
+- "clinico_geral" (R$ 59,99) — casos comuns, sintomas leves/moderados, dores comuns, ansiedade leve, insônia ocasional, dúvidas iniciais sobre CBD.
+- "especialista" (R$ 99,99) — quando o caso exige conhecimento de RQE/pós: psiquiatria (autismo/TEA, TDAH, depressão severa, bipolar, pânico, psicose), neurologia (epilepsia, Parkinson, Alzheimer, dor neuropática, fibromialgia, enxaqueca crônica), pediatria (crianças), oncologia (câncer/paliativos), reumatologia (lúpus, artrite reumatoide).
+
+Responda APENAS um JSON válido, sem markdown, no formato:
+{"tipo":"clinico_geral"|"especialista","especialidade":"Clínico Geral"|"Psiquiatria"|"Neurologia"|"Pediatria"|"Oncologia"|"Reumatologia"|"...","motivo":"frase curta em pt-BR explicando o porquê (max 80 chars)"}`;
+
+    const ctrl = new AbortController();
+    const timeoutId = setTimeout(() => ctrl.abort(), 7000);
+
+    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Triagem do paciente:\n\n${txt.slice(0, 4000)}` },
+        ],
+        temperature: 0.2,
+      }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!resp.ok) {
+      console.warn(`[whatsapp] IA decisão consulta retornou ${resp.status} — fallback regex`);
+      return decidirTipoConsultaPorRegex(txt);
+    }
+
+    const data = await resp.json();
+    const content: string = data?.choices?.[0]?.message?.content || "";
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return decidirTipoConsultaPorRegex(txt);
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    const tipo: "clinico_geral" | "especialista" = parsed.tipo === "especialista" ? "especialista" : "clinico_geral";
+    const especialidade = String(parsed.especialidade || (tipo === "especialista" ? "Especialista" : "Clínico Geral")).slice(0, 60);
+    const motivo = String(parsed.motivo || "indicado pela triagem").slice(0, 120);
+
+    if (tipo === "especialista") {
+      return {
+        tipo: "especialista",
+        valor: 99.99,
+        valorTexto: "R$ 99,99",
+        especialidadeSugerida: especialidade,
+        justificativa: `verifiquei sua triagem e, pelo seu caso (${motivo}), o ideal é a consulta com especialista`,
+        tag: `ESPECIALISTA - ${especialidade}`,
+      };
+    }
+    return {
+      tipo: "clinico_geral",
+      valor: 59.99,
+      valorTexto: "R$ 59,99",
+      especialidadeSugerida: "Clínico Geral",
+      justificativa: `verifiquei sua triagem e, para o seu caso (${motivo}), o clínico geral resolve perfeitamente`,
+      tag: "CLÍNICO GERAL",
+    };
+  } catch (err) {
+    console.error("[whatsapp] Erro IA decisão consulta — fallback regex:", err);
+    return decidirTipoConsultaPorRegex(txt);
+  }
 }
 
 function formatarTriagemTexto(t: any): string {
@@ -2711,8 +2859,8 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         console.log(`[whatsapp] 📝 Triagem encontrada — anexando às observações do agendamento (${triagemTexto.length} chars)`);
       }
 
-      // 🏷️ Decidir TIPO DE CONSULTA (clínico geral x especialista) com base na triagem (determinístico)
-      const decisaoConsulta = decidirTipoConsultaPelaTriagem(triagemTexto || "");
+      // 🏷️ Decidir TIPO DE CONSULTA (clínico geral x especialista) — IA decide livremente com base na triagem (fallback regex)
+      const decisaoConsulta = await decidirTipoConsultaPelaTriagem(triagemTexto || "");
       console.log(`[whatsapp] 🏷️ Tipo de consulta decidido pela triagem: ${decisaoConsulta.tag} | ${decisaoConsulta.valorTexto}`);
 
       // Processar TODOS os agendamentos em paralelo - AGUARDAR resultado antes de enviar mensagem
