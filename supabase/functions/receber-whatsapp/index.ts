@@ -1326,7 +1326,58 @@ async function registrarAgendamento(
 }
 
 // =============================
+// BUSCAR TRIAGEM NO SISTEMA EXTERNO (vitta-care.com)
+// =============================
+async function buscarTriagemVittaCare(
+  telefone: string,
+  cpf?: string,
+): Promise<any | null> {
+  const url = Deno.env.get("VITTA_TRIAGEM_API_URL");
+  const token = Deno.env.get("VITTA_TRIAGEM_API_TOKEN");
+  if (!url || !token) {
+    console.warn("[whatsapp] VITTA_TRIAGEM_API_URL/TOKEN não configurados");
+    return null;
+  }
+
+  try {
+    const body: Record<string, string> = {};
+    if (cpf) body.cpf = cpf.replace(/\D/g, "");
+    if (telefone) body.telefone = telefone.replace(/\D/g, "");
+    if (!body.cpf && !body.telefone) return null;
+
+    const ctrl = new AbortController();
+    const timeoutId = setTimeout(() => ctrl.abort(), 8000);
+
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-token": token,
+      },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!resp.ok) {
+      console.warn(`[whatsapp] Triagem API vitta-care retornou ${resp.status}`);
+      return null;
+    }
+    const data = await resp.json();
+    if (data?.encontrado && data?.triagem) {
+      console.log("[whatsapp] ✅ Triagem encontrada no vitta-care.com");
+      return data.triagem;
+    }
+    return null;
+  } catch (err) {
+    console.error("[whatsapp] Erro ao consultar API de triagem vitta-care:", err);
+    return null;
+  }
+}
+
+// =============================
 // BUSCAR RELATÓRIO DE TRIAGEM DO LEAD (para anexar nas observações do agendamento)
+// Prioridade: 1) API externa vitta-care.com  2) Fallback DB local relatorios_triagem
 // =============================
 async function buscarTriagemDoLead(
   supabase: ReturnType<typeof createClient>,
@@ -1334,18 +1385,29 @@ async function buscarTriagemDoLead(
   cpf?: string,
 ): Promise<string> {
   try {
+    // 1) Fonte primária: API do vitta-care.com (sistema oficial de triagem)
+    const triagemExterna = await buscarTriagemVittaCare(telefone, cpf);
+    if (triagemExterna) {
+      return formatarTriagemTexto({
+        nome: triagemExterna.nome,
+        cpf: triagemExterna.cpf,
+        telefone: triagemExterna.telefone,
+        email: triagemExterna.email,
+        objetivo: triagemExterna.objetivo,
+        sintomas: triagemExterna.sintomas,
+        historico_saude: triagemExterna.historico_saude,
+        medicamentos_atuais: triagemExterna.medicamentos_atuais,
+        dados_completos: triagemExterna.respostas_completas || triagemExterna.dados_completos,
+      });
+    }
+
+    // 2) Fallback: tabela local
     const telDigits = telefone.replace(/\D/g, "");
     const variacoes = Array.from(new Set([
       telDigits,
       telDigits.startsWith("55") ? telDigits.slice(2) : `55${telDigits}`,
       telefone,
     ].filter(Boolean)));
-
-    let query = supabase
-      .from("relatorios_triagem")
-      .select("nome, cpf, telefone, email, sintomas, objetivo, historico_saude, medicamentos_atuais, dados_completos, criado_em")
-      .order("criado_em", { ascending: false })
-      .limit(1);
 
     if (cpf) {
       const cpfLimpo = cpf.replace(/\D/g, "");
@@ -1359,7 +1421,13 @@ async function buscarTriagemDoLead(
       if (porCpf) return formatarTriagemTexto(porCpf);
     }
 
-    const { data } = await query.in("telefone", variacoes).maybeSingle();
+    const { data } = await supabase
+      .from("relatorios_triagem")
+      .select("nome, cpf, telefone, email, sintomas, objetivo, historico_saude, medicamentos_atuais, dados_completos, criado_em")
+      .in("telefone", variacoes)
+      .order("criado_em", { ascending: false })
+      .limit(1)
+      .maybeSingle();
     if (data) return formatarTriagemTexto(data);
     return "";
   } catch (err) {
