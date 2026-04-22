@@ -511,11 +511,11 @@ Você está atendendo pelo WhatsApp.
 - Se o paciente disser que já preencheu mas você não recebeu os dados, peça que aguarde alguns instantes e depois confirme: "Vou verificar aqui no sistema, só um momento 😊"
 
 ## REGRA DE PREÇOS (USE APENAS QUANDO PERGUNTAREM OU AO FECHAR)
-- **Clínico Geral (avaliação inicial)**: **R$ 59,99**. Indicado quando a triagem mostra caso de avaliação geral, sem necessidade imediata de especialista
-- **Especialista (psiquiatra/neurologista com RQE ou pós-graduação)**: **R$ 99,99**. Indicado quando a triagem evidencia condições específicas (ex.: ansiedade severa, insônia crônica, dor neuropática, epilepsia, TDAH, autismo, Parkinson)
+- **Clínico Geral (avaliação inicial)**: valor cheio **R$ 300,00**, hoje em condição especial por **R$ 59,99**. Indicado quando a triagem mostra caso de avaliação geral, sem necessidade imediata de especialista
+- **Especialista (psiquiatra/neurologista com RQE ou pós-graduação)**: valor cheio **R$ 500,00**, hoje em condição especial por **R$ 99,99**. Indicado quando a triagem evidencia condições específicas (ex.: ansiedade severa, insônia crônica, dor neuropática, epilepsia, TDAH, autismo, Parkinson)
 - A indicação entre Clínico Geral ou Especialista é definida com base na triagem
-- Apresente o preço de forma direta: "A consulta com nosso clínico geral é R$ 59,99 💚"
-- Para especialista: "No seu caso, o ideal é a consulta com nossa especialista (RQE/pós), que é R$ 99,99. Ela tem expertise exatamente no que você descreveu 😊"
+- SEMPRE ancore o valor mostrando o preço cheio antes do promocional. Ex. clínico: "A consulta com nosso clínico geral custa R$ 300,00, mas hoje você fecha por apenas R$ 59,99 💚"
+- Ex. especialista: "No seu caso, o ideal é a consulta com nossa especialista (RQE/pós). Ela custa R$ 500,00, mas hoje sai por apenas R$ 99,99 — ela tem expertise exatamente no que você descreveu 😊"
 - NUNCA invente outros valores. Se perguntarem sobre algo fora dessas duas opções, diga que vai verificar no sistema
 
 ## REGRA DE SELEÇÃO DO PROFISSIONAL (LEIA O CAMPO "especialidade" DA LISTA DE PROFISSIONAIS)
@@ -2776,9 +2776,10 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
 
       // Para cada agendamento confirmado com sucesso → enfileirar mensagens (indicação + valor + Pix)
       if (agendamentosConfirmados > 0) {
+        const valorCheio = decisaoConsulta.tipo === "especialista" ? "R$ 500,00" : "R$ 300,00";
         const valorTextoFmt = decisaoConsulta.tipo === "especialista"
-          ? `*${decisaoConsulta.valorTexto}* (consulta com especialista${decisaoConsulta.especialidadeSugerida && decisaoConsulta.especialidadeSugerida !== "Clínico Geral" ? ` em ${decisaoConsulta.especialidadeSugerida}` : ""})`
-          : `*${decisaoConsulta.valorTexto}* (consulta inicial com clínico geral)`;
+          ? `de ~${valorCheio}~ por apenas *${decisaoConsulta.valorTexto}* (consulta com especialista${decisaoConsulta.especialidadeSugerida && decisaoConsulta.especialidadeSugerida !== "Clínico Geral" ? ` em ${decisaoConsulta.especialidadeSugerida}` : ""})`
+          : `de ~${valorCheio}~ por apenas *${decisaoConsulta.valorTexto}* (consulta inicial com clínico geral)`;
 
         const nomePaciente = pacienteEncontrado?.nome?.split(" ")[0] || agendamentos[0]?.nome?.split(" ")[0] || "";
         const ola = nomePaciente ? `${nomePaciente}, ` : "";
@@ -2797,10 +2798,10 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
           `3. *Preencha o formulário de triagem* (essencial para o(a) médico(a) entender seu caso): https://vitta-care.com/triagem`
         );
 
-        // 3️⃣ Valor + Pix
+        // 3️⃣ Valor + Pix (com âncora de preço cheio)
         mensagensExtras.push(
           `💳 *Valor da consulta*\n\n` +
-          `O valor é ${valorTextoFmt}.\n\n` +
+          `O valor cheio é ${valorCheio}, mas hoje você fecha ${valorTextoFmt}.\n\n` +
           `🔑 *Pagamento via Pix* (chave): \`vittacare@jim.com\`\n\n` +
           `Após o pagamento, por favor *envie o comprovante por aqui* que eu já dou baixa automaticamente no sistema ✅`
         );
