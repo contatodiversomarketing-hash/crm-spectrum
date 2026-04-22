@@ -2809,6 +2809,28 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       if (audioUrl) await enviarAudio(numero, audioUrl);
     }).catch(err => console.error("[whatsapp] Erro envio áudio:", err));
 
+    // Enviar mensagens extras (orientações + Pix) com pequeno delay entre cada uma
+    if (mensagensExtras.length > 0) {
+      console.log(`[whatsapp] 📨 Enviando ${mensagensExtras.length} mensagem(ns) extra(s) pós-agendamento`);
+      (async () => {
+        for (const extra of mensagensExtras) {
+          await new Promise((r) => setTimeout(r, 2500 + Math.random() * 1000));
+          const ok = await enviarTexto(numero, extra, instanceKey);
+          if (ok) {
+            await supabase.from("interacoes_ia").insert({
+              paciente_externo_id: numero,
+              canal: "whatsapp",
+              sistema_origem: "megaapi",
+              mensagem_usuario: null,
+              resposta_final: extra.slice(0, 5000),
+              intencao_detectada: "pos_agendamento_automatico",
+              estado_conversa: "finalizado",
+              supervisionado: false,
+            });
+          }
+        }
+      })().catch((e) => console.error("[whatsapp] Erro mensagens extras:", e));
+    }
 
     await liberarLockDB(supabase, numero);
     return new Response("ok");
