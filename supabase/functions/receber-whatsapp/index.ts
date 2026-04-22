@@ -632,17 +632,19 @@ REGRAS DO MARCADOR:
 - Prefira avançar no fluxo do que ficar repetindo perguntas
 - Colete nome completo, CPF e data de nascimento ANTES de confirmar o agendamento
 
-## ORIENTAÇÕES PRÉVIAS DA CONSULTA (PÓS-AGENDAMENTO)
-Após confirmar o agendamento, você pode oferecer enviar "orientações prévias". Se o paciente aceitar (ex.: "pode enviar", "sim", "manda"), envie UMA ÚNICA mensagem curta e acolhedora contendo EXATAMENTE estes 3 pontos, nessa ordem:
+## ORIENTAÇÕES PRÉVIAS + PAGAMENTO (ENVIO AUTOMÁTICO PELO SISTEMA — NÃO ENVIE VOCÊ)
+IMPORTANTE: Logo após o agendamento ser confirmado, o SISTEMA envia automaticamente uma segunda mensagem com:
+- 3 orientações prévias (anotar dúvidas, clareza dos sintomas, link da triagem https://vitta-care.com/triagem)
+- Valor da consulta (R$ 49,90 Clínico Geral OU R$ 150,00 Especialista)
+- Chave Pix: vittacare@jim.com (envio do comprovante p/ confirmar)
 
-1. *Anote suas dúvidas* antes da consulta para tirar todas com o(a) médico(a).
-2. Tenha clareza dos *sintomas/problemas* que você sente e do que espera resolver com o tratamento.
-3. *Preencha o formulário de triagem* (essencial para o(a) médico(a) entender seu caso): https://vitta-care.com/triagem
+Por isso, na sua mensagem de confirmação do agendamento NÃO pergunte se quer orientações, NÃO repita o valor, NÃO repita a chave Pix. Apenas confirme o agendamento de forma curta e calorosa (ex.: "Pronto, [Nome]! Sua consulta com [Médico] está confirmada para [data] às [hora] ✅💚"). O resto vai automático em seguida.
 
-Encerre perguntando se ficou alguma dúvida. NÃO repita o marcador ##AGENDAMENTO_CONFIRMADO## (o agendamento JÁ está registrado). NÃO diga que houve "instabilidade" nem que vai "refazer verificação".
+## QUANDO O PACIENTE ENVIAR COMPROVANTE DE PAGAMENTO
+Se o paciente enviar uma imagem/PDF e disser que é o comprovante (ou for óbvio pelo contexto), agradeça brevemente e confirme que a baixa foi registrada (ex.: "Recebido, [Nome]! Pagamento confirmado ✅ Sua consulta está garantida 💚"). O sistema cuida da baixa financeira automaticamente.
 
 ## REGRA CRÍTICA: NÃO RE-AGENDAR
-Se um agendamento JÁ foi confirmado em uma mensagem anterior do histórico (você já disse "Consulta confirmada" ou similar), NUNCA inclua novamente o marcador ##AGENDAMENTO_CONFIRMADO## em respostas seguintes — isso causa erro de duplicação. Apenas converse normalmente sobre orientações, dúvidas, etc.
+Se um agendamento JÁ foi confirmado em uma mensagem anterior do histórico (você já disse "Consulta confirmada" ou similar), NUNCA inclua novamente o marcador ##AGENDAMENTO_CONFIRMADO## em respostas seguintes — isso causa erro de duplicação. Apenas converse normalmente sobre dúvidas.
 
 ## FINALIZAÇÃO DE CONVERSA
 - Quando o paciente AGRADECER ou SE DESPEDIR → encerre com mensagem CALOROSA e BREVE (2-3 linhas)
@@ -1255,7 +1257,7 @@ async function registrarAgendamento(
   horario: string,
   professionalId: string,
   pacienteId: string,
-  dadosPaciente?: { cpf?: string; email?: string; dataNascimento?: string },
+  dadosPaciente?: { cpf?: string; email?: string; dataNascimento?: string; triagemTexto?: string },
 ): Promise<boolean> {
   try {
     if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) return false;
@@ -1265,14 +1267,12 @@ async function registrarAgendamento(
       return false;
     }
 
-    // Validar dia de atendimento do profissional ANTES de criar o agendamento
     const validacao = await validarDiaProfissional(professionalId, data);
     if (!validacao.valido) {
       console.error(`[whatsapp] ❌ Agendamento BLOQUEADO por validação de dia: ${validacao.mensagemErro}`);
       return false;
     }
 
-    // Se não tem paciente_id, criar o paciente primeiro no sistema de gestão
     let patientIdFinal = pacienteId;
     if (!patientIdFinal) {
       console.log(`[whatsapp] 🔄 Paciente sem ID — tentando criar cadastro antes de agendar...`);
@@ -1291,11 +1291,17 @@ async function registrarAgendamento(
       }
     }
 
+    // Anexar relatório de triagem nas observações para o médico ler no sistema de gestão
+    let observacoes = `Agendado via WhatsApp (SofIA) - Paciente: ${nome} - Tel: ${telefone}`;
+    if (dadosPaciente?.triagemTexto && dadosPaciente.triagemTexto.trim()) {
+      observacoes += `\n\n=== RELATÓRIO DE TRIAGEM ===\n${dadosPaciente.triagemTexto.trim().slice(0, 4000)}`;
+    }
+
     const params: Record<string, unknown> = {
       data: data,
       hora: horario,
       medico_id: professionalId,
-      observacoes: `Agendado via WhatsApp - Paciente: ${nome} - Tel: ${telefone}`,
+      observacoes,
     };
 
     if (patientIdFinal) params.paciente_id = patientIdFinal;
@@ -1306,13 +1312,162 @@ async function registrarAgendamento(
     const created = isAppointmentCreatedResponse(payload);
     const ok = result.ok && !logicalError && created;
 
-    console.log(`[whatsapp] Agendamento gestão: status=${result.status} http_ok=${result.ok} logical_error=${logicalError} created=${created} patient_id=${patientIdFinal || "NENHUM"} payload=${JSON.stringify(payload).slice(0, 300)}`);
+    console.log(`[whatsapp] Agendamento gestão: status=${result.status} http_ok=${result.ok} logical_error=${logicalError} created=${created} patient_id=${patientIdFinal || "NENHUM"} triagem=${dadosPaciente?.triagemTexto ? "ANEXA" : "—"} payload=${JSON.stringify(payload).slice(0, 300)}`);
 
     return ok;
   } catch (err) {
     console.error("[whatsapp] Erro agendamento:", err);
     return false;
   }
+}
+
+// =============================
+// BUSCAR RELATÓRIO DE TRIAGEM DO LEAD (para anexar nas observações do agendamento)
+// =============================
+async function buscarTriagemDoLead(
+  supabase: ReturnType<typeof createClient>,
+  telefone: string,
+  cpf?: string,
+): Promise<string> {
+  try {
+    const telDigits = telefone.replace(/\D/g, "");
+    const variacoes = Array.from(new Set([
+      telDigits,
+      telDigits.startsWith("55") ? telDigits.slice(2) : `55${telDigits}`,
+      telefone,
+    ].filter(Boolean)));
+
+    let query = supabase
+      .from("relatorios_triagem")
+      .select("nome, cpf, telefone, email, sintomas, objetivo, historico_saude, medicamentos_atuais, dados_completos, criado_em")
+      .order("criado_em", { ascending: false })
+      .limit(1);
+
+    if (cpf) {
+      const cpfLimpo = cpf.replace(/\D/g, "");
+      const { data: porCpf } = await supabase
+        .from("relatorios_triagem")
+        .select("nome, cpf, telefone, email, sintomas, objetivo, historico_saude, medicamentos_atuais, dados_completos, criado_em")
+        .eq("cpf", cpfLimpo)
+        .order("criado_em", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (porCpf) return formatarTriagemTexto(porCpf);
+    }
+
+    const { data } = await query.in("telefone", variacoes).maybeSingle();
+    if (data) return formatarTriagemTexto(data);
+    return "";
+  } catch (err) {
+    console.error("[whatsapp] Erro ao buscar triagem:", err);
+    return "";
+  }
+}
+
+function formatarTriagemTexto(t: any): string {
+  const linhas: string[] = [];
+  if (t.nome) linhas.push(`Nome: ${t.nome}`);
+  if (t.cpf) linhas.push(`CPF: ${t.cpf}`);
+  if (t.telefone) linhas.push(`Telefone: ${t.telefone}`);
+  if (t.email) linhas.push(`Email: ${t.email}`);
+  if (t.objetivo) linhas.push(`Objetivo: ${t.objetivo}`);
+  if (t.sintomas) linhas.push(`Sintomas: ${t.sintomas}`);
+  if (t.historico_saude) linhas.push(`Histórico de saúde: ${t.historico_saude}`);
+  if (t.medicamentos_atuais) linhas.push(`Medicamentos atuais: ${t.medicamentos_atuais}`);
+  if (t.dados_completos && typeof t.dados_completos === "object") {
+    try {
+      const extras = Object.entries(t.dados_completos)
+        .filter(([k]) => !["nome", "cpf", "telefone", "email", "sintomas", "objetivo", "historico_saude", "medicamentos_atuais"].includes(k))
+        .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`)
+        .join("\n");
+      if (extras) linhas.push(`\nDados adicionais:\n${extras}`);
+    } catch (_) {}
+  }
+  return linhas.join("\n");
+}
+
+// =============================
+// BAIXA AUTOMÁTICA DE PAGAMENTO (quando paciente envia comprovante)
+// =============================
+async function darBaixaPagamento(
+  supabase: ReturnType<typeof createClient>,
+  telefone: string,
+  pacienteId: string | null,
+  comprovanteInfo: { tipo: string; mimetype: string; descricao?: string },
+): Promise<boolean> {
+  try {
+    let baixaOk = false;
+
+    // Tentar atualizar último agendamento como pago no sistema de gestão
+    if (pacienteId) {
+      try {
+        const r = await chamarGestao("listar_agendamentos", { paciente_id: pacienteId });
+        const lista = (r?.data?.data || r?.data || []) as any[];
+        const futuros = Array.isArray(lista)
+          ? lista
+              .filter((a) => a?.data_hora || a?.data || a?.id)
+              .sort((a, b) => new Date(b?.data_hora || b?.data || 0).getTime() - new Date(a?.data_hora || a?.data || 0).getTime())
+          : [];
+        const consultaId = futuros[0]?.id || futuros[0]?.consulta_id;
+        if (consultaId) {
+          const upd = await chamarGestao("registrar_pagamento", {
+            consulta_id: consultaId,
+            forma_pagamento: "pix",
+            status: "pago",
+            comprovante_recebido: true,
+          });
+          baixaOk = !!upd?.ok;
+          console.log(`[whatsapp] 💰 Tentativa baixa via registrar_pagamento (consulta=${consultaId}): ok=${baixaOk}`);
+        }
+      } catch (e) {
+        console.warn("[whatsapp] Falha ao tentar baixa automática na Gestão:", e);
+      }
+    }
+
+    // Registrar log local
+    await supabase.from("logs_decisao").insert({
+      evento: "comprovante_recebido_whatsapp",
+      decisao: baixaOk ? "baixa_automatica_ok" : "baixa_pendente_revisao_manual",
+      regra_aplicada: "comprovante_pix_whatsapp",
+      dados_entrada: { telefone, paciente_id: pacienteId, ...comprovanteInfo },
+      confianca: baixaOk ? 0.9 : 0.3,
+    });
+
+    // Notificar admin SEMPRE (mesmo com baixa ok, para revisão visual)
+    const adminNumber = Deno.env.get("ADMIN_WHATSAPP_NUMBER");
+    if (adminNumber) {
+      const status = baixaOk ? "✅ Baixa automática OK" : "⚠️ Baixa NÃO concluída — revisar";
+      await enviarTexto(
+        adminNumber,
+        `💰 *COMPROVANTE RECEBIDO via WhatsApp*\n📱 Paciente: ${telefone}\n🧾 Tipo: ${comprovanteInfo.tipo} (${comprovanteInfo.mimetype})\n${status}\n\nValide no sistema de gestão e financeiro.`,
+      ).catch(() => {});
+    }
+
+    return baixaOk;
+  } catch (err) {
+    console.error("[whatsapp] Erro baixa pagamento:", err);
+    return false;
+  }
+}
+
+// =============================
+// DETECTAR SE MENSAGEM/MÍDIA É COMPROVANTE DE PAGAMENTO
+// =============================
+function ehComprovantePagamento(
+  mensagem: string,
+  midiaTipo: string | null,
+  historico: HistoricoInteracao[],
+): boolean {
+  const txt = (mensagem || "").toLowerCase();
+  const palavrasChave = /comprovante|pagamento|paguei|transferi|pix|enviei o pagamento|segue (o )?(comprovante|pagamento)/i;
+  if (palavrasChave.test(txt)) return true;
+
+  // Se chegou imagem/pdf depois de SofIA ter enviado dados de Pix recentemente
+  if (midiaTipo === "image" || midiaTipo === "document") {
+    const ultimas = historico.slice(-4).map((h) => (h.resposta_final || "").toLowerCase()).join(" ");
+    if (/pix|vittacare@jim|comprovante|pagamento/.test(ultimas)) return true;
+  }
+  return false;
 }
 
 async function obterPipelinePacientesId(supabase: ReturnType<typeof createClient>): Promise<string | null> {
