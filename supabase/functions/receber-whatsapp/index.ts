@@ -2617,10 +2617,23 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         }
       }
     }
+    // Mensagens extras a enviar APÓS a resposta principal (ex.: orientações + Pix pós-agendamento)
+    const mensagensExtras: string[] = [];
+
     if (agendamentos.length > 0) {
       respostaFinal = textoSemAgendamentos;
       const patientId = pacienteEncontrado?.id || "";
       console.log(`[whatsapp] 📋 ${agendamentos.length} agendamento(s) detectado(s)`);
+
+      // Buscar triagem do lead UMA vez para anexar nas observações da consulta
+      const triagemTexto = await buscarTriagemDoLead(
+        supabase,
+        numero,
+        cpfColetado || pacienteEncontrado?.cpf || undefined,
+      );
+      if (triagemTexto) {
+        console.log(`[whatsapp] 📝 Triagem encontrada — anexando às observações do agendamento (${triagemTexto.length} chars)`);
+      }
 
       // Processar TODOS os agendamentos em paralelo - AGUARDAR resultado antes de enviar mensagem
       const results = await Promise.all(agendamentos.map(async (ag, idx) => {
@@ -2630,6 +2643,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
             cpf: cpfColetado || pacienteEncontrado?.cpf || undefined,
             email: pacienteEncontrado?.email || undefined,
             dataNascimento: nascimentoColetado || undefined,
+            triagemTexto,
           }),
           idx === 0 ? criarLeadCRM(supabase, ag.nome, numero, {
             cpf: cpfColetado || pacienteEncontrado?.cpf || undefined,
@@ -2647,6 +2661,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
           dados_entrada: {
             nome: ag.nome, telefone: numero, data: ag.data, horario: ag.horario,
             professional_id: ag.professionalId, patient_id: patientId, indice: idx + 1, total: agendamentos.length,
+            triagem_anexada: !!triagemTexto,
           },
           confianca: 1.0,
         });
@@ -2673,6 +2688,34 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
           const falhaDetalhes = falharam.map((f) => `${f.ag.nome} | ${f.ag.data} ${f.ag.horario} | prof=${f.ag.professionalId || "sem_id"}`).join("; ");
           enviarTexto(adminNumber, `⚠️ *AGENDAMENTO FALHOU NO SISTEMA*\n📱 Paciente: ${numero}\n📋 Dados: ${falhaDetalhes}\n\n⚡ Favor registrar/validar manualmente no sistema de gestão.`, instanceKey).catch(() => {});
         }
+      }
+
+      // Para cada agendamento confirmado com sucesso → enfileirar mensagem com orientações + valor + Pix
+      if (agendamentosConfirmados > 0) {
+        // Determinar valor: se IA mencionou 150 no histórico recente → especialista; senão clínico geral 49,90
+        const respostaConcat = (respostaFinal + " " + (historicoOrdenado.slice(-4).map((h) => h.resposta_final || "").join(" "))).toLowerCase();
+        const ehEspecialista = /150|especialista|psiquiatr|neurolog|dermatolog/.test(respostaConcat) && !/49,90|49\.90|cl[ií]nico geral/.test(respostaConcat);
+        const valorTexto = ehEspecialista
+          ? "*R$ 150,00* (consulta com especialista)"
+          : "*R$ 49,90* (consulta inicial com clínico geral — valor promocional, de R$ 500,00)";
+
+        const nomePaciente = pacienteEncontrado?.nome?.split(" ")[0] || agendamentos[0]?.nome?.split(" ")[0] || "";
+        const ola = nomePaciente ? `${nomePaciente}, ` : "";
+
+        mensagensExtras.push(
+          `📋 *Orientações para sua consulta*\n\n` +
+          `1. *Anote suas dúvidas* antes da consulta para tirar todas com o(a) médico(a).\n` +
+          `2. Tenha clareza dos *sintomas* que você sente e do que espera resolver com o tratamento.\n` +
+          `3. *Preencha o formulário de triagem* (essencial para o(a) médico(a) entender seu caso): https://vitta-care.com/triagem\n\n` +
+          `💚 ${ola}é importante seguir esses passos para uma consulta produtiva.`
+        );
+
+        mensagensExtras.push(
+          `💳 *Valor da consulta*\n\n` +
+          `O valor é ${valorTexto}.\n\n` +
+          `🔑 *Pagamento via Pix* (chave): \`vittacare@jim.com\`\n\n` +
+          `Após o pagamento, por favor *envie o comprovante por aqui* que eu já dou baixa automaticamente no sistema ✅`
+        );
       }
     }
 
