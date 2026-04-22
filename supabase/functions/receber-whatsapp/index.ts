@@ -1364,6 +1364,65 @@ async function buscarTriagemDoLead(
   }
 }
 
+// =============================
+// DECIDIR TIPO DE CONSULTA (CLÍNICO GERAL x ESPECIALISTA) COM BASE NA TRIAGEM
+// Retorna decisão determinística + especialidade sugerida + justificativa curta
+// =============================
+export interface DecisaoConsulta {
+  tipo: "clinico_geral" | "especialista";
+  valor: number; // 49.90 ou 150.00
+  valorTexto: string; // formatado p/ humano
+  especialidadeSugerida: string | null; // ex.: "Psiquiatria", "Neurologia"
+  justificativa: string; // 1 linha p/ a IA verbalizar
+  tag: string; // "CLÍNICO GERAL" ou "ESPECIALISTA - Psiquiatria"
+}
+
+function decidirTipoConsultaPelaTriagem(triagemTexto: string): DecisaoConsulta {
+  const txt = (triagemTexto || "").toLowerCase();
+
+  // Mapa de gatilhos para ESPECIALISTA + especialidade
+  const gatilhosEspecialista: Array<{ regex: RegExp; especialidade: string; motivo: string }> = [
+    // Psiquiatria
+    { regex: /\b(autis(mo|ta)|tea|espectro autista|asperger)\b/, especialidade: "Psiquiatria", motivo: "caso de autismo (TEA)" },
+    { regex: /\b(tdah|d[eé]ficit de aten[cç][aã]o|hiperativid)/, especialidade: "Psiquiatria", motivo: "TDAH" },
+    { regex: /\b(ansiedade severa|ansiedade grave|p[aâ]nico|s[ií]ndrome do p[aâ]nico|trauma|tept|estresse p[oó]s)\b/, especialidade: "Psiquiatria", motivo: "quadro psiquiátrico complexo" },
+    { regex: /\b(depress[aã]o (severa|grave|profunda|cr[oô]nica)|bipolar|esquizofrenia|psicose|suic[ií]d)/, especialidade: "Psiquiatria", motivo: "transtorno psiquiátrico que precisa de especialista" },
+    { regex: /\b(ins[oô]nia cr[oô]nica|ins[oô]nia (h[aá]|por) (anos|meses))/, especialidade: "Psiquiatria", motivo: "insônia crônica" },
+    // Neurologia
+    { regex: /\b(epileps|convuls|crise convulsiva|parkinson|alzheimer|esclerose m[uú]ltipla|enxaqueca cr[oô]nica|cefaleia em salvas)\b/, especialidade: "Neurologia", motivo: "condição neurológica" },
+    { regex: /\b(dor (cr[oô]nica|neurop[aá]tica)|fibromialgia|neuralgia)\b/, especialidade: "Neurologia", motivo: "dor crônica/neuropática" },
+    // Pediatria (criança)
+    { regex: /\b(crian[cç]a|filh[oa]|menor de idade|pediatr|\b\d{1,2} anos?\b.*(filh|crian))/, especialidade: "Pediatria", motivo: "paciente pediátrico" },
+    // Oncologia / paliativos
+    { regex: /\b(c[aâ]ncer|onco|quimio|paliativ|tumor)/, especialidade: "Oncologia", motivo: "cuidado oncológico" },
+    // Reumato
+    { regex: /\b(artrite|artrose|l[uú]pus|reumat)/, especialidade: "Reumatologia", motivo: "condição reumatológica" },
+  ];
+
+  for (const g of gatilhosEspecialista) {
+    if (g.regex.test(txt)) {
+      return {
+        tipo: "especialista",
+        valor: 150.00,
+        valorTexto: "R$ 150,00",
+        especialidadeSugerida: g.especialidade,
+        justificativa: `verifiquei sua triagem e, pelo seu caso (${g.motivo}), o ideal é a consulta com especialista`,
+        tag: `ESPECIALISTA - ${g.especialidade}`,
+      };
+    }
+  }
+
+  // Default: Clínico Geral
+  return {
+    tipo: "clinico_geral",
+    valor: 49.90,
+    valorTexto: "R$ 49,90",
+    especialidadeSugerida: "Clínico Geral",
+    justificativa: "verifiquei sua triagem e, para o seu caso, o clínico geral resolve perfeitamente",
+    tag: "CLÍNICO GERAL",
+  };
+}
+
 function formatarTriagemTexto(t: any): string {
   const linhas: string[] = [];
   if (t.nome) linhas.push(`Nome: ${t.nome}`);
