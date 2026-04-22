@@ -2711,15 +2711,20 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         console.log(`[whatsapp] 📝 Triagem encontrada — anexando às observações do agendamento (${triagemTexto.length} chars)`);
       }
 
+      // 🏷️ Decidir TIPO DE CONSULTA (clínico geral x especialista) com base na triagem (determinístico)
+      const decisaoConsulta = decidirTipoConsultaPelaTriagem(triagemTexto || "");
+      console.log(`[whatsapp] 🏷️ Tipo de consulta decidido pela triagem: ${decisaoConsulta.tag} | ${decisaoConsulta.valorTexto}`);
+
       // Processar TODOS os agendamentos em paralelo - AGUARDAR resultado antes de enviar mensagem
       const results = await Promise.all(agendamentos.map(async (ag, idx) => {
-        console.log(`[whatsapp] Agendamento ${idx + 1}/${agendamentos.length}: ${ag.nome} | ${ag.data} ${ag.horario} | prof=${ag.professionalId}`);
+        console.log(`[whatsapp] Agendamento ${idx + 1}/${agendamentos.length}: ${ag.nome} | ${ag.data} ${ag.horario} | prof=${ag.professionalId} | tag=${decisaoConsulta.tag}`);
         const [gestaoOk, crmOk] = await Promise.all([
           registrarAgendamento(ag.nome, numero, ag.data, ag.horario, ag.professionalId, patientId, {
             cpf: cpfColetado || pacienteEncontrado?.cpf || undefined,
             email: pacienteEncontrado?.email || undefined,
             dataNascimento: nascimentoColetado || undefined,
             triagemTexto,
+            tagConsulta: decisaoConsulta.tag,
           }),
           idx === 0 ? criarLeadCRM(supabase, ag.nome, numero, {
             cpf: cpfColetado || pacienteEncontrado?.cpf || undefined,
@@ -2732,16 +2737,19 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
 
         await supabase.from("logs_decisao").insert({
           evento: "agendamento_whatsapp_confirmado",
-          decisao: `gestao=${gestaoOk ? "ok" : "FALHA"}, crm=${crmOk ? "ok" : "falha"}`,
+          decisao: `gestao=${gestaoOk ? "ok" : "FALHA"}, crm=${crmOk ? "ok" : "falha"}, tag=${decisaoConsulta.tag}`,
           regra_aplicada: "whatsapp_maria_agendamento_auto",
           dados_entrada: {
             nome: ag.nome, telefone: numero, data: ag.data, horario: ag.horario,
             professional_id: ag.professionalId, patient_id: patientId, indice: idx + 1, total: agendamentos.length,
             triagem_anexada: !!triagemTexto,
+            tipo_consulta: decisaoConsulta.tipo,
+            valor_consulta: decisaoConsulta.valor,
+            especialidade_sugerida: decisaoConsulta.especialidadeSugerida,
           },
           confianca: 1.0,
         });
-        console.log(`[whatsapp] ${gestaoOk ? "✅" : "❌"} Agendamento ${idx + 1}: Gestão=${gestaoOk}, CRM=${crmOk}`);
+        console.log(`[whatsapp] ${gestaoOk ? "✅" : "❌"} Agendamento ${idx + 1}: Gestão=${gestaoOk}, CRM=${crmOk}, Tag=${decisaoConsulta.tag}`);
         return { gestaoOk, crmOk, ag };
       }));
 
@@ -2766,29 +2774,33 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         }
       }
 
-      // Para cada agendamento confirmado com sucesso → enfileirar mensagem com orientações + valor + Pix
+      // Para cada agendamento confirmado com sucesso → enfileirar mensagens (indicação + valor + Pix)
       if (agendamentosConfirmados > 0) {
-        // Determinar valor: se IA mencionou 150 no histórico recente → especialista; senão clínico geral 49,90
-        const respostaConcat = (respostaFinal + " " + (historicoOrdenado.slice(-4).map((h) => h.resposta_final || "").join(" "))).toLowerCase();
-        const ehEspecialista = /150|especialista|psiquiatr|neurolog|dermatolog/.test(respostaConcat) && !/49,90|49\.90|cl[ií]nico geral/.test(respostaConcat);
-        const valorTexto = ehEspecialista
-          ? "*R$ 150,00* (consulta com especialista)"
-          : "*R$ 49,90* (consulta inicial com clínico geral — valor promocional, de R$ 500,00)";
+        const valorTextoFmt = decisaoConsulta.tipo === "especialista"
+          ? `*${decisaoConsulta.valorTexto}* (consulta com especialista${decisaoConsulta.especialidadeSugerida && decisaoConsulta.especialidadeSugerida !== "Clínico Geral" ? ` em ${decisaoConsulta.especialidadeSugerida}` : ""})`
+          : `*${decisaoConsulta.valorTexto}* (consulta inicial com clínico geral — valor promocional, de R$ 500,00)`;
 
         const nomePaciente = pacienteEncontrado?.nome?.split(" ")[0] || agendamentos[0]?.nome?.split(" ")[0] || "";
         const ola = nomePaciente ? `${nomePaciente}, ` : "";
 
+        // 1️⃣ Indicação do tipo de consulta com base na triagem
+        mensagensExtras.push(
+          `🔎 *Análise da sua triagem*\n\n` +
+          `${ola}${decisaoConsulta.justificativa}. 💚`
+        );
+
+        // 2️⃣ Orientações prévias
         mensagensExtras.push(
           `📋 *Orientações para sua consulta*\n\n` +
           `1. *Anote suas dúvidas* antes da consulta para tirar todas com o(a) médico(a).\n` +
           `2. Tenha clareza dos *sintomas* que você sente e do que espera resolver com o tratamento.\n` +
-          `3. *Preencha o formulário de triagem* (essencial para o(a) médico(a) entender seu caso): https://vitta-care.com/triagem\n\n` +
-          `💚 ${ola}é importante seguir esses passos para uma consulta produtiva.`
+          `3. *Preencha o formulário de triagem* (essencial para o(a) médico(a) entender seu caso): https://vitta-care.com/triagem`
         );
 
+        // 3️⃣ Valor + Pix
         mensagensExtras.push(
           `💳 *Valor da consulta*\n\n` +
-          `O valor é ${valorTexto}.\n\n` +
+          `O valor é ${valorTextoFmt}.\n\n` +
           `🔑 *Pagamento via Pix* (chave): \`vittacare@jim.com\`\n\n` +
           `Após o pagamento, por favor *envie o comprovante por aqui* que eu já dou baixa automaticamente no sistema ✅`
         );
