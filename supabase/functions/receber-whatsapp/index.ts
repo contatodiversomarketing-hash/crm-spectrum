@@ -1257,7 +1257,7 @@ async function registrarAgendamento(
   horario: string,
   professionalId: string,
   pacienteId: string,
-  dadosPaciente?: { cpf?: string; email?: string; dataNascimento?: string; triagemTexto?: string },
+  dadosPaciente?: { cpf?: string; email?: string; dataNascimento?: string; triagemTexto?: string; tagConsulta?: string },
 ): Promise<boolean> {
   try {
     if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) return false;
@@ -1291,8 +1291,12 @@ async function registrarAgendamento(
       }
     }
 
-    // Anexar relatório de triagem nas observações para o médico ler no sistema de gestão
-    let observacoes = `Agendado via WhatsApp (SofIA) - Paciente: ${nome} - Tel: ${telefone}`;
+    // 🏷️ TAG do tipo de consulta (visível p/ médicos no sistema de gestão) + relatório de triagem
+    let observacoes = "";
+    if (dadosPaciente?.tagConsulta) {
+      observacoes += `🏷️ [TIPO DE CONSULTA: ${dadosPaciente.tagConsulta}]\n\n`;
+    }
+    observacoes += `Agendado via WhatsApp (SofIA) - Paciente: ${nome} - Tel: ${telefone}`;
     if (dadosPaciente?.triagemTexto && dadosPaciente.triagemTexto.trim()) {
       observacoes += `\n\n=== RELATÓRIO DE TRIAGEM ===\n${dadosPaciente.triagemTexto.trim().slice(0, 4000)}`;
     }
