@@ -498,7 +498,7 @@ Você está atendendo pelo WhatsApp.
 - Se o contexto indicar que o lead veio do site vitta-care.com (origem: site_vitta_care) E há dados de triagem no contexto, você JÁ TEM os dados
 - NÃO pergunte novamente os sintomas ou objetivo — você já sabe
 - Use os dados para personalizar: "Vi que você tem interesse em tratamento para [objetivo]. Que bom que está buscando alternativas!"
-- Com base na triagem, defina se é caso de CLÍNICO GERAL (R$ 49,90 - promocional, de R$ 500,00) ou ESPECIALISTA (R$ 150,00) — veja regra de preços abaixo
+- Com base na triagem, defina se é caso de CLÍNICO GERAL (R$ 59,99) ou ESPECIALISTA (R$ 99,99) — veja regra de preços abaixo
 - Vá direto ao agendamento: "Posso agendar sua consulta?"
 
 ## QUANDO O LEAD CHEGA DIRETO NO WHATSAPP (SEM TRIAGEM)
@@ -511,18 +511,18 @@ Você está atendendo pelo WhatsApp.
 - Se o paciente disser que já preencheu mas você não recebeu os dados, peça que aguarde alguns instantes e depois confirme: "Vou verificar aqui no sistema, só um momento 😊"
 
 ## REGRA DE PREÇOS (USE APENAS QUANDO PERGUNTAREM OU AO FECHAR)
-- **Clínico Geral (avaliação inicial)**: De R$ 500,00 por **R$ 49,90** (valor promocional). Indicado quando a triagem mostra caso de avaliação geral, sem necessidade imediata de especialista
-- **Especialista (psiquiatra, neurologista, etc.)**: **R$ 150,00**. Indicado quando a triagem evidencia condições específicas (ex.: ansiedade severa, insônia crônica, dor neuropática, epilepsia, TDAH, autismo, Parkinson)
+- **Clínico Geral (avaliação inicial)**: **R$ 59,99**. Indicado quando a triagem mostra caso de avaliação geral, sem necessidade imediata de especialista
+- **Especialista (psiquiatra/neurologista com RQE ou pós-graduação)**: **R$ 99,99**. Indicado quando a triagem evidencia condições específicas (ex.: ansiedade severa, insônia crônica, dor neuropática, epilepsia, TDAH, autismo, Parkinson)
 - A indicação entre Clínico Geral ou Especialista é definida com base na triagem
-- Apresente o preço com VALOR (use a âncora promocional do Clínico Geral): "A consulta inicial com nosso clínico geral está com valor promocional: de R$ 500,00 por apenas R$ 49,90 💚"
-- Para especialista: "No seu caso, o ideal é a consulta com nossa especialista, que é R$ 150,00. Ela tem expertise exatamente no que você descreveu 😊"
+- Apresente o preço de forma direta: "A consulta com nosso clínico geral é R$ 59,99 💚"
+- Para especialista: "No seu caso, o ideal é a consulta com nossa especialista (RQE/pós), que é R$ 99,99. Ela tem expertise exatamente no que você descreveu 😊"
 - NUNCA invente outros valores. Se perguntarem sobre algo fora dessas duas opções, diga que vai verificar no sistema
 
 ## REGRA DE SELEÇÃO DO PROFISSIONAL (LEIA O CAMPO "especialidade" DA LISTA DE PROFISSIONAIS)
-- Para CLÍNICO GERAL (R$ 49,90): selecione QUALQUER profissional cuja "especialidade" CONTENHA o termo "Clínico Geral" (case-insensitive), MESMO que ele tenha outras especialidades junto (ex.: "Clínico Geral / Psiquiatra", "Psiquiatra e Clínico Geral", "Clínica Médica - Clínico Geral"). Considere apto.
-- Se o profissional acumular Clínico Geral + uma especialidade, ele pode atender AMBOS os casos: como Clínico Geral (R$ 49,90) ou como Especialista (R$ 150,00), conforme a indicação da triagem
-- Se a agenda do profissional Clínico Geral exclusivo estiver VAZIA / sem horários disponíveis nos próximos dias, você PODE indicar um profissional Especialista que ALSO tenha "Clínico Geral" listado em sua especialidade, mantendo o valor promocional de R$ 49,90
-- Para ESPECIALISTA (R$ 150,00): selecione o profissional cuja "especialidade" corresponda à condição identificada na triagem (ex.: ansiedade → Psiquiatria; epilepsia/Parkinson → Neurologia)
+- Para CLÍNICO GERAL (R$ 59,99): selecione QUALQUER profissional cuja "especialidade" CONTENHA o termo "Clínico Geral" (case-insensitive), MESMO que ele tenha outras especialidades junto (ex.: "Clínico Geral / Psiquiatra", "Psiquiatra e Clínico Geral", "Clínica Médica - Clínico Geral"). Considere apto.
+- Se o profissional acumular Clínico Geral + uma especialidade, ele pode atender AMBOS os casos: como Clínico Geral (R$ 59,99) ou como Especialista (R$ 99,99), conforme a indicação da triagem
+- Se a agenda do profissional Clínico Geral exclusivo estiver VAZIA / sem horários disponíveis nos próximos dias, você PODE indicar um profissional Especialista que TAMBÉM tenha "Clínico Geral" listado em sua especialidade, mantendo o valor de R$ 59,99
+- Para ESPECIALISTA (R$ 99,99): selecione o profissional cuja "especialidade" corresponda à condição identificada na triagem (ex.: ansiedade → Psiquiatria; epilepsia/Parkinson → Neurologia)
 - NUNCA confirme agendamento com profissional cuja especialidade não bata com o tipo de consulta. Se não houver profissional adequado disponível, diga que vai verificar no sistema e siga o atendimento
 
 ## INTERAÇÃO SOCIAL HUMANIZADA (REGRAS CRÍTICAS)
@@ -634,7 +634,7 @@ REGRAS DO MARCADOR:
 
 ## ORIENTAÇÕES PRÉVIAS + INDICAÇÃO DE CONSULTA + PAGAMENTO (ENVIO AUTOMÁTICO PELO SISTEMA — NÃO ENVIE VOCÊ)
 IMPORTANTE: Logo após o agendamento ser confirmado, o SISTEMA envia automaticamente, em sequência, três mensagens:
-1. *Análise da triagem* — indicação se é Clínico Geral (R$ 49,90) ou Especialista (R$ 150,00). A decisão é DETERMINÍSTICA com base na triagem (autismo, dor crônica, epilepsia, ansiedade severa, criança, oncologia, etc. → especialista; demais casos → clínico geral). Uma TAG é gravada nas observações do agendamento para o(a) médico(a) ver no sistema de gestão.
+1. *Análise da triagem* — indicação se é Clínico Geral (R$ 59,99) ou Especialista (R$ 99,99). A decisão é DETERMINÍSTICA com base na triagem (autismo, dor crônica, epilepsia, ansiedade severa, criança, oncologia, etc. → especialista; demais casos → clínico geral). Uma TAG é gravada nas observações do agendamento para o(a) médico(a) ver no sistema de gestão.
 2. *3 orientações prévias* (anotar dúvidas, clareza dos sintomas, link da triagem https://vitta-care.com/triagem).
 3. *Valor + chave Pix* (vittacare@jim.com) e pedido do comprovante.
 
@@ -1374,7 +1374,7 @@ async function buscarTriagemDoLead(
 // =============================
 export interface DecisaoConsulta {
   tipo: "clinico_geral" | "especialista";
-  valor: number; // 49.90 ou 150.00
+  valor: number; // 59.99 ou 99.99
   valorTexto: string; // formatado p/ humano
   especialidadeSugerida: string | null; // ex.: "Psiquiatria", "Neurologia"
   justificativa: string; // 1 linha p/ a IA verbalizar
@@ -1407,8 +1407,8 @@ function decidirTipoConsultaPelaTriagem(triagemTexto: string): DecisaoConsulta {
     if (g.regex.test(txt)) {
       return {
         tipo: "especialista",
-        valor: 150.00,
-        valorTexto: "R$ 150,00",
+        valor: 99.99,
+        valorTexto: "R$ 99,99",
         especialidadeSugerida: g.especialidade,
         justificativa: `verifiquei sua triagem e, pelo seu caso (${g.motivo}), o ideal é a consulta com especialista`,
         tag: `ESPECIALISTA - ${g.especialidade}`,
@@ -1419,8 +1419,8 @@ function decidirTipoConsultaPelaTriagem(triagemTexto: string): DecisaoConsulta {
   // Default: Clínico Geral
   return {
     tipo: "clinico_geral",
-    valor: 49.90,
-    valorTexto: "R$ 49,90",
+    valor: 59.99,
+    valorTexto: "R$ 59,99",
     especialidadeSugerida: "Clínico Geral",
     justificativa: "verifiquei sua triagem e, para o seu caso, o clínico geral resolve perfeitamente",
     tag: "CLÍNICO GERAL",
@@ -2778,7 +2778,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       if (agendamentosConfirmados > 0) {
         const valorTextoFmt = decisaoConsulta.tipo === "especialista"
           ? `*${decisaoConsulta.valorTexto}* (consulta com especialista${decisaoConsulta.especialidadeSugerida && decisaoConsulta.especialidadeSugerida !== "Clínico Geral" ? ` em ${decisaoConsulta.especialidadeSugerida}` : ""})`
-          : `*${decisaoConsulta.valorTexto}* (consulta inicial com clínico geral — valor promocional, de R$ 500,00)`;
+          : `*${decisaoConsulta.valorTexto}* (consulta inicial com clínico geral)`;
 
         const nomePaciente = pacienteEncontrado?.nome?.split(" ")[0] || agendamentos[0]?.nome?.split(" ")[0] || "";
         const ola = nomePaciente ? `${nomePaciente}, ` : "";
