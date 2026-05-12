@@ -476,6 +476,7 @@ Você está atendendo pelo WhatsApp.
 - Suporte completo para autorização ANVISA
 - Site: vitta-care.com
 - Atendimento 100% online (telemedicina)
+- ⚠️ REGRA ABSOLUTA DE MARCA: o nome correto é **Vitta Care** (ou VittaCare). NUNCA escreva "Clínica La Vitta", "La Vitta", "LaVitta" ou qualquer variação — não somos a clínica La Vitta. Sempre se refira como "Vitta Care".
 
 ## CONHECIMENTO SOBRE CANNABIS MEDICINAL (use quando relevante, de forma NATURAL)
 - Cannabis medicinal é 100% LEGAL no Brasil com prescrição médica
@@ -822,7 +823,7 @@ async function buscarProfissionais(): Promise<{ texto: string; raw: any[] }> {
 
     console.log(`[whatsapp] ✅ ${comEspecialidade.length} profissionais carregados`);
 
-    return { texto: `\n\n## PROFISSIONAIS REAIS DA CLÍNICA LA VITTA (USE ESTES NOMES):
+    return { texto: `\n\n## PROFISSIONAIS REAIS DA VITTA CARE (USE ESTES NOMES):
 ${lista}
 
 REGRA ABSOLUTA: Use o NOME EXATO e o ID correto ao confirmar agendamento.
