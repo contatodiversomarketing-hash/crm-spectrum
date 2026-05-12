@@ -822,7 +822,7 @@ async function buscarProfissionais(): Promise<{ texto: string; raw: any[] }> {
 
     console.log(`[whatsapp] ✅ ${comEspecialidade.length} profissionais carregados`);
 
-    return { texto: `\n\n## PROFISSIONAIS REAIS DA CLÍNICA LA VITTA (USE ESTES NOMES):
+    return { texto: `\n\n## PROFISSIONAIS REAIS DA VITTA CARE (USE ESTES NOMES):
 ${lista}
 
 REGRA ABSOLUTA: Use o NOME EXATO e o ID correto ao confirmar agendamento.
