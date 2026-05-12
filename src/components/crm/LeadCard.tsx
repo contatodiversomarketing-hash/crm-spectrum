@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { PipelineColumn } from "@/hooks/usePipelineColumns";
-import { Phone, Mail, MapPin, Calendar, FileText, Eye, Pencil, StickyNote } from "lucide-react";
+import { Phone, Mail, MapPin, Calendar, FileText, Eye, Pencil, StickyNote, BellRing, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -27,6 +27,17 @@ export interface Lead {
   cidade?: string | null;
   estado?: string | null;
   pipeline_id?: string | null;
+  followup_etapa?: number | null;
+  followup_ultimo_envio?: string | null;
+  followup_finalizado?: boolean | null;
+}
+
+const ETAPA_LABEL: Record<number, { texto: string; tom: string }> = {
+  0: { texto: "Aguardando D+1", tom: "bg-muted text-muted-foreground" },
+  1: { texto: "1º follow-up enviado (D+1)", tom: "bg-blue-500/15 text-blue-700 dark:text-blue-300" },
+  3: { texto: "2º follow-up enviado (D+3)", tom: "bg-amber-500/15 text-amber-700 dark:text-amber-300" },
+  7: { texto: "3º follow-up — desconto R$10 (D+7)", tom: "bg-orange-500/15 text-orange-700 dark:text-orange-300" },
+  15: { texto: "Último follow-up — desconto R$15 (D+15)", tom: "bg-rose-500/15 text-rose-700 dark:text-rose-300" },
 }
 
 // Pipeline columns are now dynamic - loaded from DB via usePipelineColumns hook
@@ -119,6 +130,32 @@ export function LeadCard({ lead, onRefresh, columns = [] }: { lead: Lead; onRefr
               <StickyNote className="h-3 w-3 shrink-0 mt-0.5 text-primary" />
               <p className="text-muted-foreground line-clamp-3 italic">{lead.observacoes}</p>
             </div>
+          </div>
+        )}
+
+        {/* Follow-up SofIA */}
+        {(lead.followup_etapa !== undefined && lead.followup_etapa !== null) && (
+          <div className="mt-2 pt-2 border-t border-border">
+            {lead.followup_finalizado ? (
+              <div className="flex items-center gap-1.5 text-[10px]">
+                <CheckCircle2 className="h-3 w-3 text-green-600 dark:text-green-400" />
+                <span className="text-green-700 dark:text-green-400 font-medium">
+                  Régua finalizada {(lead.followup_etapa ?? 0) >= 15 ? "(15 dias)" : "(respondeu)"}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-[10px]">
+                <BellRing className="h-3 w-3 text-primary" />
+                <span className={`px-1.5 py-0.5 rounded ${ETAPA_LABEL[lead.followup_etapa ?? 0]?.tom || "bg-muted text-muted-foreground"}`}>
+                  {ETAPA_LABEL[lead.followup_etapa ?? 0]?.texto || "—"}
+                </span>
+                {lead.followup_ultimo_envio && (
+                  <span className="text-muted-foreground">
+                    {new Date(lead.followup_ultimo_envio).toLocaleDateString("pt-BR")}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         )}
 
