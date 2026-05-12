@@ -538,6 +538,9 @@ export type Database = {
           data_nascimento: string | null
           email: string | null
           estado: string | null
+          followup_etapa: number
+          followup_finalizado: boolean
+          followup_ultimo_envio: string | null
           id: string
           logradouro: string | null
           medico_preferido: string | null
@@ -562,6 +565,9 @@ export type Database = {
           data_nascimento?: string | null
           email?: string | null
           estado?: string | null
+          followup_etapa?: number
+          followup_finalizado?: boolean
+          followup_ultimo_envio?: string | null
           id?: string
           logradouro?: string | null
           medico_preferido?: string | null
@@ -586,6 +592,9 @@ export type Database = {
           data_nascimento?: string | null
           email?: string | null
           estado?: string | null
+          followup_etapa?: number
+          followup_finalizado?: boolean
+          followup_ultimo_envio?: string | null
           id?: string
           logradouro?: string | null
           medico_preferido?: string | null
