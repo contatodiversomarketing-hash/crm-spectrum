@@ -133,6 +133,32 @@ export function LeadCard({ lead, onRefresh, columns = [] }: { lead: Lead; onRefr
           </div>
         )}
 
+        {/* Follow-up SofIA */}
+        {(lead.followup_etapa !== undefined && lead.followup_etapa !== null) && (
+          <div className="mt-2 pt-2 border-t border-border">
+            {lead.followup_finalizado ? (
+              <div className="flex items-center gap-1.5 text-[10px]">
+                <CheckCircle2 className="h-3 w-3 text-green-600 dark:text-green-400" />
+                <span className="text-green-700 dark:text-green-400 font-medium">
+                  Régua finalizada {(lead.followup_etapa ?? 0) >= 15 ? "(15 dias)" : "(respondeu)"}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-[10px]">
+                <BellRing className="h-3 w-3 text-primary" />
+                <span className={`px-1.5 py-0.5 rounded ${ETAPA_LABEL[lead.followup_etapa ?? 0]?.tom || "bg-muted text-muted-foreground"}`}>
+                  {ETAPA_LABEL[lead.followup_etapa ?? 0]?.texto || "—"}
+                </span>
+                {lead.followup_ultimo_envio && (
+                  <span className="text-muted-foreground">
+                    {new Date(lead.followup_ultimo_envio).toLocaleDateString("pt-BR")}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
           {lead.origem && (
             <Badge variant="outline" className="text-[10px] px-1.5 py-0">
