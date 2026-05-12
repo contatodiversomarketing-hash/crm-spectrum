@@ -27,6 +27,17 @@ export interface Lead {
   cidade?: string | null;
   estado?: string | null;
   pipeline_id?: string | null;
+  followup_etapa?: number | null;
+  followup_ultimo_envio?: string | null;
+  followup_finalizado?: boolean | null;
+}
+
+const ETAPA_LABEL: Record<number, { texto: string; tom: string }> = {
+  0: { texto: "Aguardando D+1", tom: "bg-muted text-muted-foreground" },
+  1: { texto: "1º follow-up enviado (D+1)", tom: "bg-blue-500/15 text-blue-700 dark:text-blue-300" },
+  3: { texto: "2º follow-up enviado (D+3)", tom: "bg-amber-500/15 text-amber-700 dark:text-amber-300" },
+  7: { texto: "3º follow-up — desconto R$10 (D+7)", tom: "bg-orange-500/15 text-orange-700 dark:text-orange-300" },
+  15: { texto: "Último follow-up — desconto R$15 (D+15)", tom: "bg-rose-500/15 text-rose-700 dark:text-rose-300" },
 }
 
 // Pipeline columns are now dynamic - loaded from DB via usePipelineColumns hook
