@@ -78,10 +78,13 @@ export default function CRMPage() {
           <h1 className="text-2xl font-bold text-foreground">CRM — Pipeline</h1>
           <p className="text-sm text-muted-foreground">Gerencie múltiplas pipelines de leads</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)} disabled={!activePipelineId}>
-          <Settings className="h-4 w-4 mr-1.5" />
-          Colunas
-        </Button>
+        <div className="flex items-center gap-2">
+          <NewLeadDialog pipelineId={activePipelineId} columns={columns} onCreated={fetchLeads} />
+          <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)} disabled={!activePipelineId}>
+            <Settings className="h-4 w-4 mr-1.5" />
+            Colunas
+          </Button>
+        </div>
       </div>
 
       {/* Pipeline tabs */}
