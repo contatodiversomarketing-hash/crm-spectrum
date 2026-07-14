@@ -31,6 +31,8 @@ export interface Lead {
   followup_etapa?: number | null;
   followup_ultimo_envio?: string | null;
   followup_finalizado?: boolean | null;
+  nome_filho?: string | null;
+  documentos?: any;
 }
 
 const ETAPA_LABEL: Record<number, { texto: string; tom: string }> = {
