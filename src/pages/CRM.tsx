@@ -9,6 +9,7 @@ import { ColumnSettingsDialog } from "@/components/crm/ColumnSettingsDialog";
 import { PipelineSelector } from "@/components/crm/PipelineSelector";
 import { usePipelineColumns } from "@/hooks/usePipelineColumns";
 import { usePipelines } from "@/hooks/usePipelines";
+import { NewLeadDialog } from "@/components/crm/NewLeadDialog";
 import type { Lead } from "@/components/crm/LeadCard";
 
 export default function CRMPage() {
