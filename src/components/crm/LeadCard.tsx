@@ -58,7 +58,9 @@ function formatEndereco(lead: Lead): string | null {
 
 export function LeadCard({ lead, onRefresh, columns = [] }: { lead: Lead; onRefresh: () => void; columns?: PipelineColumn[] }) {
   const [editOpen, setEditOpen] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const endereco = formatEndereco(lead);
+  const docCount = Array.isArray(lead.documentos) ? lead.documentos.length : 0;
 
   return (
     <>
