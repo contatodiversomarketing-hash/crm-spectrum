@@ -1,11 +1,12 @@
 import { useState } from "react";
 import type { PipelineColumn } from "@/hooks/usePipelineColumns";
-import { Phone, Mail, MapPin, Calendar, FileText, Eye, Pencil, StickyNote, BellRing, CheckCircle2 } from "lucide-react";
+import { Phone, Mail, MapPin, Calendar, FileText, Eye, Pencil, StickyNote, BellRing, CheckCircle2, Bell, Baby } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { LeadEditDialog } from "./LeadEditDialog";
+import { LeadAlertsDialog } from "./LeadAlertsDialog";
 
 export interface Lead {
   id: string;
@@ -30,6 +31,8 @@ export interface Lead {
   followup_etapa?: number | null;
   followup_ultimo_envio?: string | null;
   followup_finalizado?: boolean | null;
+  nome_filho?: string | null;
+  documentos?: any;
 }
 
 const ETAPA_LABEL: Record<number, { texto: string; tom: string }> = {
@@ -55,7 +58,9 @@ function formatEndereco(lead: Lead): string | null {
 
 export function LeadCard({ lead, onRefresh, columns = [] }: { lead: Lead; onRefresh: () => void; columns?: PipelineColumn[] }) {
   const [editOpen, setEditOpen] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const endereco = formatEndereco(lead);
+  const docCount = Array.isArray(lead.documentos) ? lead.documentos.length : 0;
 
   return (
     <>
@@ -65,6 +70,9 @@ export function LeadCard({ lead, onRefresh, columns = [] }: { lead: Lead; onRefr
             {lead.nome || "Sem nome"}
           </p>
           <div className="flex gap-0.5 shrink-0">
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setAlertsOpen(true)} title="Lembretes">
+              <Bell className="h-3.5 w-3.5" />
+            </Button>
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditOpen(true)}>
               <Pencil className="h-3.5 w-3.5" />
             </Button>
@@ -121,6 +129,18 @@ export function LeadCard({ lead, onRefresh, columns = [] }: { lead: Lead; onRefr
               <span className="line-clamp-2">{endereco}</span>
             </div>
           )}
+          {lead.nome_filho && (
+            <div className="flex items-center gap-1.5">
+              <Baby className="h-3 w-3 shrink-0" />
+              <span className="truncate">Filho: {lead.nome_filho}</span>
+            </div>
+          )}
+          {docCount > 0 && (
+            <div className="flex items-center gap-1.5">
+              <FileText className="h-3 w-3 shrink-0" />
+              <span>{docCount} documento{docCount > 1 ? "s" : ""}</span>
+            </div>
+          )}
         </div>
 
         {/* Observações */}
@@ -172,6 +192,7 @@ export function LeadCard({ lead, onRefresh, columns = [] }: { lead: Lead; onRefr
       </div>
 
       <LeadEditDialog lead={lead} open={editOpen} onOpenChange={setEditOpen} onSaved={onRefresh} columns={columns} />
+      <LeadAlertsDialog leadId={lead.id} leadName={lead.nome || "Sem nome"} open={alertsOpen} onOpenChange={setAlertsOpen} />
     </>
   );
 }
