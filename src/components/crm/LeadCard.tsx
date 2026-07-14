@@ -128,6 +128,7 @@ export function LeadCard({ lead, onRefresh, columns = [] }: { lead: Lead; onRefr
               <MapPin className="h-3 w-3 shrink-0 mt-0.5" />
               <span className="line-clamp-2">{endereco}</span>
             </div>
+          )}
           {lead.nome_filho && (
             <div className="flex items-center gap-1.5">
               <Baby className="h-3 w-3 shrink-0" />
