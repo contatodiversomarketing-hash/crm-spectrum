@@ -70,6 +70,9 @@ export function LeadCard({ lead, onRefresh, columns = [] }: { lead: Lead; onRefr
             {lead.nome || "Sem nome"}
           </p>
           <div className="flex gap-0.5 shrink-0">
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setAlertsOpen(true)} title="Lembretes">
+              <Bell className="h-3.5 w-3.5" />
+            </Button>
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditOpen(true)}>
               <Pencil className="h-3.5 w-3.5" />
             </Button>
