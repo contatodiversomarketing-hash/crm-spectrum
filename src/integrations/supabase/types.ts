@@ -526,6 +526,47 @@ export type Database = {
           },
         ]
       }
+      lead_alertas: {
+        Row: {
+          atualizado_em: string
+          concluido: boolean
+          criado_em: string
+          descricao: string | null
+          id: string
+          lead_id: string
+          lembrar_em: string
+          titulo: string
+        }
+        Insert: {
+          atualizado_em?: string
+          concluido?: boolean
+          criado_em?: string
+          descricao?: string | null
+          id?: string
+          lead_id: string
+          lembrar_em: string
+          titulo: string
+        }
+        Update: {
+          atualizado_em?: string
+          concluido?: boolean
+          criado_em?: string
+          descricao?: string | null
+          id?: string
+          lead_id?: string
+          lembrar_em?: string
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_alertas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           bairro: string | null
@@ -536,6 +577,7 @@ export type Database = {
           criado_em: string
           dados_triagem: Json | null
           data_nascimento: string | null
+          documentos: Json
           email: string | null
           estado: string | null
           followup_etapa: number
@@ -545,6 +587,7 @@ export type Database = {
           logradouro: string | null
           medico_preferido: string | null
           nome: string | null
+          nome_filho: string | null
           numero: string | null
           observacoes: string | null
           origem: string | null
@@ -563,6 +606,7 @@ export type Database = {
           criado_em?: string
           dados_triagem?: Json | null
           data_nascimento?: string | null
+          documentos?: Json
           email?: string | null
           estado?: string | null
           followup_etapa?: number
@@ -572,6 +616,7 @@ export type Database = {
           logradouro?: string | null
           medico_preferido?: string | null
           nome?: string | null
+          nome_filho?: string | null
           numero?: string | null
           observacoes?: string | null
           origem?: string | null
@@ -590,6 +635,7 @@ export type Database = {
           criado_em?: string
           dados_triagem?: Json | null
           data_nascimento?: string | null
+          documentos?: Json
           email?: string | null
           estado?: string | null
           followup_etapa?: number
@@ -599,6 +645,7 @@ export type Database = {
           logradouro?: string | null
           medico_preferido?: string | null
           nome?: string | null
+          nome_filho?: string | null
           numero?: string | null
           observacoes?: string | null
           origem?: string | null
