@@ -192,6 +192,7 @@ export function LeadCard({ lead, onRefresh, columns = [] }: { lead: Lead; onRefr
       </div>
 
       <LeadEditDialog lead={lead} open={editOpen} onOpenChange={setEditOpen} onSaved={onRefresh} columns={columns} />
+      <LeadAlertsDialog leadId={lead.id} leadName={lead.nome || "Sem nome"} open={alertsOpen} onOpenChange={setAlertsOpen} />
     </>
   );
 }
