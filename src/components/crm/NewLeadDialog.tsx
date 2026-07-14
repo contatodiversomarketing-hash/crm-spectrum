@@ -79,7 +79,7 @@ export function NewLeadDialog({ pipelineId, columns, onCreated }: Props) {
     setSaving(true);
     const { data: lead, error } = await supabase
       .from("leads")
-      .insert({
+      .insert([{
         nome: form.nome || null,
         telefone: form.telefone || null,
         email: form.email || null,
@@ -89,9 +89,9 @@ export function NewLeadDialog({ pipelineId, columns, onCreated }: Props) {
         pipeline_id: pipelineId,
         origem: "manual",
         status: "novo",
-        documentos: docs,
+        documentos: docs as any,
         ultima_interacao: new Date().toISOString(),
-      })
+      }])
       .select("id")
       .single();
 
