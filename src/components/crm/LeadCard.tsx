@@ -76,25 +76,74 @@ export function LeadCard({ lead, onRefresh, columns = [] }: { lead: Lead; onRefr
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditOpen(true)}>
               <Pencil className="h-3.5 w-3.5" />
             </Button>
-            {lead.dados_triagem && (
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-6 w-6">
-                    <Eye className="h-3.5 w-3.5" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-lg">
-                  <DialogHeader>
-                    <DialogTitle>Triagem — {lead.nome || "Sem nome"}</DialogTitle>
-                  </DialogHeader>
-                  <ScrollArea className="max-h-[400px]">
-                    <pre className="text-xs bg-muted p-3 rounded-lg whitespace-pre-wrap">
-                      {JSON.stringify(lead.dados_triagem, null, 2)}
-                    </pre>
-                  </ScrollArea>
-                </DialogContent>
-              </Dialog>
-            )}
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6" title="Visualizar">
+                  <Eye className="h-3.5 w-3.5" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Detalhes — {lead.nome || "Sem nome"}</DialogTitle>
+                </DialogHeader>
+                <ScrollArea className="max-h-[400px]">
+                  <div className="space-y-3 text-sm p-1">
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        ["Telefone", lead.telefone],
+                        ["Email", lead.email],
+                        ["CPF", lead.cpf],
+                        ["Nascimento", lead.data_nascimento],
+                        ["Filho", lead.nome_filho],
+                        ["Origem", lead.origem],
+                        ["Status", lead.status_pipeline],
+                        ["Endereço", endereco],
+                      ]
+                        .filter(([, v]) => !!v)
+                        .map(([k, v]) => (
+                          <div key={k as string}>
+                            <p className="text-xs text-muted-foreground">{k}</p>
+                            <p className="font-medium break-words">{v as string}</p>
+                          </div>
+                        ))}
+                    </div>
+                    {lead.observacoes && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Observações</p>
+                        <p className="whitespace-pre-wrap">{lead.observacoes}</p>
+                      </div>
+                    )}
+                    {docCount > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Documentos</p>
+                        <ul className="space-y-1">
+                          {lead.documentos.map((d: any, i: number) => (
+                            <li key={i} className="truncate">
+                              {d?.url ? (
+                                <a href={d.url} target="_blank" rel="noreferrer" className="text-primary underline">
+                                  {d.nome || `Documento ${i + 1}`}
+                                </a>
+                              ) : (
+                                d?.nome || `Documento ${i + 1}`
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {lead.dados_triagem && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Triagem</p>
+                        <pre className="text-xs bg-muted p-3 rounded-lg whitespace-pre-wrap">
+                          {JSON.stringify(lead.dados_triagem, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </DialogContent>
+            </Dialog>
+
           </div>
         </div>
 
