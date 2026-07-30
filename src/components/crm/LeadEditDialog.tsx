@@ -127,13 +127,26 @@ export function LeadEditDialog({ lead, open, onOpenChange, onSaved, columns }: L
         </DialogHeader>
         <ScrollArea className="max-h-[70vh]">
           <div className="space-y-4 p-1">
+            {/* Pipeline */}
+            <div className="space-y-1.5">
+              <Label>Pipeline</Label>
+              <Select value={pipelineId || ""} onValueChange={handlePipelineChange}>
+                <SelectTrigger><SelectValue placeholder="Selecione o pipeline" /></SelectTrigger>
+                <SelectContent>
+                  {pipelines.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Status */}
             <div className="space-y-1.5">
               <Label>Status no Pipeline</Label>
               <Select value={form.status_pipeline} onValueChange={(v) => set("status_pipeline", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {columns.map((c) => (
+                  {availableColumns.map((c) => (
                     <SelectItem key={c.chave} value={c.chave}>{c.nome}</SelectItem>
                   ))}
                 </SelectContent>
@@ -162,7 +175,12 @@ export function LeadEditDialog({ lead, open, onOpenChange, onSaved, columns }: L
                 <Label>Data de Nascimento</Label>
                 <Input type="date" value={form.data_nascimento} onChange={(e) => set("data_nascimento", e.target.value)} />
               </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label>Nome do Filho (se houver)</Label>
+                <Input value={form.nome_filho} onChange={(e) => set("nome_filho", e.target.value)} />
+              </div>
             </div>
+
 
             {/* Endereço */}
             <div className="grid grid-cols-2 gap-3">
