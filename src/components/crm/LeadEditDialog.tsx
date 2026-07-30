@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
 import type { Lead } from "./LeadCard";
-import type { PipelineColumn } from "@/hooks/usePipelineColumns";
+import { usePipelines } from "@/hooks/usePipelines";
+import { usePipelineColumns, type PipelineColumn } from "@/hooks/usePipelineColumns";
 
 interface LeadEditDialogProps {
   lead: Lead;
@@ -21,11 +22,18 @@ interface LeadEditDialogProps {
 
 export function LeadEditDialog({ lead, open, onOpenChange, onSaved, columns }: LeadEditDialogProps) {
   const [saving, setSaving] = useState(false);
+  const [pipelineId, setPipelineId] = useState<string | null>(lead.pipeline_id || null);
+  const { pipelines } = usePipelines();
+  const { columns: pipelineColumns } = usePipelineColumns(pipelineId);
+
+  const availableColumns = pipelineColumns.length > 0 ? pipelineColumns : columns;
+
   const [form, setForm] = useState({
     nome: lead.nome || "",
     telefone: lead.telefone || "",
     email: lead.email || "",
     cpf: lead.cpf || "",
+    nome_filho: lead.nome_filho || "",
     data_nascimento: lead.data_nascimento || "",
     cep: lead.cep || "",
     logradouro: lead.logradouro || "",
@@ -40,6 +48,42 @@ export function LeadEditDialog({ lead, open, onOpenChange, onSaved, columns }: L
 
   const set = (field: string, value: string) => setForm((p) => ({ ...p, [field]: value }));
 
+  // Reset form when opening a different lead
+  useEffect(() => {
+    if (open) {
+      setPipelineId(lead.pipeline_id || null);
+      setForm({
+        nome: lead.nome || "",
+        telefone: lead.telefone || "",
+        email: lead.email || "",
+        cpf: lead.cpf || "",
+        nome_filho: lead.nome_filho || "",
+        data_nascimento: lead.data_nascimento || "",
+        cep: lead.cep || "",
+        logradouro: lead.logradouro || "",
+        numero: lead.numero || "",
+        bairro: lead.bairro || "",
+        cidade: lead.cidade || "",
+        estado: lead.estado || "",
+        origem: lead.origem || "",
+        observacoes: lead.observacoes || "",
+        status_pipeline: lead.status_pipeline || "novo",
+      });
+    }
+  }, [open, lead]);
+
+  // When switching pipeline, snap status to a valid column of that pipeline
+  const handlePipelineChange = (newId: string) => {
+    setPipelineId(newId);
+  };
+
+  useEffect(() => {
+    if (pipelineColumns.length === 0) return;
+    if (!pipelineColumns.some((c) => c.chave === form.status_pipeline)) {
+      set("status_pipeline", pipelineColumns[0].chave);
+    }
+  }, [pipelineColumns]);
+
   const handleSave = async () => {
     setSaving(true);
     const { error } = await supabase
@@ -49,6 +93,7 @@ export function LeadEditDialog({ lead, open, onOpenChange, onSaved, columns }: L
         telefone: form.telefone || null,
         email: form.email || null,
         cpf: form.cpf || null,
+        nome_filho: form.nome_filho || null,
         data_nascimento: form.data_nascimento || null,
         cep: form.cep || null,
         logradouro: form.logradouro || null,
@@ -59,6 +104,7 @@ export function LeadEditDialog({ lead, open, onOpenChange, onSaved, columns }: L
         origem: form.origem || null,
         observacoes: form.observacoes || null,
         status_pipeline: form.status_pipeline,
+        pipeline_id: pipelineId,
       })
       .eq("id", lead.id);
 
@@ -71,6 +117,7 @@ export function LeadEditDialog({ lead, open, onOpenChange, onSaved, columns }: L
       onOpenChange(false);
     }
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
