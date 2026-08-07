@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { PipelineColumn } from "@/hooks/usePipelineColumns";
-import { Phone, Mail, MapPin, Calendar, FileText, Eye, Pencil, StickyNote, BellRing, CheckCircle2, Bell, Baby } from "lucide-react";
+import { Phone, Mail, MapPin, Calendar, FileText, Eye, Pencil, StickyNote, BellRing, CheckCircle2, Bell, Baby, GripVertical, MoveRight } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -56,7 +57,17 @@ function formatEndereco(lead: Lead): string | null {
   return parts.length > 0 ? parts.join(", ") : null;
 }
 
-export function LeadCard({ lead, onRefresh, columns = [] }: { lead: Lead; onRefresh: () => void; columns?: PipelineColumn[] }) {
+export function LeadCard({
+  lead,
+  onRefresh,
+  columns = [],
+  onMove,
+}: {
+  lead: Lead;
+  onRefresh: () => void;
+  columns?: PipelineColumn[];
+  onMove?: (leadId: string, chave: string) => void;
+}) {
   const [editOpen, setEditOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
   const endereco = formatEndereco(lead);
@@ -64,16 +75,40 @@ export function LeadCard({ lead, onRefresh, columns = [] }: { lead: Lead; onRefr
 
   return (
     <>
-      <div className="bg-card border border-border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
+      <div className="bg-card border border-border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing">
         <div className="flex items-start justify-between mb-2">
-          <p className="font-semibold text-sm text-foreground truncate flex-1">
-            {lead.nome || "Sem nome"}
-          </p>
+          <div className="flex items-start gap-1 flex-1 min-w-0">
+            <GripVertical className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground" />
+            <p className="font-semibold text-sm text-foreground truncate flex-1">
+              {lead.nome || "Sem nome"}
+            </p>
+          </div>
           <div className="flex gap-0.5 shrink-0">
+            {onMove && columns.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" title="Mover para coluna">
+                    <MoveRight className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {columns.map((c) => (
+                    <DropdownMenuItem
+                      key={c.id}
+                      disabled={c.chave === lead.status_pipeline}
+                      onClick={() => onMove(lead.id, c.chave)}
+                    >
+                      <span className={`w-2 h-2 rounded-full mr-2 ${c.cor}`} />
+                      {c.nome}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setAlertsOpen(true)} title="Lembretes">
               <Bell className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditOpen(true)}>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditOpen(true)} title="Editar">
               <Pencil className="h-3.5 w-3.5" />
             </Button>
             <Dialog>
