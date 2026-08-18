@@ -3,10 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface MetricasPainel {
   periodo: { inicio: string; fim: string };
+  atendente_nome: string;
   atendimentos: {
-    maria_ia: number;
-    rebeka: number;
-    maria_rita: number;
+    ana_ia: number;
+    lara: number;
     outros_humanos: number;
     sem_resposta: number;
     total: number;
@@ -17,7 +17,7 @@ export interface MetricasPainel {
     leads_existentes: number;
   };
   especialidades: Array<{ nome: string; total: number }>;
-  por_dia: Array<{ dia: string; maria_ia: number; rebeka: number; maria_rita: number; outros_humanos: number; total: number }>;
+  por_dia: Array<{ dia: string; ana_ia: number; lara: number; outros_humanos: number; total: number }>;
 }
 
 export function useMetricasPainel(dataInicio: string, dataFim: string) {
