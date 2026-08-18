@@ -165,6 +165,7 @@ export default function CRMPage() {
         onAdd={addColumn}
         onUpdate={updateColumn}
         onDelete={deleteColumn}
+        onReorder={reorderColumns}
       />
     </div>
   );
