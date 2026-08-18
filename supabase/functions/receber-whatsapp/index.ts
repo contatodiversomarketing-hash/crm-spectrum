@@ -2637,6 +2637,37 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       contextExtra += `\nID DO PACIENTE NO SISTEMA: ${pacienteEncontrado.id}`;
     }
 
+    // Triagem (quiz do site) do lead correspondente a este telefone
+    try {
+      const digitos = numero.replace(/\D/g, "");
+      const variacoes = Array.from(new Set([
+        numero,
+        digitos,
+        digitos.startsWith("55") ? digitos.slice(2) : `55${digitos}`,
+      ].filter(Boolean)));
+      const { data: leadTriagem } = await supabase
+        .from("leads")
+        .select("nome, nome_filho, dados_triagem, criado_em")
+        .in("telefone", variacoes)
+        .not("dados_triagem", "is", null)
+        .order("criado_em", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const interp = leadTriagem?.dados_triagem
+        ? (leadTriagem.dados_triagem.interpretacao || interpretarTriagem(leadTriagem.dados_triagem))
+        : null;
+      if (interp) {
+        contextExtra += `\n\n## TRIAGEM DESTE LEAD (quiz respondido no site — NUNCA cite pontuação ou "quiz" de forma técnica)\n${interp.resumo}`;
+        if (leadTriagem?.nome_filho) contextExtra += `\nNome da criança: ${leadTriagem.nome_filho}`;
+        if (leadTriagem?.dados_triagem?.idade) contextExtra += `\nIdade informada: ${leadTriagem.dados_triagem.idade}`;
+      }
+    } catch (e) {
+      console.error("[whatsapp] Erro ao carregar triagem do lead:", e);
+    }
+
+
+
     // Injetar treinamento do admin
     if (treinamentos.length > 0) {
       contextExtra += `\n\n## INSTRUÇÕES ADICIONAIS DO ADMINISTRADOR (SIGA TODAS COM PRIORIDADE MÁXIMA):\n`;
