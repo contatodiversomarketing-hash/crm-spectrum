@@ -12,9 +12,7 @@ const Index = () => {
   const navigate = useNavigate();
   const dados = useDadosIntegrados();
 
-  const allOnline = dados.systems.length > 0 && dados.systems.every(s => s.status === "online");
-  const anyDegraded = dados.systems.some(s => s.status === "degraded");
-  const systemStatus = allOnline ? "online" as const : anyDegraded ? "degraded" as const : dados.systems.length === 0 ? "offline" as const : "degraded" as const;
+  const systemStatus = dados.error ? ("degraded" as const) : ("online" as const);
 
   return (
     <div className="bg-background">
