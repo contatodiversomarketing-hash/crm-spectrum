@@ -34,15 +34,18 @@ async function gerarMensagemIA(lead: any, etapa: number): Promise<string | null>
   if (!key) return null;
 
   const triagem = lead.dados_triagem || {};
+  const interp = triagem.interpretacao || interpretarTriagem(triagem);
   const contexto = [
     `Nome: ${lead.nome || "desconhecido"}`,
     `Etapa do follow-up: ${etapa + 1} (quanto maior, mais tempo sem resposta)`,
     `Objetivo relatado: ${triagem.objetivo || "não informado"}`,
     `Público: ${triagem.publico || "não informado"}`,
     `Queixas: ${Array.isArray(triagem.queixas) ? triagem.queixas.join(", ") : "não informado"}`,
+    interp ? `Triagem (quiz do site): ${interp.resumo}` : null,
     `Etapa no CRM: ${lead.status_pipeline}`,
     `Observações: ${(lead.observacoes || "").slice(0, 400)}`,
-  ].join("\n");
+  ].filter(Boolean).join("\n");
+
 
   const prompt = `Você é Ana, consultora do consultório da Dra. Amélia Carvalho (neurodesenvolvimento: autismo, TDAH e cannabis medicinal). Escreva UMA mensagem de follow-up de WhatsApp para um lead que parou de responder.
 
