@@ -94,6 +94,17 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Janela humana de envio: seg-sáb, 09h-19h (horário de Brasília)
+  const agoraBR = new Date(Date.now() - 3 * 3600000);
+  const horaBR = agoraBR.getUTCHours();
+  const diaBR = agoraBR.getUTCDay();
+  const forcar = new URL(req.url).searchParams.get("forcar") === "1";
+  if (!forcar && (diaBR === 0 || horaBR < 9 || horaBR >= 19)) {
+    return new Response(JSON.stringify({ status: "fora_da_janela", hora_br: horaBR, dia_br: diaBR }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const relatorio = {
     avaliados: 0,
     enviados: 0,
