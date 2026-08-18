@@ -2,7 +2,7 @@ import { Brain, Eye, BarChart3, GraduationCap, LogOut, Users } from "lucide-reac
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import logo from "@/assets/vitta_care_logo.png";
+import logo from "@/assets/logo-amelia.png";
 
 import {
   Sidebar,
@@ -36,11 +36,11 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <img src={logo} alt="Vitta Care" className="h-8 w-8 rounded-md object-contain" />
+          <img src={logo} alt="Dra. Amélia Carvalho" className="h-8 w-8 rounded-md object-contain" />
           {!collapsed && (
             <div>
-              <p className="text-sm font-bold text-sidebar-primary-foreground">SofIA</p>
-              <p className="text-[10px] text-sidebar-foreground/60">Vitta Care</p>
+              <p className="text-sm font-bold text-sidebar-primary-foreground">Ana</p>
+              <p className="text-[10px] text-sidebar-foreground/60">Dra. Amélia Carvalho</p>
             </div>
           )}
         </div>

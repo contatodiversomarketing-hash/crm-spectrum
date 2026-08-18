@@ -237,7 +237,7 @@ export function LeadCard({
           </div>
         )}
 
-        {/* Follow-up SofIA */}
+        {/* Follow-up Ana */}
         {(lead.followup_etapa !== undefined && lead.followup_etapa !== null) && (
           <div className="mt-2 pt-2 border-t border-border">
             {lead.followup_finalizado ? (

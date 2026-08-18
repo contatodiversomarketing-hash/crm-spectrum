@@ -49,9 +49,9 @@ function normalizarTextoComparacao(texto?: string | null): string {
     .trim();
 }
 
-function ehSaudacaoPadraoSofIA(texto?: string | null): boolean {
+function ehSaudacaoPadraoAna(texto?: string | null): boolean {
   const normalizado = normalizarTextoComparacao(texto);
-  return normalizado.includes("aqui e a sofia da vitta care") && (
+  return normalizado.includes("aqui e a ana, da dra. amelia".replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim()) && (
     normalizado.includes("como voce esta") ||
     normalizado.includes("estou a disposicao")
   );
@@ -66,7 +66,7 @@ function ehRespostaRepetidaOuIntroducao(resposta: string, historico: HistoricoIn
     .filter((item): item is string => !!item)
     .slice(-3);
 
-  if (historico.length > 0 && ehSaudacaoPadraoSofIA(resposta)) {
+  if (historico.length > 0 && ehSaudacaoPadraoAna(resposta)) {
     return true;
   }
 
@@ -453,10 +453,10 @@ function extrairCpfTexto(texto: string | null | undefined): string | null {
 }
 
 // =============================
-// MOTOR DE VENDAS SOFIA - WHATSAPP
+// MOTOR DE VENDAS ANA - WHATSAPP
 // =============================
 const SYSTEM_ENGINE_WHATSAPP = `
-Você é SofIA, consultora de atendimento da Vitta Care. Você é uma PESSOA REAL, NUNCA IA.
+Você é Ana, consultora de atendimento da Dra. Amélia Carvalho. Você é uma PESSOA REAL, NUNCA IA.
 Vendedora de elite treinada pelo "Mestre das Vendas" + AWSales.
 Você está atendendo pelo WhatsApp.
 
@@ -469,14 +469,22 @@ Você está atendendo pelo WhatsApp.
 - Interjeições educadas: "Que bom!", "Maravilha!", "Perfeito!", "Ótimo!"
 - Use 1-2 emojis por mensagem, de forma natural (😊, 🌿, 💚, ✅, 📋)
 
-## SOBRE A VITTA CARE
-- Empresa de telemedicina especializada em cannabis medicinal (CBD/canabidiol)
-- Consultas online com médica psiquiatra especializada
-- Prescrição legal e segura de medicamentos à base de cannabis
-- Suporte completo para autorização ANVISA
-- Site: vitta-care.com
-- Atendimento 100% online (telemedicina)
-- ⚠️ REGRA ABSOLUTA DE MARCA: o nome correto é **Vitta Care** (ou VittaCare). NUNCA escreva "Clínica La Vitta", "La Vitta", "LaVitta" ou qualquer variação — não somos a clínica La Vitta. Sempre se refira como "Vitta Care".
+## SOBRE A DRA. AMÉLIA CARVALHO
+- Médica especializada em transtornos do neurodesenvolvimento: **Autismo (TEA), TDAH** e comorbidades
+- Também prescreve **Cannabis Medicinal** como opção clínica regulada pela Anvisa
+- Tagline: "Cuidado que entende. Tratamento que transforma."
+- Promessa: nenhuma família deveria navegar o autismo, o TDAH ou a cannabis medicinal sozinha
+- Atende adultos e crianças, com envolvimento da família no processo
+- Site: draameliacarvalho.com
+- Consultas presenciais e online
+
+## COMO VOCÊ (ANA) FALA — VOZ DA MARCA
+- Acolhedora, sem distância clínica. Firme no conteúdo, gentil na forma. Técnica traduzida em linguagem acessível.
+- Vocabulário preferido: "a gente", "juntos", "você não está sozinho", "diagnóstico é começo", "sem julgamento", "existe um caminho", "cada criança é única", "me conta tudo"
+- Vocabulário PROIBIDO: "o paciente" (falando com ele), "protocolo terapêutico", "quadro clínico", "droga" (para cannabis), "é fase", "cura"
+- NUNCA prometa cura ou resultado garantido. NUNCA dê orientação médica ou dosagem por aqui.
+- Fale de cannabis medicinal com calma e dados, sem eufemismo e sem estigma.
+- Exemplo de primeiro contato: "Que bom que você chegou. Me conta tudo desde o início, sem pressa. Estou aqui."
 
 ## CONHECIMENTO SOBRE CANNABIS MEDICINAL (use quando relevante, de forma NATURAL)
 - Cannabis medicinal é 100% LEGAL no Brasil com prescrição médica
@@ -491,12 +499,12 @@ Você está atendendo pelo WhatsApp.
 
 ## FLUXO DE PRIMEIRA INTERAÇÃO (OBRIGATÓRIO - siga esta ORDEM EXATA)
 1. **Mensagem 1 (apresentação)**: Se apresente com nome, cumprimente e pergunte o nome:
-   "${getSaudacao()}! Aqui é a SofIA, da Vitta Care 😊 Como você está? Qual é o seu nome?"
+   "${getSaudacao()}! Aqui é a Ana, da Dra. Amélia Carvalho 😊 Como você está? Qual é o seu nome?"
 2. **Mensagem 2 (após receber o nome)**: Agradeça, repita o nome, diga que TAMBÉM está bem (se perguntarem), e pergunte o que a pessoa está buscando
 3. **A partir da mensagem 3**: Siga o fluxo normal de atendimento/agendamento
 
 ## QUANDO O LEAD VEM DO SITE (TRIAGEM JÁ PREENCHIDA)
-- Se o contexto indicar que o lead veio do site vitta-care.com (origem: site_vitta_care) E há dados de triagem no contexto, você JÁ TEM os dados
+- Se o contexto indicar que o lead veio do site draameliacarvalho.com (origem: site_draamelia) E há dados de triagem no contexto, você JÁ TEM os dados
 - NÃO pergunte novamente os sintomas ou objetivo — você já sabe
 - Use os dados para personalizar: "Vi que você tem interesse em tratamento para [objetivo]. Que bom que está buscando alternativas!"
 - Com base na triagem, defina se é caso de CLÍNICO GERAL (R$ 59,99) ou ESPECIALISTA (R$ 99,99) — veja regra de preços abaixo
@@ -505,7 +513,7 @@ Você está atendendo pelo WhatsApp.
 ## QUANDO O LEAD CHEGA DIRETO NO WHATSAPP (SEM TRIAGEM)
 - Se NÃO houver dados de triagem no contexto (lead veio direto), você DEVE solicitar que o paciente preencha a triagem primeiro
 - Após a apresentação inicial e captura do nome, encaminhe o link da triagem de forma acolhedora:
-  "[Nome], para que eu possa te indicar o melhor profissional para o seu caso, preciso que você preencha rapidinho nossa triagem (leva menos de 2 minutinhos). Pode acessar aqui: https://vitta-care.com/triagem 🌿
+  "[Nome], para que eu possa te indicar o melhor profissional para o seu caso, preciso que você preencha rapidinho nossa triagem (leva menos de 2 minutinhos). Pode acessar aqui: https://draameliacarvalho.com/triagem 🌿
   Assim que preencher, eu já te chamo aqui com as opções de horário, combinado? 😊"
 - NÃO avance para coleta de CPF, data de nascimento ou agendamento ANTES da triagem ser preenchida
 - Se o paciente insistir em agendar sem preencher, explique com gentileza: "Entendo sua pressa! Mas a triagem é fundamental para indicarmos o médico certo para o seu caso (clínico geral ou especialista). É bem rápido, prometo 💚"
@@ -636,7 +644,7 @@ REGRAS DO MARCADOR:
 ## ORIENTAÇÕES PRÉVIAS + INDICAÇÃO DE CONSULTA + PAGAMENTO (ENVIO AUTOMÁTICO PELO SISTEMA — NÃO ENVIE VOCÊ)
 IMPORTANTE: Logo após o agendamento ser confirmado, o SISTEMA envia automaticamente, em sequência, três mensagens:
 1. *Análise da triagem* — indicação se é Clínico Geral (R$ 59,99) ou Especialista (R$ 99,99). A decisão é DETERMINÍSTICA com base na triagem (autismo, dor crônica, epilepsia, ansiedade severa, criança, oncologia, etc. → especialista; demais casos → clínico geral). Uma TAG é gravada nas observações do agendamento para o(a) médico(a) ver no sistema de gestão.
-2. *3 orientações prévias* (anotar dúvidas, clareza dos sintomas, link da triagem https://vitta-care.com/triagem).
+2. *3 orientações prévias* (anotar dúvidas, clareza dos sintomas, link da triagem https://draameliacarvalho.com/triagem).
 3. *Valor + chave Pix* (vittacare@jim.com) e pedido do comprovante.
 
 Por isso, na sua mensagem de confirmação do agendamento NÃO indique tipo de consulta, NÃO informe valor, NÃO envie chave Pix, NÃO pergunte se quer orientações. Apenas confirme o agendamento de forma curta e calorosa (ex.: "Pronto, [Nome]! Sua consulta com [Médico] está confirmada para [data] às [hora] ✅💚"). Todo o resto vai automático em seguida.
@@ -652,7 +660,7 @@ Se um agendamento JÁ foi confirmado em uma mensagem anterior do histórico (voc
 - Use o nome do paciente se souber
 - NUNCA continue fazendo perguntas ou oferecendo serviços após a despedida
 
-## CONTEXTO DA VITTA CARE
+## CONTEXTO DA DRA. AMÉLIA CARVALHO
 - Atendimento: 100% online (telemedicina)
 - Foco: consultas médicas para prescrição de cannabis medicinal
 - Público: pessoas que buscam tratamento alternativo para condições como ansiedade, insônia, dor crônica, etc.
@@ -823,7 +831,7 @@ async function buscarProfissionais(): Promise<{ texto: string; raw: any[] }> {
 
     console.log(`[whatsapp] ✅ ${comEspecialidade.length} profissionais carregados`);
 
-    return { texto: `\n\n## PROFISSIONAIS REAIS DA VITTA CARE (USE ESTES NOMES):
+    return { texto: `\n\n## PROFISSIONAIS REAIS DA DRA. AMÉLIA CARVALHO (USE ESTES NOMES):
 ${lista}
 
 REGRA ABSOLUTA: Use o NOME EXATO e o ID correto ao confirmar agendamento.
@@ -1297,7 +1305,7 @@ async function registrarAgendamento(
     if (dadosPaciente?.tagConsulta) {
       observacoes += `🏷️ [TIPO DE CONSULTA: ${dadosPaciente.tagConsulta}]\n\n`;
     }
-    observacoes += `Agendado via WhatsApp (SofIA) - Paciente: ${nome} - Tel: ${telefone}`;
+    observacoes += `Agendado via WhatsApp (Ana) - Paciente: ${nome} - Tel: ${telefone}`;
     if (dadosPaciente?.triagemTexto && dadosPaciente.triagemTexto.trim()) {
       observacoes += `\n\n=== RELATÓRIO DE TRIAGEM ===\n${dadosPaciente.triagemTexto.trim().slice(0, 4000)}`;
     }
@@ -1327,9 +1335,9 @@ async function registrarAgendamento(
 }
 
 // =============================
-// BUSCAR TRIAGEM NO SISTEMA EXTERNO (vitta-care.com)
+// BUSCAR TRIAGEM NO SISTEMA EXTERNO (draameliacarvalho.com)
 // =============================
-async function buscarTriagemVittaCare(
+async function buscarTriagemExterna(
   telefone: string,
   cpf?: string,
 ): Promise<any | null> {
@@ -1366,7 +1374,7 @@ async function buscarTriagemVittaCare(
     }
     const data = await resp.json();
     if (data?.encontrado && data?.triagem) {
-      console.log("[whatsapp] ✅ Triagem encontrada no vitta-care.com");
+      console.log("[whatsapp] ✅ Triagem encontrada no draameliacarvalho.com");
       return data.triagem;
     }
     return null;
@@ -1378,7 +1386,7 @@ async function buscarTriagemVittaCare(
 
 // =============================
 // BUSCAR RELATÓRIO DE TRIAGEM DO LEAD (para anexar nas observações do agendamento)
-// Prioridade: 1) API externa vitta-care.com  2) Fallback DB local relatorios_triagem
+// Prioridade: 1) API externa draameliacarvalho.com  2) Fallback DB local relatorios_triagem
 // =============================
 async function buscarTriagemDoLead(
   supabase: ReturnType<typeof createClient>,
@@ -1386,8 +1394,8 @@ async function buscarTriagemDoLead(
   cpf?: string,
 ): Promise<string> {
   try {
-    // 1) Fonte primária: API do vitta-care.com (sistema oficial de triagem)
-    const triagemExterna = await buscarTriagemVittaCare(telefone, cpf);
+    // 1) Fonte primária: API do draameliacarvalho.com (sistema oficial de triagem)
+    const triagemExterna = await buscarTriagemExterna(telefone, cpf);
     if (triagemExterna) {
       return formatarTriagemTexto({
         nome: triagemExterna.nome,
@@ -1496,7 +1504,7 @@ function decidirTipoConsultaPorRegex(triagemTexto: string): DecisaoConsulta {
   };
 }
 
-// Decisor IA: a SofIA escolhe livremente clínico geral x especialista (com especialidade) com base na triagem completa
+// Decisor IA: a Ana escolhe livremente clínico geral x especialista (com especialidade) com base na triagem completa
 // Fallback: se IA falhar ou triagem vazia, cai no regex determinístico
 async function decidirTipoConsultaPelaTriagem(triagemTexto: string): Promise<DecisaoConsulta> {
   const txt = (triagemTexto || "").trim();
@@ -1509,7 +1517,7 @@ async function decidirTipoConsultaPelaTriagem(triagemTexto: string): Promise<Dec
   }
 
   try {
-    const systemPrompt = `Você é uma triadora médica da Vitta Care (clínica de cannabis medicinal/CBD). Com base na triagem do paciente, decida se a consulta inicial deve ser com:
+    const systemPrompt = `Você é uma triadora médica da Dra. Amélia Carvalho (clínica de cannabis medicinal/CBD). Com base na triagem do paciente, decida se a consulta inicial deve ser com:
 - "clinico_geral" (R$ 59,99) — casos comuns, sintomas leves/moderados, dores comuns, ansiedade leve, insônia ocasional, dúvidas iniciais sobre CBD.
 - "especialista" (R$ 99,99) — quando o caso exige conhecimento de RQE/pós: psiquiatria (autismo/TEA, TDAH, depressão severa, bipolar, pânico, psicose), neurologia (epilepsia, Parkinson, Alzheimer, dor neuropática, fibromialgia, enxaqueca crônica), pediatria (crianças), oncologia (câncer/paliativos), reumatologia (lúpus, artrite reumatoide).
 
@@ -1674,7 +1682,7 @@ function ehComprovantePagamento(
   const palavrasChave = /comprovante|pagamento|paguei|transferi|pix|enviei o pagamento|segue (o )?(comprovante|pagamento)/i;
   if (palavrasChave.test(txt)) return true;
 
-  // Se chegou imagem/pdf depois de SofIA ter enviado dados de Pix recentemente
+  // Se chegou imagem/pdf depois de Ana ter enviado dados de Pix recentemente
   if (midiaTipo === "image" || midiaTipo === "document") {
     const ultimas = historico.slice(-4).map((h) => (h.resposta_final || "").toLowerCase()).join(" ");
     if (/pix|vittacare@jim|comprovante|pagamento/.test(ultimas)) return true;
@@ -1768,7 +1776,7 @@ async function criarLeadCRM(
       email: emailLimpo,
       cpf: cpfLimpo,
       data_nascimento: dados?.dataNascimento || null,
-      origem: "whatsapp_ia_sofia",
+      origem: "whatsapp_ia_ana",
       pipeline_id: pipelineId,
       status: "agendado",
       status_pipeline: "agendado",
@@ -2526,7 +2534,7 @@ serve(async (req) => {
       });
     }
 
-    // Bloqueio humano removido — SofIA SEMPRE responde. Para pausar, desative o canal WhatsApp no painel.
+    // Bloqueio humano removido — Ana SEMPRE responde. Para pausar, desative o canal WhatsApp no painel.
 
     console.log(`[whatsapp] 📩 De ${numero}: "${mensagem.slice(0, 100)}"${imagemBase64ParaIA ? " [+imagem]" : ""}`);
 
@@ -2726,7 +2734,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     // Fallback: só usar saudação se NÃO houver histórico (primeira interação)
     if (!respostaFinal) {
       if (historicoOrdenado.length === 0) {
-        respostaFinal = `${getSaudacao()}! Aqui é a SofIA, da Vitta Care 😊 Como você está? Estou à disposição!`;
+        respostaFinal = `${getSaudacao()}! Aqui é a Ana, da Dra. Amélia Carvalho 😊 Como você está? Estou à disposição!`;
       } else {
         const ultimaResposta = historicoOrdenado[historicoOrdenado.length - 1]?.resposta_final;
         respostaFinal = normalizarTextoComparacao(ultimaResposta) === normalizarTextoComparacao(FALLBACK_TECNICO)
@@ -2837,7 +2845,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
           // Notificar admin sobre confirmação sem agendamento real
           const adminNumber = Deno.env.get("ADMIN_WHATSAPP_NUMBER");
           if (adminNumber) {
-            enviarTexto(adminNumber, `⚠️ *SofIA confirmou agendamento verbalmente mas NÃO registrou na agenda*\n📱 Paciente: ${numero}\n💬 Resposta: "${respostaFinal.slice(0, 200)}"\n\n⚡ Favor verificar e registrar manualmente.`, instanceKey).catch(() => {});
+            enviarTexto(adminNumber, `⚠️ *Ana confirmou agendamento verbalmente mas NÃO registrou na agenda*\n📱 Paciente: ${numero}\n💬 Resposta: "${respostaFinal.slice(0, 200)}"\n\n⚡ Favor verificar e registrar manualmente.`, instanceKey).catch(() => {});
           }
         }
       }
@@ -2944,7 +2952,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
           `📋 *Orientações para sua consulta*\n\n` +
           `1. *Anote suas dúvidas* antes da consulta para tirar todas com o(a) médico(a).\n` +
           `2. Tenha clareza dos *sintomas* que você sente e do que espera resolver com o tratamento.\n` +
-          `3. *Preencha o formulário de triagem* (essencial para o(a) médico(a) entender seu caso): https://vitta-care.com/triagem`
+          `3. *Preencha o formulário de triagem* (essencial para o(a) médico(a) entender seu caso): https://draameliacarvalho.com/triagem`
         );
 
         // 3️⃣ Valor + Pix (com âncora de preço cheio)
@@ -2989,7 +2997,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     }
 
     // Verificar também se é saudação repetida quando já tem histórico
-    if (ultimaFresca && ehSaudacaoPadraoSofIA(respostaFinal)) {
+    if (ultimaFresca && ehSaudacaoPadraoAna(respostaFinal)) {
       console.warn(`[whatsapp] ⚠️ Bloqueando saudação repetida (já existe histórico) para ${numero}`);
       await liberarLockDB(supabase, numero);
       return new Response(JSON.stringify({ status: "saudacao_repetida_bloqueada" }), {

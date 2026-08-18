@@ -142,7 +142,7 @@ export default function AprenderConversas() {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey: ["treinamento-ia"] });
-      toast.success(`${rows.length} itens de treinamento salvos! A SofIA já está aplicando.`);
+      toast.success(`${rows.length} itens de treinamento salvos! A Ana já está aplicando.`);
       setAnalise(null);
       setPrints([]);
       setTexto("");
@@ -161,7 +161,7 @@ export default function AprenderConversas() {
             <Sparkles className="h-5 w-5 text-primary" /> Aprender com suas conversas
           </CardTitle>
           <CardDescription>
-            Envie prints do WhatsApp (ou cole o texto). A SofIA lê a conversa, aprende o seu jeito de atender e
+            Envie prints do WhatsApp (ou cole o texto). A Ana lê a conversa, aprende o seu jeito de atender e
             transforma em regras que você aprova antes de ativar.
           </CardDescription>
         </CardHeader>
@@ -240,7 +240,7 @@ export default function AprenderConversas() {
       {analise && (
         <Card className="border-primary">
           <CardHeader>
-            <CardTitle className="text-lg">Revise o que a SofIA aprendeu</CardTitle>
+            <CardTitle className="text-lg">Revise o que a Ana aprendeu</CardTitle>
             <CardDescription>{analise.resumo}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

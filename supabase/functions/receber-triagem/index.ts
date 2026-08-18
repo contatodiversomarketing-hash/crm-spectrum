@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
           telefone: telefone || null,
           email: email || null,
           cpf: cpf || null,
-          origem: "site_vitta_care",
+          origem: "site_draamelia",
           status: "novo",
           status_pipeline: "triagem_recebida",
           dados_triagem: body,
@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
 
     if (MEGA_API_URL && MEGA_API_TOKEN && ADMIN_WHATSAPP) {
       try {
-        const notificacao = `🆕 *Nova triagem recebida!*\n\n👤 ${nome || "Não informado"}\n📱 ${telefone || "Não informado"}\n📧 ${email || "Não informado"}\n🎯 Objetivo: ${objetivo || "Não informado"}\n\n_A SofIA pode iniciar contato automaticamente._`;
+        const notificacao = `🆕 *Nova triagem recebida!*\n\n👤 ${nome || "Não informado"}\n📱 ${telefone || "Não informado"}\n📧 ${email || "Não informado"}\n🎯 Objetivo: ${objetivo || "Não informado"}\n\n_A Ana pode iniciar contato automaticamente._`;
 
         await fetch(`${MEGA_API_URL}/message/sendText/${MEGA_API_TOKEN}`, {
           method: "POST",
@@ -134,19 +134,19 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 6. Se tem telefone, iniciar contato da SofIA via WhatsApp
+    // 6. Se tem telefone, iniciar contato da Ana via WhatsApp
     if (telefone && MEGA_API_URL && MEGA_API_TOKEN) {
       try {
         const CORE_API_URL = Deno.env.get("CORE_API_URL") || Deno.env.get("SUPABASE_URL");
         const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-        // Enviar primeira mensagem da SofIA
+        // Enviar primeira mensagem da Ana
         const primeiroNome = nome ? nome.split(" ")[0] : "";
         const saudacao = new Date().getUTCHours() - 3 < 12 ? "Bom dia" : new Date().getUTCHours() - 3 < 18 ? "Boa tarde" : "Boa noite";
         
         const msgInicial = primeiroNome
-          ? `${saudacao}, ${primeiroNome}! 😊 Aqui é a SofIA, da Vitta Care. Vi que você preencheu nosso formulário sobre cannabis medicinal. Que bom que está buscando informações! Posso te ajudar a agendar uma consulta com nossa médica especialista?`
-          : `${saudacao}! 😊 Aqui é a SofIA, da Vitta Care. Vi que você preencheu nosso formulário sobre cannabis medicinal. Que bom que está buscando informações! Posso te ajudar a agendar uma consulta com nossa médica especialista?`;
+          ? `${saudacao}, ${primeiroNome}! 😊 Aqui é a Ana, da Dra. Amélia Carvalho. Vi que você preencheu nosso formulário sobre cannabis medicinal. Que bom que está buscando informações! Posso te ajudar a agendar uma consulta com nossa médica especialista?`
+          : `${saudacao}! 😊 Aqui é a Ana, da Dra. Amélia Carvalho. Vi que você preencheu nosso formulário sobre cannabis medicinal. Que bom que está buscando informações! Posso te ajudar a agendar uma consulta com nossa médica especialista?`;
 
         await fetch(`${MEGA_API_URL}/message/sendText/${MEGA_API_TOKEN}`, {
           method: "POST",
@@ -160,7 +160,7 @@ Deno.serve(async (req) => {
         // Registrar interação
         await supabase.from("interacoes_ia").insert({
           paciente_externo_id: telefone,
-          sistema_origem: "site_vitta_care",
+          sistema_origem: "site_draamelia",
           canal: "whatsapp",
           mensagem_usuario: `[TRIAGEM SITE] Objetivo: ${objetivo || "N/I"} | Sintomas: ${sintomas || "N/I"}`,
           resposta_final: msgInicial,
@@ -169,7 +169,7 @@ Deno.serve(async (req) => {
           estado_conversa: "neutro",
         });
 
-        console.log(`[receber-triagem] SofIA enviou mensagem inicial para ${telefone}`);
+        console.log(`[receber-triagem] Ana enviou mensagem inicial para ${telefone}`);
       } catch (e) {
         console.warn("[receber-triagem] Erro ao enviar mensagem inicial:", e);
       }
