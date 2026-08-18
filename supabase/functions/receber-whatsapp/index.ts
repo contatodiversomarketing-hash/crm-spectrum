@@ -2928,17 +2928,12 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         }
       }
 
-      // Para cada agendamento confirmado com sucesso → enfileirar mensagens (indicação + valor + Pix)
+      // Para cada agendamento confirmado com sucesso → enfileirar mensagens (leitura da triagem + orientações + valor/Pix)
       if (agendamentosConfirmados > 0) {
-        const valorCheio = decisaoConsulta.tipo === "especialista" ? "R$ 500,00" : "R$ 300,00";
-        const valorTextoFmt = decisaoConsulta.tipo === "especialista"
-          ? `de ~${valorCheio}~ por apenas *${decisaoConsulta.valorTexto}* (consulta com especialista${decisaoConsulta.especialidadeSugerida && decisaoConsulta.especialidadeSugerida !== "Clínico Geral" ? ` em ${decisaoConsulta.especialidadeSugerida}` : ""})`
-          : `de ~${valorCheio}~ por apenas *${decisaoConsulta.valorTexto}* (consulta inicial com clínico geral)`;
-
         const nomePaciente = pacienteEncontrado?.nome?.split(" ")[0] || agendamentos[0]?.nome?.split(" ")[0] || "";
         const ola = nomePaciente ? `${nomePaciente}, ` : "";
 
-        // 1️⃣ Indicação do tipo de consulta com base na triagem
+        // 1️⃣ Leitura do caso com base na triagem
         mensagensExtras.push(
           `🔎 *Análise da sua triagem*\n\n` +
           `${ola}${decisaoConsulta.justificativa}. 💚`
@@ -2947,17 +2942,20 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         // 2️⃣ Orientações prévias
         mensagensExtras.push(
           `📋 *Orientações para sua consulta*\n\n` +
-          `1. *Anote suas dúvidas* antes da consulta para tirar todas com o(a) médico(a).\n` +
-          `2. Tenha clareza dos *sintomas* que você sente e do que espera resolver com o tratamento.\n` +
-          `3. *Preencha o formulário de triagem* (essencial para o(a) médico(a) entender seu caso): https://draameliacarvalho.com/triagem`
+          `1. *Anote suas dúvidas* antes da consulta para tirar todas com a Dra. Amélia.\n` +
+          `2. Tenha clareza dos *sintomas e observações do dia a dia* (no caso de criança, traga também relatos da escola).\n` +
+          `3. *Preencha o formulário de triagem* (essencial para a Dra. entender seu caso): https://draameliacarvalho.com/triagem`
         );
 
-        // 3️⃣ Valor + Pix (com âncora de preço cheio)
+        // 3️⃣ Valor + Pix (chave configurada em segredo; sem chave, não enviamos dados de pagamento)
+        const chavePix = (Deno.env.get("CHAVE_PIX") || "").trim();
         mensagensExtras.push(
-          `💳 *Valor da consulta*\n\n` +
-          `O valor cheio é ${valorCheio}, mas hoje você fecha ${valorTextoFmt}.\n\n` +
-          `🔑 *Pagamento via Pix* (chave): \`vittacare@jim.com\`\n\n` +
-          `Após o pagamento, por favor *envie o comprovante por aqui* que eu já dou baixa automaticamente no sistema ✅`
+          `💳 *Valor da consulta com a Dra. Amélia*\n\n` +
+          `R$ 500,00 à vista (Pix) ou R$ 525,00 no cartão.\n\n` +
+          (chavePix
+            ? `🔑 *Pagamento via Pix* (chave): \`${chavePix}\`\n\n` +
+              `Após o pagamento, por favor *envie o comprovante por aqui* que eu já dou baixa automaticamente no sistema ✅`
+            : `Me confirma por aqui como prefere pagar que eu já te passo os dados ✅`)
         );
       }
     }
