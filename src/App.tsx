@@ -12,6 +12,7 @@ import DashboardInteligenciaIA from "./pages/DashboardInteligenciaIA";
 import Login from "./pages/Login";
 import TreinamentoIA from "./pages/TreinamentoIA";
 import CRM from "./pages/CRM";
+import Agenda from "./pages/Agenda";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,8 @@ const App = () => (
             <Route path="/dashboard-ia" element={<ProtectedRoute><AppLayout><DashboardInteligenciaIA /></AppLayout></ProtectedRoute>} />
             <Route path="/treinamento-ia" element={<ProtectedRoute requiredRoles={["admin"]}><AppLayout><TreinamentoIA /></AppLayout></ProtectedRoute>} />
             <Route path="/crm" element={<ProtectedRoute><AppLayout><CRM /></AppLayout></ProtectedRoute>} />
+            <Route path="/agenda" element={<ProtectedRoute><AppLayout><Agenda /></AppLayout></ProtectedRoute>} />
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
