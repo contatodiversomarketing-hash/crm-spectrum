@@ -25,7 +25,7 @@ const Index = () => {
         <div className="flex items-center gap-3">
           <ChannelToggles />
           <div className="w-px h-6 bg-border" />
-          <SystemStatusBadge status={systemStatus} label={`${dados.systems.filter(s => s.status === "online").length}/${dados.systems.length} sistemas`} />
+          <SystemStatusBadge status={systemStatus} label="Sistema local" />
           <button
             onClick={dados.refresh}
             disabled={dados.loading}
