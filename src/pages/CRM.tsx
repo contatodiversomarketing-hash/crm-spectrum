@@ -20,7 +20,8 @@ export default function CRMPage() {
   const [activePipelineId, setActivePipelineId] = useState<string | null>(null);
 
   const { pipelines, loading: pipelinesLoading, addPipeline, updatePipeline, deletePipeline } = usePipelines();
-  const { columns, loading: colsLoading, addColumn, updateColumn, deleteColumn } = usePipelineColumns(activePipelineId);
+  const { columns, loading: colsLoading, addColumn, updateColumn, deleteColumn, reorderColumns } =
+    usePipelineColumns(activePipelineId);
 
   // Auto-select first pipeline
   useEffect(() => {
