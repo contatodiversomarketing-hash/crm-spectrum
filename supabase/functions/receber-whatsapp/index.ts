@@ -507,7 +507,7 @@ Você está atendendo pelo WhatsApp.
 - Se o contexto indicar que o lead veio do site draameliacarvalho.com (origem: site_draamelia) E há dados de triagem no contexto, você JÁ TEM os dados
 - NÃO pergunte novamente os sintomas ou objetivo — você já sabe
 - Use os dados para personalizar: "Vi que você tem interesse em tratamento para [objetivo]. Que bom que está buscando alternativas!"
-- Com base na triagem, defina se é caso de CLÍNICO GERAL (R$ 59,99) ou ESPECIALISTA (R$ 99,99) — veja regra de preços abaixo
+- Com base na triagem, identifique se o caso é ADULTO (SPECTRA ADULTO) ou INFANTIL/criança (SPECTRA KIDS) — veja regra de preços abaixo
 - Vá direto ao agendamento: "Posso agendar sua consulta?"
 
 ## QUANDO O LEAD CHEGA DIRETO NO WHATSAPP (SEM TRIAGEM)
@@ -516,23 +516,20 @@ Você está atendendo pelo WhatsApp.
   "[Nome], para que eu possa te indicar o melhor profissional para o seu caso, preciso que você preencha rapidinho nossa triagem (leva menos de 2 minutinhos). Pode acessar aqui: https://draameliacarvalho.com/triagem 🌿
   Assim que preencher, eu já te chamo aqui com as opções de horário, combinado? 😊"
 - NÃO avance para coleta de CPF, data de nascimento ou agendamento ANTES da triagem ser preenchida
-- Se o paciente insistir em agendar sem preencher, explique com gentileza: "Entendo sua pressa! Mas a triagem é fundamental para indicarmos o médico certo para o seu caso (clínico geral ou especialista). É bem rápido, prometo 💚"
+- Se o paciente insistir em agendar sem preencher, explique com gentileza: "Entendo sua pressa! Mas a triagem é fundamental para a Dra. Amélia entender o seu caso antes da consulta. É bem rápido, prometo 💚"
 - Se o paciente disser que já preencheu mas você não recebeu os dados, peça que aguarde alguns instantes e depois confirme: "Vou verificar aqui no sistema, só um momento 😊"
 
 ## REGRA DE PREÇOS (USE APENAS QUANDO PERGUNTAREM OU AO FECHAR)
-- **Clínico Geral (avaliação inicial)**: valor cheio **R$ 300,00**, hoje em condição especial por **R$ 59,99**. Indicado quando a triagem mostra caso de avaliação geral, sem necessidade imediata de especialista
-- **Especialista (psiquiatra/neurologista com RQE ou pós-graduação)**: valor cheio **R$ 500,00**, hoje em condição especial por **R$ 99,99**. Indicado quando a triagem evidencia condições específicas (ex.: ansiedade severa, insônia crônica, dor neuropática, epilepsia, TDAH, autismo, Parkinson)
-- A indicação entre Clínico Geral ou Especialista é definida com base na triagem
-- SEMPRE ancore o valor mostrando o preço cheio antes do promocional. Ex. clínico: "A consulta com nosso clínico geral custa R$ 300,00, mas hoje você fecha por apenas R$ 59,99 💚"
-- Ex. especialista: "No seu caso, o ideal é a consulta com nossa especialista (RQE/pós). Ela custa R$ 500,00, mas hoje sai por apenas R$ 99,99 — ela tem expertise exatamente no que você descreveu 😊"
-- NUNCA invente outros valores. Se perguntarem sobre algo fora dessas duas opções, diga que vai verificar no sistema
+- O ÚNICO valor que você informa é o da **consulta inicial com a Dra. Amélia: R$ 500,00 à vista (Pix) ou R$ 525,00 no cartão** (50–60 min, telemedicina ou presencial em Muriaé-MG)
+- Os PROGRAMAS (SPECTRA ADULTO e SPECTRA KIDS) NÃO são vendidos por WhatsApp. É a própria Dra. Amélia quem, na consulta, avalia e indica o pacote ideal para cada caso
+- Se perguntarem valores de pacotes/investigação, responda com honestidade e sem despejar tabela: "Os programas variam conforme o que o seu caso precisa — quem monta e apresenta isso é a própria Dra. Amélia na consulta, com base na avaliação dela. O primeiro passo é a consulta inicial 💚". Só cite faixas ("a partir de R$ 350/mês no adulto") se o paciente insistir MUITO
+- Você CONHECE todos os programas em detalhe (estão na sua base de treinamento) e pode explicar o que está incluso, o formato e o tempo — mas NUNCA feche pacote, NUNCA prometa desconto e NUNCA invente valores fora do que está na base
+- NUNCA prometa que a criança fará avaliação multi por telemedicina: fono, TO, psicopedagogia, psicologia, psicomotricidade, musicoterapia e NEsplora são SEMPRE presenciais na Clínica LaVitta
 
-## REGRA DE SELEÇÃO DO PROFISSIONAL (LEIA O CAMPO "especialidade" DA LISTA DE PROFISSIONAIS)
-- Para CLÍNICO GERAL (R$ 59,99): selecione QUALQUER profissional cuja "especialidade" CONTENHA o termo "Clínico Geral" (case-insensitive), MESMO que ele tenha outras especialidades junto (ex.: "Clínico Geral / Psiquiatra", "Psiquiatra e Clínico Geral", "Clínica Médica - Clínico Geral"). Considere apto.
-- Se o profissional acumular Clínico Geral + uma especialidade, ele pode atender AMBOS os casos: como Clínico Geral (R$ 59,99) ou como Especialista (R$ 99,99), conforme a indicação da triagem
-- Se a agenda do profissional Clínico Geral exclusivo estiver VAZIA / sem horários disponíveis nos próximos dias, você PODE indicar um profissional Especialista que TAMBÉM tenha "Clínico Geral" listado em sua especialidade, mantendo o valor de R$ 59,99
-- Para ESPECIALISTA (R$ 99,99): selecione o profissional cuja "especialidade" corresponda à condição identificada na triagem (ex.: ansiedade → Psiquiatria; epilepsia/Parkinson → Neurologia)
-- NUNCA confirme agendamento com profissional cuja especialidade não bata com o tipo de consulta. Se não houver profissional adequado disponível, diga que vai verificar no sistema e siga o atendimento
+## REGRA DE SELEÇÃO DO PROFISSIONAL
+- A Dra. Amélia Carvalho (CRM-MG 84630) conduz 100% das consultas pessoalmente — psiquiatria, neurodesenvolvimento (TEA/TDAH/TOD/dislexia), adulto e infantil, além de cannabis medicinal
+- Selecione a agenda da Dra. Amélia. Se houver outros profissionais cadastrados, use apenas quando a especialidade bater com a necessidade descrita
+- NUNCA confirme agendamento com profissional cuja especialidade não bata com o caso. Se não houver horário adequado, diga que vai verificar no sistema e siga o atendimento
 
 ## INTERAÇÃO SOCIAL HUMANIZADA (REGRAS CRÍTICAS)
 - Se o paciente perguntar "como você está?", "tudo bem?", "e você?" → SEMPRE responda de forma calorosa
@@ -643,9 +640,9 @@ REGRAS DO MARCADOR:
 
 ## ORIENTAÇÕES PRÉVIAS + INDICAÇÃO DE CONSULTA + PAGAMENTO (ENVIO AUTOMÁTICO PELO SISTEMA — NÃO ENVIE VOCÊ)
 IMPORTANTE: Logo após o agendamento ser confirmado, o SISTEMA envia automaticamente, em sequência, três mensagens:
-1. *Análise da triagem* — indicação se é Clínico Geral (R$ 59,99) ou Especialista (R$ 99,99). A decisão é DETERMINÍSTICA com base na triagem (autismo, dor crônica, epilepsia, ansiedade severa, criança, oncologia, etc. → especialista; demais casos → clínico geral). Uma TAG é gravada nas observações do agendamento para o(a) médico(a) ver no sistema de gestão.
+1. *Análise da triagem* — leitura do caso (adulto x infantil / foco principal). Uma TAG é gravada nas observações do agendamento para a Dra. Amélia ver no sistema de gestão.
 2. *3 orientações prévias* (anotar dúvidas, clareza dos sintomas, link da triagem https://draameliacarvalho.com/triagem).
-3. *Valor + chave Pix* (vittacare@jim.com) e pedido do comprovante.
+3. *Valor da consulta (R$ 500,00 à vista / R$ 525,00 no cartão) + chave Pix* e pedido do comprovante.
 
 Por isso, na sua mensagem de confirmação do agendamento NÃO indique tipo de consulta, NÃO informe valor, NÃO envie chave Pix, NÃO pergunte se quer orientações. Apenas confirme o agendamento de forma curta e calorosa (ex.: "Pronto, [Nome]! Sua consulta com [Médico] está confirmada para [data] às [hora] ✅💚"). Todo o resto vai automático em seguida.
 
@@ -1451,7 +1448,7 @@ async function buscarTriagemDoLead(
 // =============================
 export interface DecisaoConsulta {
   tipo: "clinico_geral" | "especialista";
-  valor: number; // 59.99 ou 99.99
+  valor: number; // 500 (consulta inicial com a Dra. Amélia)
   valorTexto: string; // formatado p/ humano
   especialidadeSugerida: string | null; // ex.: "Psiquiatria", "Neurologia"
   justificativa: string; // 1 linha p/ a IA verbalizar
@@ -1484,8 +1481,8 @@ function decidirTipoConsultaPorRegex(triagemTexto: string): DecisaoConsulta {
     if (g.regex.test(txt)) {
       return {
         tipo: "especialista",
-        valor: 99.99,
-        valorTexto: "R$ 99,99",
+        valor: 500,
+        valorTexto: "R$ 500,00",
         especialidadeSugerida: g.especialidade,
         justificativa: `verifiquei sua triagem e, pelo seu caso (${g.motivo}), o ideal é a consulta com especialista`,
         tag: `ESPECIALISTA - ${g.especialidade}`,
@@ -1496,8 +1493,8 @@ function decidirTipoConsultaPorRegex(triagemTexto: string): DecisaoConsulta {
   // Default: Clínico Geral
   return {
     tipo: "clinico_geral",
-    valor: 59.99,
-    valorTexto: "R$ 59,99",
+    valor: 500,
+    valorTexto: "R$ 500,00",
     especialidadeSugerida: "Clínico Geral",
     justificativa: "verifiquei sua triagem e, para o seu caso, o clínico geral resolve perfeitamente",
     tag: "CLÍNICO GERAL",
@@ -1518,8 +1515,8 @@ async function decidirTipoConsultaPelaTriagem(triagemTexto: string): Promise<Dec
 
   try {
     const systemPrompt = `Você é uma triadora médica da Dra. Amélia Carvalho (clínica de cannabis medicinal/CBD). Com base na triagem do paciente, decida se a consulta inicial deve ser com:
-- "clinico_geral" (R$ 59,99) — casos comuns, sintomas leves/moderados, dores comuns, ansiedade leve, insônia ocasional, dúvidas iniciais sobre CBD.
-- "especialista" (R$ 99,99) — quando o caso exige conhecimento de RQE/pós: psiquiatria (autismo/TEA, TDAH, depressão severa, bipolar, pânico, psicose), neurologia (epilepsia, Parkinson, Alzheimer, dor neuropática, fibromialgia, enxaqueca crônica), pediatria (crianças), oncologia (câncer/paliativos), reumatologia (lúpus, artrite reumatoide).
+- "clinico_geral" — casos comuns, sintomas leves/moderados, dores comuns, ansiedade leve, insônia ocasional, dúvidas iniciais sobre CBD.
+- "especialista" — quando o caso exige conhecimento de RQE/pós: psiquiatria (autismo/TEA, TDAH, depressão severa, bipolar, pânico, psicose), neurologia (epilepsia, Parkinson, Alzheimer, dor neuropática, fibromialgia, enxaqueca crônica), pediatria (crianças), oncologia (câncer/paliativos), reumatologia (lúpus, artrite reumatoide).
 
 Responda APENAS um JSON válido, sem markdown, no formato:
 {"tipo":"clinico_geral"|"especialista","especialidade":"Clínico Geral"|"Psiquiatria"|"Neurologia"|"Pediatria"|"Oncologia"|"Reumatologia"|"...","motivo":"frase curta em pt-BR explicando o porquê (max 80 chars)"}`;
@@ -1563,8 +1560,8 @@ Responda APENAS um JSON válido, sem markdown, no formato:
     if (tipo === "especialista") {
       return {
         tipo: "especialista",
-        valor: 99.99,
-        valorTexto: "R$ 99,99",
+        valor: 500,
+        valorTexto: "R$ 500,00",
         especialidadeSugerida: especialidade,
         justificativa: `verifiquei sua triagem e, pelo seu caso (${motivo}), o ideal é a consulta com especialista`,
         tag: `ESPECIALISTA - ${especialidade}`,
@@ -1572,8 +1569,8 @@ Responda APENAS um JSON válido, sem markdown, no formato:
     }
     return {
       tipo: "clinico_geral",
-      valor: 59.99,
-      valorTexto: "R$ 59,99",
+      valor: 500,
+      valorTexto: "R$ 500,00",
       especialidadeSugerida: "Clínico Geral",
       justificativa: `verifiquei sua triagem e, para o seu caso (${motivo}), o clínico geral resolve perfeitamente`,
       tag: "CLÍNICO GERAL",
@@ -1685,7 +1682,7 @@ function ehComprovantePagamento(
   // Se chegou imagem/pdf depois de Ana ter enviado dados de Pix recentemente
   if (midiaTipo === "image" || midiaTipo === "document") {
     const ultimas = historico.slice(-4).map((h) => (h.resposta_final || "").toLowerCase()).join(" ");
-    if (/pix|vittacare@jim|comprovante|pagamento/.test(ultimas)) return true;
+    if (/pix|chave pix|comprovante|pagamento/.test(ultimas)) return true;
   }
   return false;
 }
@@ -2931,17 +2928,12 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         }
       }
 
-      // Para cada agendamento confirmado com sucesso → enfileirar mensagens (indicação + valor + Pix)
+      // Para cada agendamento confirmado com sucesso → enfileirar mensagens (leitura da triagem + orientações + valor/Pix)
       if (agendamentosConfirmados > 0) {
-        const valorCheio = decisaoConsulta.tipo === "especialista" ? "R$ 500,00" : "R$ 300,00";
-        const valorTextoFmt = decisaoConsulta.tipo === "especialista"
-          ? `de ~${valorCheio}~ por apenas *${decisaoConsulta.valorTexto}* (consulta com especialista${decisaoConsulta.especialidadeSugerida && decisaoConsulta.especialidadeSugerida !== "Clínico Geral" ? ` em ${decisaoConsulta.especialidadeSugerida}` : ""})`
-          : `de ~${valorCheio}~ por apenas *${decisaoConsulta.valorTexto}* (consulta inicial com clínico geral)`;
-
         const nomePaciente = pacienteEncontrado?.nome?.split(" ")[0] || agendamentos[0]?.nome?.split(" ")[0] || "";
         const ola = nomePaciente ? `${nomePaciente}, ` : "";
 
-        // 1️⃣ Indicação do tipo de consulta com base na triagem
+        // 1️⃣ Leitura do caso com base na triagem
         mensagensExtras.push(
           `🔎 *Análise da sua triagem*\n\n` +
           `${ola}${decisaoConsulta.justificativa}. 💚`
@@ -2950,17 +2942,20 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         // 2️⃣ Orientações prévias
         mensagensExtras.push(
           `📋 *Orientações para sua consulta*\n\n` +
-          `1. *Anote suas dúvidas* antes da consulta para tirar todas com o(a) médico(a).\n` +
-          `2. Tenha clareza dos *sintomas* que você sente e do que espera resolver com o tratamento.\n` +
-          `3. *Preencha o formulário de triagem* (essencial para o(a) médico(a) entender seu caso): https://draameliacarvalho.com/triagem`
+          `1. *Anote suas dúvidas* antes da consulta para tirar todas com a Dra. Amélia.\n` +
+          `2. Tenha clareza dos *sintomas e observações do dia a dia* (no caso de criança, traga também relatos da escola).\n` +
+          `3. *Preencha o formulário de triagem* (essencial para a Dra. entender seu caso): https://draameliacarvalho.com/triagem`
         );
 
-        // 3️⃣ Valor + Pix (com âncora de preço cheio)
+        // 3️⃣ Valor + Pix (chave configurada em segredo; sem chave, não enviamos dados de pagamento)
+        const chavePix = (Deno.env.get("CHAVE_PIX") || "").trim();
         mensagensExtras.push(
-          `💳 *Valor da consulta*\n\n` +
-          `O valor cheio é ${valorCheio}, mas hoje você fecha ${valorTextoFmt}.\n\n` +
-          `🔑 *Pagamento via Pix* (chave): \`vittacare@jim.com\`\n\n` +
-          `Após o pagamento, por favor *envie o comprovante por aqui* que eu já dou baixa automaticamente no sistema ✅`
+          `💳 *Valor da consulta com a Dra. Amélia*\n\n` +
+          `R$ 500,00 à vista (Pix) ou R$ 525,00 no cartão.\n\n` +
+          (chavePix
+            ? `🔑 *Pagamento via Pix* (chave): \`${chavePix}\`\n\n` +
+              `Após o pagamento, por favor *envie o comprovante por aqui* que eu já dou baixa automaticamente no sistema ✅`
+            : `Me confirma por aqui como prefere pagar que eu já te passo os dados ✅`)
         );
       }
     }
