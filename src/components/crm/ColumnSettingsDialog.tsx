@@ -15,10 +15,27 @@ interface Props {
   onAdd: (nome: string, cor: string) => Promise<any>;
   onUpdate: (id: string, updates: { nome?: string; cor?: string }) => Promise<any>;
   onDelete: (id: string) => Promise<any>;
+  onReorder?: (ordered: PipelineColumn[]) => Promise<any>;
 }
 
-export function ColumnSettingsDialog({ open, onOpenChange, columns, onAdd, onUpdate, onDelete }: Props) {
+export function ColumnSettingsDialog({ open, onOpenChange, columns, onAdd, onUpdate, onDelete, onReorder }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+
+  const handleDrop = async (targetId: string) => {
+    const from = columns.findIndex((c) => c.id === dragId);
+    const to = columns.findIndex((c) => c.id === targetId);
+    setDragId(null);
+    setOverId(null);
+    if (from < 0 || to < 0 || from === to || !onReorder) return;
+    const next = [...columns];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    const err = await onReorder(next);
+    if (err) toast({ title: "Erro ao reordenar", description: err.message, variant: "destructive" });
+  };
+
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState("");
   const [newName, setNewName] = useState("");
@@ -71,8 +88,32 @@ export function ColumnSettingsDialog({ open, onOpenChange, columns, onAdd, onUpd
 
         <div className="space-y-3 max-h-[50vh] overflow-y-auto">
           {columns.map((col) => (
-            <div key={col.id} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-muted/30">
-              <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
+            <div
+              key={col.id}
+              draggable={dragId === col.id}
+              onDragOver={(e) => {
+                if (!dragId) return;
+                e.preventDefault();
+                setOverId(col.id);
+              }}
+              onDragLeave={() => setOverId((c) => (c === col.id ? null : c))}
+              onDrop={(e) => {
+                e.preventDefault();
+                handleDrop(col.id);
+              }}
+              onDragEnd={() => {
+                setDragId(null);
+                setOverId(null);
+              }}
+              className={`flex items-center gap-2 p-2 rounded-lg border bg-muted/30 transition-colors ${
+                overId === col.id && dragId !== col.id ? "border-primary bg-primary/5" : "border-border"
+              } ${dragId === col.id ? "opacity-50" : ""}`}
+            >
+              <GripVertical
+                onMouseDown={() => setDragId(col.id)}
+                onTouchStart={() => setDragId(col.id)}
+                className="h-4 w-4 text-muted-foreground shrink-0 cursor-grab active:cursor-grabbing"
+              />
               {editingId === col.id ? (
                 <div className="flex-1 space-y-2">
                   <Input

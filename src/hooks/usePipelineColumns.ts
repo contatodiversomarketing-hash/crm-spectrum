@@ -88,5 +88,15 @@ export function usePipelineColumns(pipelineId: string | null) {
     return error;
   };
 
-  return { columns, loading, fetchColumns, addColumn, updateColumn, deleteColumn };
+  const reorderColumns = async (ordered: PipelineColumn[]) => {
+    setColumns(ordered.map((c, i) => ({ ...c, ordem: i })));
+    const results = await Promise.all(
+      ordered.map((c, i) => supabase.from("pipeline_colunas").update({ ordem: i }).eq("id", c.id))
+    );
+    const err = results.find((r) => r.error)?.error;
+    await fetchColumns();
+    return err ?? null;
+  };
+
+  return { columns, loading, fetchColumns, addColumn, updateColumn, deleteColumn, reorderColumns };
 }
