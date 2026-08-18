@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { METODO_MESTRE_DAS_VENDAS } from "../_shared/metodo-vendas.ts";
 import { interpretarTriagem, TRIAGENS_CONTEXTO } from "../_shared/triagens.ts";
+import { enviarTextoMega } from "../_shared/mega.ts";
 
 
 const corsHeaders = {
@@ -170,11 +171,7 @@ Deno.serve(async (req) => {
         const telefone = lead.telefone!.replace(/[^\d+]/g, "");
         const mensagem = (await gerarMensagemIA(lead, etapa)) || mensagemFallback(lead.nome, etapa);
 
-        const megaRes = await fetch(`${MEGA_API_URL}/api/v1/sendText`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${MEGA_API_TOKEN}` },
-          body: JSON.stringify({ number: telefone, text: mensagem }),
-        });
+        const megaRes = await enviarTextoMega(telefone, mensagem);
         const ok = megaRes.ok;
 
         if (ok) {
