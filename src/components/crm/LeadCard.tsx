@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { LeadEditDialog } from "./LeadEditDialog";
 import { LeadAlertsDialog } from "./LeadAlertsDialog";
+import { LeadChatDialog } from "./LeadChatDialog";
 
 export interface Lead {
   id: string;
