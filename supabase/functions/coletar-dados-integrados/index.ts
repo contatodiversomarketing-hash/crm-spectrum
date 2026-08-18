@@ -99,6 +99,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         crm: { leads: { data: leadsResult.data, ok: !leadsResult.error, status: 200, duration_ms: 0 } },
         gestao: { medicos: gestaoMedicos, agendamentos: gestaoAgendamentos },
+        gestao_configurada: gestaoConfigurada,
         timestamp: new Date().toISOString(),
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
