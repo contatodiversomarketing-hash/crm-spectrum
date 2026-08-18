@@ -226,9 +226,16 @@ export default function Conversas({ modo }: { modo: "ia" | "atendente" }) {
               <p className="text-xs text-muted-foreground">{subtitulo}</p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={carregar} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          </Button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 rounded-lg border px-3 py-1.5">
+              <Power className={`h-4 w-4 ${iaAtiva ? "text-primary" : "text-muted-foreground"}`} />
+              <span className="text-xs font-medium">{iaAtiva ? "Atendimento ativo" : "Atendimento pausado"}</span>
+              <Switch checked={iaAtiva} onCheckedChange={alternarIa} />
+            </div>
+            <Button variant="outline" size="sm" onClick={carregar} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
         </div>
       </header>
 
