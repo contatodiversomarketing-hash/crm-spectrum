@@ -38,6 +38,17 @@ export async function enviarTextoMega(numero: string, texto: string): Promise<{ 
   });
 
   const body = await resp.text();
-  if (!resp.ok) console.error(`[mega] envio falhou [${resp.status}]: ${body.slice(0, 400)}`);
-  return { ok: resp.ok, status: resp.status, body };
+
+  // A MegaAPI pode responder HTTP 200 com { "error": true } — isso NÃO é envio entregue.
+  let erroLogico = false;
+  try {
+    const parsed = JSON.parse(body);
+    erroLogico = parsed?.error === true;
+  } catch {
+    /* corpo não-JSON */
+  }
+
+  const ok = resp.ok && !erroLogico;
+  if (!ok) console.error(`[mega] envio falhou [${resp.status}]: ${body.slice(0, 400)}`);
+  return { ok, status: resp.status, body };
 }
