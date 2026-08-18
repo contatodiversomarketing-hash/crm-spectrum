@@ -91,25 +91,6 @@ const Index = () => {
           <AutomationQueue items={dados.automacoesRecentes} />
         </section>
 
-        {/* Connected Systems */}
-        <section className="rounded-lg border bg-card p-5 shadow-sm">
-          <h3 className="text-sm font-semibold mb-4">Sistemas Integrados</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {dados.systems.length > 0 ? dados.systems.map((sys) => (
-              <div key={sys.name} className="flex items-center gap-2 rounded-lg border bg-secondary/50 px-4 py-3">
-                <span className={`h-2 w-2 rounded-full ${sys.status === "online" ? "bg-success" : sys.status === "degraded" ? "bg-warning" : "bg-destructive"} animate-pulse`} />
-                <div>
-                  <span className="text-sm font-medium">{sys.name}</span>
-                  <p className="text-xs text-muted-foreground">{sys.latency_ms}ms</p>
-                </div>
-              </div>
-            )) : (
-              <p className="text-sm text-muted-foreground col-span-4 text-center py-2">
-                {dados.loading ? "Conectando..." : "Nenhum sistema conectado"}
-              </p>
-            )}
-          </div>
-        </section>
       </main>
     </div>
   );
