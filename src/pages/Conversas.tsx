@@ -50,6 +50,12 @@ export default function Conversas({ modo }: { modo: "ia" | "atendente" }) {
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
   const [selecionada, setSelecionada] = useState<string | null>(null);
+  const [iaAtiva, setIaAtiva] = useState(true);
+  const [configId, setConfigId] = useState<string | null>(null);
+  const [texto, setTexto] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const sincronizados = useRef<Set<string>>(new Set());
+  const { toast } = useToast();
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -63,12 +69,43 @@ export default function Conversas({ modo }: { modo: "ia" | "atendente" }) {
         supabase.from("leads").select("nome, telefone").limit(2000),
       ]);
 
-      setInteracoes((intRes.data as Interacao[]) || []);
+      const lista = (intRes.data as Interacao[]) || [];
+      setInteracoes(lista);
       const mapa: Record<string, string> = {};
+      const existentes = new Set<string>();
       for (const l of leadsRes.data || []) {
-        if (l.telefone && l.nome) mapa[soDigitos(l.telefone)] = l.nome;
+        if (l.telefone) {
+          const d = soDigitos(l.telefone);
+          existentes.add(d);
+          existentes.add(d.startsWith("55") ? d.slice(2) : "55" + d);
+          if (l.nome) mapa[d] = l.nome;
+        }
       }
       setNomes(mapa);
+
+      // Toda conversa também vira card no CRM
+      const faltantes = Array.from(
+        new Set(
+          lista
+            .map((i) => soDigitos(i.paciente_externo_id.replace("tel:", "")))
+            .filter((d) => d.length >= 10 && !existentes.has(d) && !sincronizados.current.has(d))
+        )
+      );
+      if (faltantes.length) {
+        faltantes.forEach((d) => sincronizados.current.add(d));
+        const { data: pipes } = await supabase.from("pipelines").select("id, nome");
+        const pipelineId = pipes?.find((p) => p.nome === "Pacientes")?.id || pipes?.[0]?.id || null;
+        await supabase.from("leads").insert(
+          faltantes.map((d) => ({
+            telefone: d,
+            nome: formatarTelefone(d),
+            origem: "whatsapp",
+            status: "novo",
+            status_pipeline: "novo",
+            pipeline_id: pipelineId,
+          }))
+        );
+      }
     } catch (e) {
       console.error("[conversas] erro", e);
     } finally {
@@ -76,14 +113,66 @@ export default function Conversas({ modo }: { modo: "ia" | "atendente" }) {
     }
   }, []);
 
+  const carregarConfig = useCallback(async () => {
+    const { data } = await supabase
+      .from("configuracoes_sistema")
+      .select("id, whatsapp_ativo")
+      .order("criado_em", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data) {
+      setConfigId(data.id);
+      setIaAtiva(data.whatsapp_ativo);
+    }
+  }, []);
+
+  async function alternarIa(valor: boolean) {
+    setIaAtiva(valor);
+    if (!configId) return;
+    const { error } = await supabase
+      .from("configuracoes_sistema")
+      .update({ whatsapp_ativo: valor })
+      .eq("id", configId);
+    if (error) {
+      setIaAtiva(!valor);
+      toast({ title: "Erro ao salvar", variant: "destructive" });
+      return;
+    }
+    toast({
+      title: valor ? "Atendimento da Ana ativado" : "Atendimento da Ana pausado",
+      description: valor ? "Ela volta a responder automaticamente." : "Nenhuma resposta automática será enviada.",
+    });
+  }
+
+  async function enviar(numero: string) {
+    const msg = texto.trim();
+    if (!msg || enviando) return;
+    setEnviando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("crm-enviar-whatsapp", {
+        body: { numero: soDigitos(numero), tipo: "text", texto: msg },
+      });
+      if (error || (data as { error?: string })?.error) {
+        throw new Error((data as { error?: string })?.error || error?.message);
+      }
+      setTexto("");
+      carregar();
+    } catch (e) {
+      toast({ title: "Falha ao enviar", description: String(e), variant: "destructive" });
+    } finally {
+      setEnviando(false);
+    }
+  }
+
   useEffect(() => {
     carregar();
+    carregarConfig();
     const channel = supabase
       .channel(`conversas-${modo}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "interacoes_ia" }, () => carregar())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [carregar, modo]);
+  }, [carregar, carregarConfig, modo]);
 
   const conversas = useMemo<Conversa[]>(() => {
     const filtroModo = (i: Interacao) =>
