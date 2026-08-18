@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { enviarTextoMega } from "../_shared/mega.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -64,11 +65,7 @@ Deno.serve(async (req) => {
       const mensagem = `Olá ${nomePrimeiro} 😊\nNotamos que já faz um tempo desde sua última consulta na Dra. Amélia Carvalho.\nQue tal agendarmos um retorno para cuidar da sua saúde?`;
 
       try {
-        const megaRes = await fetch(`${MEGA_API_URL}/api/v1/sendText`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${MEGA_API_TOKEN}` },
-          body: JSON.stringify({ number: telefone, text: mensagem }),
-        });
+        const megaRes = await enviarTextoMega(telefone, mensagem);
 
         await supabase.from("automacoes").insert({
           paciente_externo_id: pacienteExternoId, tipo: "reativacao_score", sistema_alvo: "megaapi",

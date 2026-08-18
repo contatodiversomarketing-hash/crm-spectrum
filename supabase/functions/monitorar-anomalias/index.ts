@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { enviarTextoMega } from "../_shared/mega.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -101,12 +102,8 @@ Deno.serve(async (req) => {
             let mensagem = `⚠️ Alerta Core-IA:\n${resumoAlertas}`;
             if (aiRes.ok) { const aiData = await aiRes.json(); const content = aiData.choices?.[0]?.message?.content?.trim(); if (content) mensagem = content; } else { await aiRes.text(); }
 
-            const megaRes = await fetch(`${MEGA_API_URL}/api/v1/sendText`, {
-              method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${MEGA_API_TOKEN}` },
-              body: JSON.stringify({ number: ADMIN_NUMBER, text: mensagem }),
-            });
+            const megaRes = await enviarTextoMega(ADMIN_NUMBER, mensagem);
             mensagemEnviada = megaRes.ok;
-            await megaRes.text();
           } catch (err) { console.error("[monitorar-anomalias] Erro envio:", err); }
         }
       }

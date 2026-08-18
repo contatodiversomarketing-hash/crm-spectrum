@@ -113,6 +113,19 @@ function buildMegaTextCandidates(rawUrl: string, token: string, numero: string, 
     }
   };
 
+  if (instanceKey) {
+    pushCandidate({
+      url: `${origin}/rest/sendMessage/${instanceKey}/text`,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+        "apikey": token,
+      },
+      body: { messageData: { to: `${numero}@s.whatsapp.net`, text: texto } },
+      label: "rest-sendMessage-instance",
+    });
+  }
+
   pushCandidate({
     url: normalized,
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
@@ -133,19 +146,6 @@ function buildMegaTextCandidates(rawUrl: string, token: string, numero: string, 
     body: { number: numero, text: texto },
     label: "message-sendText-token-path",
   });
-
-  if (instanceKey) {
-    pushCandidate({
-      url: `${origin}/rest/sendMessage/${instanceKey}/text`,
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "apikey": token,
-      },
-      body: { messageData: { to: `${numero}@s.whatsapp.net`, text: texto } },
-      label: "rest-sendMessage-instance",
-    });
-  }
 
   return candidates;
 }
@@ -2346,7 +2346,7 @@ function megaResponseIndicaSucesso(status: number, parsedBody: unknown): boolean
 // =============================
 // ENVIAR MENSAGEM VIA MEGAAPI
 // =============================
-async function enviarTexto(numero: string, texto: string, instanceKey = ""): Promise<boolean> {
+async function enviarTexto(numero: string, texto: string, instanceKey = Deno.env.get("MEGA_INSTANCE_KEY") || ""): Promise<boolean> {
   const MEGA_API_URL = Deno.env.get("MEGA_API_URL");
   const MEGA_API_TOKEN = Deno.env.get("MEGA_API_TOKEN");
   if (!MEGA_API_URL || !MEGA_API_TOKEN) {
@@ -2416,7 +2416,7 @@ serve(async (req) => {
     console.log("[whatsapp] Webhook recebido:", JSON.stringify(body).slice(0, 800));
     console.log("[whatsapp] Webhook top-level keys:", Object.keys(body).join(", "));
     if (body.message) console.log("[whatsapp] message keys:", Object.keys(body.message).join(", "));
-    const instanceKey = body.instance_key || body.instanceKey || body.data?.instance_key || "";
+    const instanceKey = body.instance_key || body.instanceKey || body.data?.instance_key || Deno.env.get("MEGA_INSTANCE_KEY") || "";
 
     // Extrair mensagem e número (formato MegaAPI)
     const msg = body.message || {};
