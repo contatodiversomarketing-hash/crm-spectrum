@@ -1591,7 +1591,7 @@ export type Database = {
       limpar_locks_antigos: { Args: never; Returns: undefined }
     }
     Enums: {
-      app_role: "admin" | "supervisao" | "analista"
+      app_role: "admin" | "supervisao" | "analista" | "auxiliar"
       plano_clinica: "growth" | "performance" | "elite"
     }
     CompositeTypes: {
@@ -1720,7 +1720,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "supervisao", "analista"],
+      app_role: ["admin", "supervisao", "analista", "auxiliar"],
       plano_clinica: ["growth", "performance", "elite"],
     },
   },
