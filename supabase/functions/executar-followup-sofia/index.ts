@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { METODO_MESTRE_DAS_VENDAS } from "../_shared/metodo-vendas.ts";
+import { interpretarTriagem, TRIAGENS_CONTEXTO } from "../_shared/triagens.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
