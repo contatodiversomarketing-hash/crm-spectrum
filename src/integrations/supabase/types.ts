@@ -456,6 +456,56 @@ export type Database = {
           },
         ]
       }
+      financeiro_lancamentos: {
+        Row: {
+          atualizado_em: string
+          criado_em: string
+          data_pagamento: string | null
+          descricao: string
+          forma_pagamento: string | null
+          id: string
+          observacoes: string | null
+          paciente_id: string
+          pago: boolean
+          valor: number
+          vencimento: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          criado_em?: string
+          data_pagamento?: string | null
+          descricao: string
+          forma_pagamento?: string | null
+          id?: string
+          observacoes?: string | null
+          paciente_id: string
+          pago?: boolean
+          valor?: number
+          vencimento?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          criado_em?: string
+          data_pagamento?: string | null
+          descricao?: string
+          forma_pagamento?: string | null
+          id?: string
+          observacoes?: string | null
+          paciente_id?: string
+          pago?: boolean
+          valor?: number
+          vencimento?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_lancamentos_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       insights_ia: {
         Row: {
           clinica_id: string | null
@@ -834,31 +884,109 @@ export type Database = {
       }
       pacientes: {
         Row: {
+          atualizado_em: string
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
           clinica_id: string | null
+          complemento: string | null
+          cpf: string | null
           criado_em: string
+          data_nascimento: string | null
           email: string | null
+          estado: string | null
           externo_id: string
           id: string
+          logradouro: string | null
           nome: string | null
+          numero: string | null
+          observacoes: string | null
+          responsavel_bairro: string | null
+          responsavel_cep: string | null
+          responsavel_cidade: string | null
+          responsavel_complemento: string | null
+          responsavel_cpf: string | null
+          responsavel_data_nascimento: string | null
+          responsavel_email: string | null
+          responsavel_endereco_mesmo: boolean
+          responsavel_estado: string | null
+          responsavel_logradouro: string | null
+          responsavel_nome: string | null
+          responsavel_numero: string | null
+          responsavel_parentesco: string | null
+          responsavel_telefone: string | null
           telefone: string | null
+          tipo: string
         }
         Insert: {
+          atualizado_em?: string
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
           clinica_id?: string | null
+          complemento?: string | null
+          cpf?: string | null
           criado_em?: string
+          data_nascimento?: string | null
           email?: string | null
-          externo_id: string
-          id?: string
-          nome?: string | null
-          telefone?: string | null
-        }
-        Update: {
-          clinica_id?: string | null
-          criado_em?: string
-          email?: string | null
+          estado?: string | null
           externo_id?: string
           id?: string
+          logradouro?: string | null
           nome?: string | null
+          numero?: string | null
+          observacoes?: string | null
+          responsavel_bairro?: string | null
+          responsavel_cep?: string | null
+          responsavel_cidade?: string | null
+          responsavel_complemento?: string | null
+          responsavel_cpf?: string | null
+          responsavel_data_nascimento?: string | null
+          responsavel_email?: string | null
+          responsavel_endereco_mesmo?: boolean
+          responsavel_estado?: string | null
+          responsavel_logradouro?: string | null
+          responsavel_nome?: string | null
+          responsavel_numero?: string | null
+          responsavel_parentesco?: string | null
+          responsavel_telefone?: string | null
           telefone?: string | null
+          tipo?: string
+        }
+        Update: {
+          atualizado_em?: string
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          clinica_id?: string | null
+          complemento?: string | null
+          cpf?: string | null
+          criado_em?: string
+          data_nascimento?: string | null
+          email?: string | null
+          estado?: string | null
+          externo_id?: string
+          id?: string
+          logradouro?: string | null
+          nome?: string | null
+          numero?: string | null
+          observacoes?: string | null
+          responsavel_bairro?: string | null
+          responsavel_cep?: string | null
+          responsavel_cidade?: string | null
+          responsavel_complemento?: string | null
+          responsavel_cpf?: string | null
+          responsavel_data_nascimento?: string | null
+          responsavel_email?: string | null
+          responsavel_endereco_mesmo?: boolean
+          responsavel_estado?: string | null
+          responsavel_logradouro?: string | null
+          responsavel_nome?: string | null
+          responsavel_numero?: string | null
+          responsavel_parentesco?: string | null
+          responsavel_telefone?: string | null
+          telefone?: string | null
+          tipo?: string
         }
         Relationships: [
           {
@@ -1022,6 +1150,101 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      prontuario_anexos: {
+        Row: {
+          criado_em: string
+          id: string
+          mime: string | null
+          nome: string
+          paciente_id: string
+          path: string
+          registro_id: string | null
+          tamanho: number | null
+        }
+        Insert: {
+          criado_em?: string
+          id?: string
+          mime?: string | null
+          nome: string
+          paciente_id: string
+          path: string
+          registro_id?: string | null
+          tamanho?: number | null
+        }
+        Update: {
+          criado_em?: string
+          id?: string
+          mime?: string | null
+          nome?: string
+          paciente_id?: string
+          path?: string
+          registro_id?: string | null
+          tamanho?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prontuario_anexos_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prontuario_anexos_registro_id_fkey"
+            columns: ["registro_id"]
+            isOneToOne: false
+            referencedRelation: "prontuario_registros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prontuario_registros: {
+        Row: {
+          atualizado_em: string
+          audio_path: string | null
+          autor_id: string | null
+          autor_nome: string | null
+          conteudo: string
+          criado_em: string
+          id: string
+          paciente_id: string
+          tipo: string
+          titulo: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          audio_path?: string | null
+          autor_id?: string | null
+          autor_nome?: string | null
+          conteudo?: string
+          criado_em?: string
+          id?: string
+          paciente_id: string
+          tipo?: string
+          titulo?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          audio_path?: string | null
+          autor_id?: string | null
+          autor_nome?: string | null
+          conteudo?: string
+          criado_em?: string
+          id?: string
+          paciente_id?: string
+          tipo?: string
+          titulo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prontuario_registros_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       relatorio_executivo_ia: {
         Row: {
