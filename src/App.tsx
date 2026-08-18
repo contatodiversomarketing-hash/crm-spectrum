@@ -14,6 +14,7 @@ import TreinamentoIA from "./pages/TreinamentoIA";
 import CRM from "./pages/CRM";
 import Agenda from "./pages/Agenda";
 import Pacientes from "./pages/Pacientes";
+import Usuarios from "./pages/Usuarios";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,10 +28,11 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/" element={<ProtectedRoute><AppLayout><Index /></AppLayout></ProtectedRoute>} />
+            <Route path="/" element={<ProtectedRoute requiredRoles={["admin", "supervisao", "analista"]}><AppLayout><Index /></AppLayout></ProtectedRoute>} />
             <Route path="/supervisao" element={<ProtectedRoute requiredRoles={["admin", "supervisao"]}><AppLayout><SupervisaoIA /></AppLayout></ProtectedRoute>} />
-            <Route path="/dashboard-ia" element={<ProtectedRoute><AppLayout><DashboardInteligenciaIA /></AppLayout></ProtectedRoute>} />
+            <Route path="/dashboard-ia" element={<ProtectedRoute requiredRoles={["admin", "supervisao", "analista"]}><AppLayout><DashboardInteligenciaIA /></AppLayout></ProtectedRoute>} />
             <Route path="/treinamento-ia" element={<ProtectedRoute requiredRoles={["admin"]}><AppLayout><TreinamentoIA /></AppLayout></ProtectedRoute>} />
+            <Route path="/usuarios" element={<ProtectedRoute requiredRoles={["admin"]}><AppLayout><Usuarios /></AppLayout></ProtectedRoute>} />
             <Route path="/crm" element={<ProtectedRoute><AppLayout><CRM /></AppLayout></ProtectedRoute>} />
             <Route path="/agenda" element={<ProtectedRoute><AppLayout><Agenda /></AppLayout></ProtectedRoute>} />
             <Route path="/pacientes" element={<ProtectedRoute><AppLayout><Pacientes /></AppLayout></ProtectedRoute>} />

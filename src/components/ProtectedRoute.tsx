@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
-type AppRole = "admin" | "supervisao" | "analista";
+type AppRole = "admin" | "supervisao" | "analista" | "auxiliar";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -25,6 +25,10 @@ export function ProtectedRoute({ children, requiredRoles }: ProtectedRouteProps)
   }
 
   if (requiredRoles && requiredRoles.length > 0 && !hasAnyRole(...requiredRoles)) {
+    // Auxiliares só acessam Agenda, Pacientes e CRM — mandamos para a Agenda
+    if (hasAnyRole("auxiliar")) {
+      return <Navigate to="/agenda" replace />;
+    }
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="rounded-lg border bg-card p-8 max-w-md text-center space-y-3">
