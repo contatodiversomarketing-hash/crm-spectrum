@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { METODO_MESTRE_DAS_VENDAS } from "../_shared/metodo-vendas.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,7 +52,10 @@ Regras:
 - Nunca invente preços, descontos, horários ou promessas clínicas.
 - Nunca diga que é IA. Varie a abordagem conforme a etapa (mais leve nas primeiras, mais respeitosa e espaçada nas últimas).
 - Sempre termine com uma pergunta simples que facilite a resposta.
+- Siga a cadência e as regras de follow-up do método abaixo (etapa 5 a 12 costuma converter; pare imediatamente diante de recusa clara).
 - Responda apenas com o texto da mensagem.
+
+${METODO_MESTRE_DAS_VENDAS}
 
 Contexto do lead:
 ${contexto}`;
