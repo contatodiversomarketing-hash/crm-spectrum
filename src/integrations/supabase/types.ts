@@ -662,6 +662,7 @@ export type Database = {
           numero: string | null
           observacoes: string | null
           origem: string | null
+          origem_externa_id: string | null
           pipeline_id: string | null
           status: string
           status_pipeline: string
@@ -691,6 +692,7 @@ export type Database = {
           numero?: string | null
           observacoes?: string | null
           origem?: string | null
+          origem_externa_id?: string | null
           pipeline_id?: string | null
           status?: string
           status_pipeline?: string
@@ -720,6 +722,7 @@ export type Database = {
           numero?: string | null
           observacoes?: string | null
           origem?: string | null
+          origem_externa_id?: string | null
           pipeline_id?: string | null
           status?: string
           status_pipeline?: string

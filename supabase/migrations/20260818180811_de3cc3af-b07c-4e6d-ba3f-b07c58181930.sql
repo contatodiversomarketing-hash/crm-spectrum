@@ -1,0 +1,2 @@
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS origem_externa_id text;
+CREATE UNIQUE INDEX IF NOT EXISTS leads_origem_externa_id_key ON public.leads (origem_externa_id) WHERE origem_externa_id IS NOT NULL;
