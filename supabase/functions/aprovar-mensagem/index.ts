@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { enviarTextoMega } from "../_shared/mega.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -72,14 +73,8 @@ Deno.serve(async (req) => {
       }
 
       const numero = interacao.paciente_externo_id.replace("tel:", "");
-      const res = await fetch(megaUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${megaToken}` },
-        body: JSON.stringify({ number: numero, text: textoFinal }),
-      });
-
-      let data: unknown;
-      try { data = await res.json(); } catch (_e) { data = { raw: await res.text() }; }
+      const res = await enviarTextoMega(numero, textoFinal);
+      const data = { raw: res.body };
       megaEnvio = { ok: res.ok, status: res.status, data };
 
       if (!res.ok) {

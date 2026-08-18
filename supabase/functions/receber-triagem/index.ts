@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { enviarTextoMega } from "../_shared/mega.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -120,14 +121,7 @@ Deno.serve(async (req) => {
       try {
         const notificacao = `🆕 *Nova triagem recebida!*\n\n👤 ${nome || "Não informado"}\n📱 ${telefone || "Não informado"}\n📧 ${email || "Não informado"}\n🎯 Objetivo: ${objetivo || "Não informado"}\n\n_A Ana pode iniciar contato automaticamente._`;
 
-        await fetch(`${MEGA_API_URL}/message/sendText/${MEGA_API_TOKEN}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            number: ADMIN_WHATSAPP,
-            text: notificacao,
-          }),
-        });
+        await enviarTextoMega(ADMIN_WHATSAPP, notificacao);
         console.log("[receber-triagem] Notificação enviada ao admin");
       } catch (e) {
         console.warn("[receber-triagem] Erro ao notificar admin:", e);
@@ -148,14 +142,7 @@ Deno.serve(async (req) => {
           ? `${saudacao}, ${primeiroNome}! 😊 Aqui é a Ana, da Dra. Amélia Carvalho. Vi que você preencheu nosso formulário sobre cannabis medicinal. Que bom que está buscando informações! Posso te ajudar a agendar uma consulta com nossa médica especialista?`
           : `${saudacao}! 😊 Aqui é a Ana, da Dra. Amélia Carvalho. Vi que você preencheu nosso formulário sobre cannabis medicinal. Que bom que está buscando informações! Posso te ajudar a agendar uma consulta com nossa médica especialista?`;
 
-        await fetch(`${MEGA_API_URL}/message/sendText/${MEGA_API_TOKEN}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            number: telefone,
-            text: msgInicial,
-          }),
-        });
+        await enviarTextoMega(telefone, msgInicial);
 
         // Registrar interação
         await supabase.from("interacoes_ia").insert({
