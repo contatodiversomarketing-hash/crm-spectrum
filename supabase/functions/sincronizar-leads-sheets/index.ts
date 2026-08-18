@@ -1,4 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { interpretarTriagem } from "../_shared/triagens.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
