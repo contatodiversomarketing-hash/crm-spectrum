@@ -2758,7 +2758,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     if (historicoOrdenado.length > 0) {
       messages.push({
         role: "system",
-        content: "ATENÇÃO: esta conversa já possui histórico. É PROIBIDO se apresentar novamente, repetir a saudação inicial ou reenviar a última resposta. Responda SOMENTE ao conteúdo mais recente do paciente e faça a conversa avançar.",
+        content: "ATENÇÃO: esta conversa já possui histórico. É PROIBIDO se apresentar novamente, repetir a saudação inicial ou reenviar a última resposta. É PROIBIDO repetir uma pergunta que você já fez antes (ex.: perguntar o nome duas vezes) — se o paciente não respondeu àquela pergunta, siga a conversa de outro jeito, acolha o que ele disse e avance para o próximo passo. Responda SOMENTE ao conteúdo mais recente do paciente e faça a conversa avançar.",
       });
     }
 
