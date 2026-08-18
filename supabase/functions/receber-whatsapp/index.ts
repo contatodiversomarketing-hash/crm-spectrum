@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { METODO_MESTRE_DAS_VENDAS } from "../_shared/metodo-vendas.ts";
 import { interpretarTriagem, TRIAGENS_CONTEXTO } from "../_shared/triagens.ts";
+import { enviarDocumentoMega, NEUROACESSO_PDF_URL } from "../_shared/mega.ts";
 
 
 const corsHeaders = {
@@ -528,6 +529,17 @@ Você está atendendo pelo WhatsApp.
 - Se perguntarem valores de pacotes/investigação, responda com honestidade e sem despejar tabela: "Os programas variam conforme o que o seu caso precisa — quem monta e apresenta isso é a própria Dra. Amélia na consulta, com base na avaliação dela. O primeiro passo é a consulta inicial 💚". Só cite faixas ("a partir de R$ 350/mês no adulto") se o paciente insistir MUITO
 - Você CONHECE todos os programas em detalhe (estão na sua base de treinamento) e pode explicar o que está incluso, o formato e o tempo — mas NUNCA feche pacote, NUNCA prometa desconto e NUNCA invente valores fora do que está na base
 - NUNCA prometa que a criança fará avaliação multi por telemedicina: fono, TO, psicopedagogia, psicologia, psicomotricidade, musicoterapia e NEsplora são SEMPRE presenciais na Clínica LaVitta
+
+## MENTORIA "MÉTODO NEUROACESSO" (para MÉDICOS e CLÍNICAS — não é serviço para pacientes)
+Só fale disso se a pessoa perguntar sobre o Método/mentoria NeuroAcesso. Nunca ofereça a pacientes que buscam consulta.
+- O que é: mentoria de 6 meses da Dra. Amélia Carvalho para profissionais e clínicas de neurodesenvolvimento, ensinando judicialização do acesso à saúde — transformar pacientes sem condições financeiras em atendimento custeado pelo Estado. Lema: "Acesso é direito. Método antes de esforço."
+- Autoridade: +200 processos de judicialização desde 2023, 2 clínicas em operação, pós-graduação pelo Hospital Israelita Albert Einstein, especialização em TEA pelo CBI of Miami, coautora do livro "Autismo na Escola".
+- Três pilares: (1) Identificação e leitura de terreno (perfil de paciente, padrão do juiz local, três orçamentos, consórcio de saúde); (2) Os dois documentos — laudo NeuroAcesso e relatório de judicialização, no padrão CNJ/Fonajus e e-NatJus; (3) Acompanhamento e recorrência (renovação a cada 3 ou 6 meses).
+- O que está incluso: 6 encontros individuais mensais com a Dra. Amélia, grupo de WhatsApp VIP por 6 meses, Modelo de Laudo NeuroAcesso, Modelo de Documento Jurídico, 6 treinamentos coletivos da equipe de atendimento/comercial, + bônus: Sistema de Laudos NeuroAcesso e Diagnóstico de Atendimento/Comercial.
+- Provas: Muriaé-MG (104 mil hab.) +R$ 700 mil recuperados em 2 anos, resultado líquido +107,8% (R$ 363 mil de lucro adicional/ano). Laranjal-MG (6 mil hab.) +R$ 350 mil em 1,5 ano sem consulta particular, ~R$ 25 mil/mês via parceria com prefeitura.
+- Investimento: valor cheio dos itens R$ 70.500,00. Condição atual: 12x R$ 1.500 no cartão ou R$ 15.000 à vista (válida apenas para os 10 primeiros).
+- Nunca invente valores, prazos ou garantias além do que está acima. Não prometa resultado garantido.
+- MATERIAL EM PDF: se a pessoa pedir a apresentação/material/PDF do NeuroAcesso (ou disser que quer conhecer melhor), escreva no fim da sua mensagem o marcador ##ENVIAR_PDF_NEUROACESSO## (ele é removido automaticamente e o PDF é enviado em seguida). Use no máximo uma vez por conversa, salvo novo pedido.
 
 ## REGRA DE SELEÇÃO DO PROFISSIONAL
 - A Dra. Amélia Carvalho (CRM-MG 84630) conduz 100% das consultas pessoalmente — psiquiatria, neurodesenvolvimento (TEA/TDAH/TOD/dislexia), adulto e infantil, além de cannabis medicinal
@@ -3041,6 +3053,10 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     // Limpar qualquer marcador residual de encaminhamento (não usado mais)
     respostaFinal = respostaFinal.replace(/##ENCAMINHAR_HUMANO##/g, "").trim();
 
+    // Pedido do material do Método NeuroAcesso → enviar PDF após a resposta
+    const enviarPdfNeuroacesso = /##ENVIAR_PDF_NEUROACESSO##/i.test(respostaFinal);
+    respostaFinal = respostaFinal.replace(/##ENVIAR_PDF_NEUROACESSO##/gi, "").trim();
+
     // =============================
     // ENVIAR RESPOSTA (com verificação FRESCA de duplicação no banco)
     // =============================
@@ -3105,6 +3121,15 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     }
 
     const envioOk = await enviarTexto(numero, respostaFinal, instanceKey);
+
+    if (enviarPdfNeuroacesso) {
+      enviarDocumentoMega(
+        numero,
+        NEUROACESSO_PDF_URL,
+        "Metodo-NeuroAcesso.pdf",
+        "Apresentação do Método NeuroAcesso 💚",
+      ).catch((e) => console.error("[whatsapp] falha ao enviar PDF NeuroAcesso:", e));
+    }
 
     if (!envioOk) {
       if (interacaoSalva?.id) {
