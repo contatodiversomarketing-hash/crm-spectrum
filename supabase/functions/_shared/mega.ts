@@ -52,3 +52,47 @@ export async function enviarTextoMega(numero: string, texto: string): Promise<{ 
   if (!ok) console.error(`[mega] envio falhou [${resp.status}]: ${body.slice(0, 400)}`);
   return { ok, status: resp.status, body };
 }
+
+export const NEUROACESSO_PDF_URL =
+  "https://uftdsoqhyiqhxvckqxnp.supabase.co/storage/v1/object/public/treinamento-arquivos/materiais%2FMetodo_NeuroAcesso.pdf";
+
+export async function enviarDocumentoMega(
+  numero: string,
+  url: string,
+  fileName: string,
+  caption = "",
+): Promise<{ ok: boolean; status: number; body: string }> {
+  const { origin, token, instanceKey, configurado } = megaConfig();
+  if (!configurado) return { ok: false, status: 0, body: "MEGA_API não configurada" };
+
+  const destino = numero.replace(/\D/g, "");
+  const resp = await fetch(`${origin}/rest/sendMessage/${instanceKey}/document`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      apikey: token,
+    },
+    body: JSON.stringify({
+      messageData: {
+        to: `${destino}@s.whatsapp.net`,
+        url,
+        fileName,
+        caption,
+        type: "document",
+        mimeType: "application/pdf",
+        docName: fileName,
+      },
+    }),
+  });
+
+  const body = await resp.text();
+  let erroLogico = false;
+  try {
+    erroLogico = JSON.parse(body)?.error === true;
+  } catch { /* corpo não-JSON */ }
+
+  const ok = resp.ok && !erroLogico;
+  if (!ok) console.error(`[mega] envio de documento falhou [${resp.status}]: ${body.slice(0, 400)}`);
+  return { ok, status: resp.status, body };
+}

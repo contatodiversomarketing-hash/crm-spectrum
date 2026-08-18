@@ -24,12 +24,12 @@ function mensagemFallback(nome: string | null, etapa: number): string {
   const primeiro = nome ? nome.split(" ")[0] : "";
   const saud = primeiro ? `Oi, ${primeiro}! ` : "Oi! ";
   if (etapa <= 1) {
-    return `${saud}Aqui é a Ana, do consultório da Dra. Amélia Carvalho 💚\n\nVi que conversamos por aqui e ainda não conseguimos concluir seu agendamento. Posso te ajudar a reservar um horário?`;
+    return `${saud}Aqui é a Ana, consultora comercial. Trabalho com a Dra. Amélia Carvalho 💚\n\nVi que conversamos por aqui e ainda não conseguimos concluir seu agendamento. Posso te ajudar a reservar um horário?`;
   }
   if (etapa <= 3) {
     return `${saud}É a Ana, da Dra. Amélia Carvalho 💚\n\nPassando para saber se você ainda deseja avaliar o quadro que me contou. Consigo verificar a agenda desta semana para você.`;
   }
-  return `${saud}Aqui é a Ana, do consultório da Dra. Amélia Carvalho 🌿\n\nContinuo à disposição para organizar sua avaliação quando fizer sentido para você. Quer que eu veja os próximos horários?`;
+  return `${saud}Aqui é a Ana, consultora comercial. Trabalho com a Dra. Amélia Carvalho 🌿\n\nContinuo à disposição para organizar sua avaliação quando fizer sentido para você. Quer que eu veja os próximos horários?`;
 }
 
 async function gerarMensagemIA(lead: any, etapa: number): Promise<string | null> {
