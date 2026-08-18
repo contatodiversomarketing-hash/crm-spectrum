@@ -1676,24 +1676,77 @@ function ehComprovantePagamento(
 
 async function obterPipelinePacientesId(supabase: ReturnType<typeof createClient>): Promise<string | null> {
   try {
-    const { data, error } = await supabase
+    const { data: pacientes } = await supabase
       .from("pipelines")
       .select("id")
       .eq("nome", "Pacientes")
       .limit(1)
       .maybeSingle();
 
-    if (error) {
-      console.error("[whatsapp] Erro ao buscar pipeline Pacientes:", error);
-      return "00000000-0000-0000-0000-000000000001";
-    }
+    if (pacientes?.id) return pacientes.id;
 
-    return data?.id || "00000000-0000-0000-0000-000000000001";
+    // Fallback: primeira pipeline existente (ex.: "Comercial")
+    const { data: primeira, error } = await supabase
+      .from("pipelines")
+      .select("id")
+      .order("criado_em", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) console.error("[whatsapp] Erro ao buscar pipeline:", error);
+    return primeira?.id || null;
   } catch (err) {
-    console.error("[whatsapp] Falha ao obter pipeline Pacientes:", err);
-    return "00000000-0000-0000-0000-000000000001";
+    console.error("[whatsapp] Falha ao obter pipeline:", err);
+    return null;
   }
 }
+
+// Garante que TODA conversa vire card no CRM (mesmo sem agendamento)
+async function garantirLeadCRM(
+  supabase: ReturnType<typeof createClient>,
+  telefone: string,
+  nomePossivel?: string | null,
+): Promise<void> {
+  try {
+    const digitos = telefone.replace(/\D/g, "");
+    if (digitos.length < 10) return;
+    const semDDI = digitos.startsWith("55") ? digitos.slice(2) : digitos;
+    const variacoes = Array.from(new Set([digitos, semDDI, `55${semDDI}`, `+55${semDDI}`]));
+
+    const { data: existentes } = await supabase
+      .from("leads")
+      .select("id")
+      .in("telefone", variacoes)
+      .order("criado_em", { ascending: false })
+      .limit(1);
+
+    if (existentes?.[0]?.id) {
+      await supabase
+        .from("leads")
+        .update({ ultima_interacao: new Date().toISOString() })
+        .eq("id", existentes[0].id);
+      return;
+    }
+
+    const pipelineId = await obterPipelinePacientesId(supabase);
+    const { error } = await supabase.from("leads").insert({
+      nome: (nomePossivel || "").trim() || `WhatsApp ${semDDI}`,
+      telefone: digitos,
+      origem: "whatsapp_ana",
+      status: "novo",
+      status_pipeline: "em_contato",
+      ultima_interacao: new Date().toISOString(),
+      observacoes: "Card criado automaticamente a partir de conversa no WhatsApp.",
+      ...(pipelineId ? { pipeline_id: pipelineId } : {}),
+    });
+
+    if (error) console.error("[whatsapp] Erro ao criar lead automático:", error);
+    else console.log(`[whatsapp] ✅ Card criado no CRM para ${digitos}`);
+  } catch (err) {
+    console.error("[whatsapp] Falha em garantirLeadCRM:", err);
+  }
+}
+
 
 async function criarLeadCRM(
   supabase: ReturnType<typeof createClient>,
