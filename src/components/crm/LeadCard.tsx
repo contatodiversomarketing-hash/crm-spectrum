@@ -71,6 +71,7 @@ export function LeadCard({
 }) {
   const [editOpen, setEditOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const endereco = formatEndereco(lead);
   const docCount = Array.isArray(lead.documentos) ? lead.documentos.length : 0;
 
