@@ -1,4 +1,4 @@
-import { Brain, Eye, BarChart3, GraduationCap, LogOut, Users } from "lucide-react";
+import { Brain, Eye, BarChart3, GraduationCap, LogOut, Users, CalendarDays } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
