@@ -18,6 +18,7 @@ export function PainelMetricas() {
 
   const totalAtend = dados?.atendimentos.total || 0;
   const pct = (v: number) => (totalAtend > 0 ? (v / totalAtend) * 100 : 0);
+  const atendente = dados?.atendente_nome || "Lara Flores do Prado";
 
   return (
     <div className="space-y-6">
@@ -49,45 +50,32 @@ export function PainelMetricas() {
         </div>
       )}
 
-      {/* Cards de atendimento - agora com Maria Rita e Rebeka separadas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
-        {/* MarIA (IA) */}
+      {/* Cards de atendimento */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* ANA (IA) */}
         <div className="rounded-lg border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-muted-foreground">MarIA (IA)</span>
+            <span className="text-sm font-medium text-muted-foreground">ANA (IA)</span>
             <Bot className="h-5 w-5 text-primary" />
           </div>
           <div className="text-3xl font-bold tracking-tight tabular-nums">
-            {loading ? "..." : dados?.atendimentos.maria_ia ?? 0}
+            {loading ? "..." : dados?.atendimentos.ana_ia ?? 0}
           </div>
-          <p className="text-xs text-muted-foreground mt-1">{pct(dados?.atendimentos.maria_ia ?? 0).toFixed(0)}% dos atendimentos</p>
-          <Progress value={pct(dados?.atendimentos.maria_ia ?? 0)} className="mt-2 h-1.5" />
+          <p className="text-xs text-muted-foreground mt-1">{pct(dados?.atendimentos.ana_ia ?? 0).toFixed(0)}% dos atendimentos</p>
+          <Progress value={pct(dados?.atendimentos.ana_ia ?? 0)} className="mt-2 h-1.5" />
         </div>
 
-        {/* Maria Rita */}
+        {/* Lara (atendente) */}
         <div className="rounded-lg border bg-card p-5 shadow-sm border-l-4 border-l-warning">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-muted-foreground">Maria Rita</span>
-            <User className="h-5 w-5 text-warning" />
+            <span className="text-sm font-medium text-muted-foreground truncate" title={atendente}>{atendente}</span>
+            <User className="h-5 w-5 text-warning shrink-0" />
           </div>
           <div className="text-3xl font-bold tracking-tight tabular-nums">
-            {loading ? "..." : dados?.atendimentos.maria_rita ?? 0}
+            {loading ? "..." : dados?.atendimentos.lara ?? 0}
           </div>
-          <p className="text-xs text-muted-foreground mt-1">{pct(dados?.atendimentos.maria_rita ?? 0).toFixed(0)}% dos atendimentos</p>
-          <Progress value={pct(dados?.atendimentos.maria_rita ?? 0)} className="mt-2 h-1.5" />
-        </div>
-
-        {/* Rebeka */}
-        <div className="rounded-lg border bg-card p-5 shadow-sm border-l-4 border-l-accent">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-muted-foreground">Rebeka</span>
-            <User className="h-5 w-5 text-accent-foreground" />
-          </div>
-          <div className="text-3xl font-bold tracking-tight tabular-nums">
-            {loading ? "..." : dados?.atendimentos.rebeka ?? 0}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">{pct(dados?.atendimentos.rebeka ?? 0).toFixed(0)}% dos atendimentos</p>
-          <Progress value={pct(dados?.atendimentos.rebeka ?? 0)} className="mt-2 h-1.5" />
+          <p className="text-xs text-muted-foreground mt-1">{pct(dados?.atendimentos.lara ?? 0).toFixed(0)}% dos atendimentos</p>
+          <Progress value={pct(dados?.atendimentos.lara ?? 0)} className="mt-2 h-1.5" />
         </div>
 
         {/* Outros Humanos */}
@@ -173,35 +161,35 @@ export function PainelMetricas() {
             <div className="space-y-2 max-h-[300px] overflow-y-auto">
               {dados.por_dia.map((d) => {
                 const maxVal = Math.max(...dados.por_dia.map((x) => x.total), 1);
-                const pctIA = (d.maria_ia / maxVal) * 100;
-                const pctMR = (d.maria_rita / maxVal) * 100;
-                const pctR = (d.rebeka / maxVal) * 100;
+                const pctIA = (d.ana_ia / maxVal) * 100;
+                const pctLara = (d.lara / maxVal) * 100;
+                const pctOutros = (d.outros_humanos / maxVal) * 100;
                 return (
                   <div key={d.dia} className="flex items-center gap-3">
                     <span className="text-xs text-muted-foreground w-[72px] shrink-0 tabular-nums">
                       {d.dia.slice(5).replace("-", "/")}
                     </span>
                     <div className="flex-1 flex h-5 rounded-full overflow-hidden bg-secondary">
-                      <div className="h-full bg-primary/70 transition-all duration-500" style={{ width: `${pctIA}%` }} title={`MarIA: ${d.maria_ia}`} />
-                      <div className="h-full bg-warning/70 transition-all duration-500" style={{ width: `${pctMR}%` }} title={`Maria Rita: ${d.maria_rita}`} />
-                      <div className="h-full bg-accent transition-all duration-500" style={{ width: `${pctR}%` }} title={`Rebeka: ${d.rebeka}`} />
+                      <div className="h-full bg-primary/70 transition-all duration-500" style={{ width: `${pctIA}%` }} title={`ANA: ${d.ana_ia}`} />
+                      <div className="h-full bg-warning/70 transition-all duration-500" style={{ width: `${pctLara}%` }} title={`${atendente}: ${d.lara}`} />
+                      <div className="h-full bg-accent transition-all duration-500" style={{ width: `${pctOutros}%` }} title={`Outros: ${d.outros_humanos}`} />
                     </div>
                     <span className="text-xs font-medium tabular-nums w-[40px] text-right">{d.total}</span>
                   </div>
                 );
               })}
-              <div className="flex gap-4 pt-2 border-t mt-2">
+              <div className="flex gap-4 pt-2 border-t mt-2 flex-wrap">
                 <div className="flex items-center gap-1.5">
                   <div className="h-2.5 w-2.5 rounded-full bg-primary/70" />
-                  <span className="text-xs text-muted-foreground">MarIA</span>
+                  <span className="text-xs text-muted-foreground">ANA (IA)</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="h-2.5 w-2.5 rounded-full bg-warning/70" />
-                  <span className="text-xs text-muted-foreground">Maria Rita</span>
+                  <span className="text-xs text-muted-foreground">{atendente}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="h-2.5 w-2.5 rounded-full bg-accent" />
-                  <span className="text-xs text-muted-foreground">Rebeka</span>
+                  <span className="text-xs text-muted-foreground">Outros</span>
                 </div>
               </div>
             </div>

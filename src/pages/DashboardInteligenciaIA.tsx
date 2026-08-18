@@ -3,6 +3,7 @@ import { Brain, MessageSquare, Phone, CheckCircle, TrendingUp, RefreshCw, Sparkl
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { RelatorioConversao } from "@/components/RelatorioConversao";
 
 interface DashboardData {
   totalMensagens: number;
@@ -161,6 +162,9 @@ const DashboardInteligenciaIA = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+        {/* Relatório de conversão e perdas */}
+        <RelatorioConversao />
+
         {/* KPI Cards */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <KPICard
