@@ -13,6 +13,7 @@ import Login from "./pages/Login";
 import TreinamentoIA from "./pages/TreinamentoIA";
 import CRM from "./pages/CRM";
 import Agenda from "./pages/Agenda";
+import Pacientes from "./pages/Pacientes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
