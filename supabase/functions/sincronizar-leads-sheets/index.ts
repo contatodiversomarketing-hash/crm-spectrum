@@ -119,6 +119,22 @@ Deno.serve(async (req) => {
           if (typeof respostas === "string" && respostas.startsWith("[")) respostas = JSON.parse(respostas);
         } catch (_) { /* mantém texto */ }
 
+        const triagem: Record<string, unknown> = {
+          aba,
+          quiz,
+          idade: row["idade"] || null,
+          especialidade: row["especialidade"] || null,
+          resultado: row["resultado"] || null,
+          respostas,
+          prontidao: row["prontidao"] || row["prontidão"] || null,
+          leadPrioritario: (row["leadprioritario"] || row["lead prioritário"] || "").toLowerCase() === "true",
+          fezQuizCrianca: (row["fezquizcrianca"] || "").toLowerCase() === "true",
+          fezQuizTermometro: (row["fezquiztermometro"] || "").toLowerCase() === "true",
+          data_hora_planilha: datahora,
+        };
+        const interpretacao = interpretarTriagem(triagem);
+        if (interpretacao) triagem.interpretacao = interpretacao;
+
         novos.push({
           origem_externa_id: chave,
           nome: nome || null,
@@ -130,16 +146,9 @@ Deno.serve(async (req) => {
           pipeline_id: pipeline?.id ?? null,
           nome_filho: row["paciente/criança"] || null,
           criado_em: parseDataHora(datahora) || new Date().toISOString(),
-          dados_triagem: {
-            aba,
-            quiz,
-            idade: row["idade"] || null,
-            especialidade: row["especialidade"] || null,
-            resultado: row["resultado"] || null,
-            respostas,
-            data_hora_planilha: datahora,
-          },
+          dados_triagem: triagem,
         });
+
       }
     });
 
