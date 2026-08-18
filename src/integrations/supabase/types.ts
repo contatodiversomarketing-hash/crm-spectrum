@@ -19,25 +19,46 @@ export type Database = {
           clinica_id: string | null
           criado_em: string
           data_hora: string
+          duracao_min: number
           id: string
+          observacoes: string | null
           paciente_id: string | null
+          paciente_nome: string | null
+          procedimento: string | null
+          profissional: string | null
+          sala: string | null
           status: string
+          tipo: string
         }
         Insert: {
           clinica_id?: string | null
           criado_em?: string
           data_hora: string
+          duracao_min?: number
           id?: string
+          observacoes?: string | null
           paciente_id?: string | null
+          paciente_nome?: string | null
+          procedimento?: string | null
+          profissional?: string | null
+          sala?: string | null
           status?: string
+          tipo?: string
         }
         Update: {
           clinica_id?: string | null
           criado_em?: string
           data_hora?: string
+          duracao_min?: number
           id?: string
+          observacoes?: string | null
           paciente_id?: string | null
+          paciente_nome?: string | null
+          procedimento?: string | null
+          profissional?: string | null
+          sala?: string | null
           status?: string
+          tipo?: string
         }
         Relationships: [
           {
