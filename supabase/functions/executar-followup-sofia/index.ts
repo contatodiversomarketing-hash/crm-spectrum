@@ -62,6 +62,8 @@ Regras:
 
 ${METODO_MESTRE_DAS_VENDAS}
 
+${TRIAGENS_CONTEXTO}
+
 Contexto do lead:
 ${contexto}`;
 
