@@ -18,8 +18,24 @@ interface Props {
   onReorder?: (ordered: PipelineColumn[]) => Promise<any>;
 }
 
-export function ColumnSettingsDialog({ open, onOpenChange, columns, onAdd, onUpdate, onDelete }: Props) {
+export function ColumnSettingsDialog({ open, onOpenChange, columns, onAdd, onUpdate, onDelete, onReorder }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+
+  const handleDrop = async (targetId: string) => {
+    const from = columns.findIndex((c) => c.id === dragId);
+    const to = columns.findIndex((c) => c.id === targetId);
+    setDragId(null);
+    setOverId(null);
+    if (from < 0 || to < 0 || from === to || !onReorder) return;
+    const next = [...columns];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    const err = await onReorder(next);
+    if (err) toast({ title: "Erro ao reordenar", description: err.message, variant: "destructive" });
+  };
+
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState("");
   const [newName, setNewName] = useState("");
