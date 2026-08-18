@@ -107,6 +107,9 @@ export function LeadCard({
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setChatOpen(true)} title="Conversar no WhatsApp">
+              <MessageCircle className="h-3.5 w-3.5" />
+            </Button>
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setAlertsOpen(true)} title="Lembretes">
               <Bell className="h-3.5 w-3.5" />
             </Button>
