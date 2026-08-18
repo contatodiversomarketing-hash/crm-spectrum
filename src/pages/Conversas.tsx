@@ -320,6 +320,26 @@ export default function Conversas({ modo }: { modo: "ia" | "atendente" }) {
                   ))}
                 </div>
               </ScrollArea>
+              <div className="border-t bg-card p-3">
+                <div className="max-w-3xl mx-auto flex items-end gap-2">
+                  <Textarea
+                    value={texto}
+                    onChange={(e) => setTexto(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        enviar(ativa.telefone);
+                      }
+                    }}
+                    placeholder="Continuar a conversa..."
+                    rows={1}
+                    className="min-h-[42px] max-h-32 resize-none text-sm"
+                  />
+                  <Button size="icon" onClick={() => enviar(ativa.telefone)} disabled={enviando || !texto.trim()}>
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
             </>
           )}
         </section>
