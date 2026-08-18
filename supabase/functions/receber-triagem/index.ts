@@ -139,8 +139,8 @@ Deno.serve(async (req) => {
         const saudacao = new Date().getUTCHours() - 3 < 12 ? "Bom dia" : new Date().getUTCHours() - 3 < 18 ? "Boa tarde" : "Boa noite";
         
         const msgInicial = primeiroNome
-          ? `${saudacao}, ${primeiroNome}! 😊 Aqui é a Ana, da Dra. Amélia Carvalho. Vi que você preencheu nosso formulário sobre cannabis medicinal. Que bom que está buscando informações! Posso te ajudar a agendar uma consulta com nossa médica especialista?`
-          : `${saudacao}! 😊 Aqui é a Ana, da Dra. Amélia Carvalho. Vi que você preencheu nosso formulário sobre cannabis medicinal. Que bom que está buscando informações! Posso te ajudar a agendar uma consulta com nossa médica especialista?`;
+          ? `${saudacao}, ${primeiroNome}! 😊 Aqui é a Ana, consultora comercial. Trabalho com a Dra. Amélia Carvalho. Vi que você preencheu nosso formulário sobre cannabis medicinal. Que bom que está buscando informações! Posso te ajudar a agendar uma consulta com nossa médica especialista?`
+          : `${saudacao}! 😊 Aqui é a Ana, consultora comercial. Trabalho com a Dra. Amélia Carvalho. Vi que você preencheu nosso formulário sobre cannabis medicinal. Que bom que está buscando informações! Posso te ajudar a agendar uma consulta com nossa médica especialista?`;
 
         await enviarTextoMega(telefone, msgInicial);
 

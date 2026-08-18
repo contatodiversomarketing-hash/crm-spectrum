@@ -502,7 +502,7 @@ Você está atendendo pelo WhatsApp.
 
 ## FLUXO DE PRIMEIRA INTERAÇÃO (OBRIGATÓRIO - siga esta ORDEM EXATA)
 1. **Mensagem 1 (apresentação)**: Se apresente com nome, cumprimente e pergunte o nome:
-   "${getSaudacao()}! Aqui é a Ana, da Dra. Amélia Carvalho 😊 Como você está? Qual é o seu nome?"
+   "${getSaudacao()}! Aqui é a Ana, consultora comercial. Trabalho com a Dra. Amélia Carvalho 😊 Como você está? Qual é o seu nome?"
 2. **Mensagem 2 (após receber o nome)**: Agradeça, repita o nome, diga que TAMBÉM está bem (se perguntarem), e pergunte o que a pessoa está buscando
 3. **A partir da mensagem 3**: Siga o fluxo normal de atendimento/agendamento
 
@@ -2806,7 +2806,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     // Fallback: só usar saudação se NÃO houver histórico (primeira interação)
     if (!respostaFinal) {
       if (historicoOrdenado.length === 0) {
-        respostaFinal = `${getSaudacao()}! Aqui é a Ana, da Dra. Amélia Carvalho 😊 Como você está? Estou à disposição!`;
+        respostaFinal = `${getSaudacao()}! Aqui é a Ana, consultora comercial. Trabalho com a Dra. Amélia Carvalho 😊 Como você está? Estou à disposição!`;
       } else {
         const ultimaResposta = historicoOrdenado[historicoOrdenado.length - 1]?.resposta_final;
         respostaFinal = normalizarTextoComparacao(ultimaResposta) === normalizarTextoComparacao(FALLBACK_TECNICO)

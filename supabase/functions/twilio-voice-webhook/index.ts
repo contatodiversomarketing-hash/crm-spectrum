@@ -376,7 +376,7 @@ serve(async (req) => {
       }).then(() => {});
     }
 
-    const msgInicial = `${saudacao}! Aqui é a Ana da Dra. Amélia Carvalho. Tudo bem? Me fala seu nome, por favor, pra eu te atender melhor!`;
+    const msgInicial = `${saudacao}! Aqui é a Ana, consultora comercial. Trabalho com a Dra. Amélia Carvalho. Tudo bem? Me fala seu nome, por favor, pra eu te atender melhor!`;
     return gerarRespostaComAudio(msgInicial, supabase, webhookUrl);
   }
 
