@@ -1682,7 +1682,7 @@ function ehComprovantePagamento(
   // Se chegou imagem/pdf depois de Ana ter enviado dados de Pix recentemente
   if (midiaTipo === "image" || midiaTipo === "document") {
     const ultimas = historico.slice(-4).map((h) => (h.resposta_final || "").toLowerCase()).join(" ");
-    if (/pix|vittacare@jim|comprovante|pagamento/.test(ultimas)) return true;
+    if (/pix|chave pix|comprovante|pagamento/.test(ultimas)) return true;
   }
   return false;
 }
