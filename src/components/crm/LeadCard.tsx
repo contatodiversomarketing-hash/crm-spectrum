@@ -77,8 +77,8 @@ export function LeadCard({
 
   return (
     <>
-      <div className="bg-card border border-border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing">
-        <div className="flex items-start justify-between mb-2">
+      <div className="bg-card border border-border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing w-full min-w-0 max-w-full overflow-hidden">
+        <div className="flex items-start justify-between gap-1 mb-2">
           <div className="flex items-start gap-1 flex-1 min-w-0">
             <GripVertical className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground" />
             <p className="font-semibold text-sm text-foreground truncate flex-1">
@@ -187,7 +187,7 @@ export function LeadCard({
           </div>
         </div>
 
-        <div className="space-y-1 text-xs text-muted-foreground">
+        <div className="space-y-1 text-xs text-muted-foreground min-w-0 cursor-pointer" onClick={() => setEditOpen(true)}>
           {lead.telefone && (
             <div className="flex items-center gap-1.5">
               <Phone className="h-3 w-3 shrink-0" />
@@ -246,16 +246,16 @@ export function LeadCard({
         {(lead.followup_etapa !== undefined && lead.followup_etapa !== null) && (
           <div className="mt-2 pt-2 border-t border-border">
             {lead.followup_finalizado ? (
-              <div className="flex items-center gap-1.5 text-[10px]">
+              <div className="flex flex-wrap items-center gap-1.5 text-[10px] min-w-0">
                 <CheckCircle2 className="h-3 w-3 text-green-600 dark:text-green-400" />
                 <span className="text-green-700 dark:text-green-400 font-medium">
                   Régua finalizada {(lead.followup_etapa ?? 0) >= 15 ? "(15 dias)" : "(respondeu)"}
                 </span>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 text-[10px]">
+              <div className="flex flex-wrap items-center gap-1.5 text-[10px] min-w-0">
                 <BellRing className="h-3 w-3 text-primary" />
-                <span className={`px-1.5 py-0.5 rounded ${ETAPA_LABEL[lead.followup_etapa ?? 0]?.tom || "bg-muted text-muted-foreground"}`}>
+                <span className={`px-1.5 py-0.5 rounded break-words whitespace-normal ${ETAPA_LABEL[lead.followup_etapa ?? 0]?.tom || "bg-muted text-muted-foreground"}`}>
                   {ETAPA_LABEL[lead.followup_etapa ?? 0]?.texto || "—"}
                 </span>
                 {lead.followup_ultimo_envio && (

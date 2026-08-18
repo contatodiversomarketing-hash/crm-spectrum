@@ -55,7 +55,7 @@ export function KanbanBoard({ leads, onRefresh, columns }: KanbanBoardProps) {
               </span>
             </div>
             <ScrollArea className="flex-1 p-2">
-              <div className="space-y-2">
+              <div className="space-y-2 min-w-0">
                 {colLeads.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-8">
                     {dragOver === col.chave ? "Solte aqui" : "Nenhum lead"}
@@ -64,6 +64,7 @@ export function KanbanBoard({ leads, onRefresh, columns }: KanbanBoardProps) {
                   colLeads.map((lead) => (
                     <div
                       key={lead.id}
+                      className="min-w-0"
                       draggable
                       onDragStart={(e) => {
                         e.dataTransfer.setData("text/lead-id", lead.id);
