@@ -241,14 +241,20 @@ export default function TreinamentoIA() {
 
         {/* Tabs */}
         <Tabs defaultValue="chat" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="chat">💬 Conversar com a Maria</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="chat">💬 Conversar</TabsTrigger>
+            <TabsTrigger value="aprender">✨ Aprender com conversas</TabsTrigger>
             <TabsTrigger value="instrucoes">📋 Instruções</TabsTrigger>
           </TabsList>
 
           <TabsContent value="chat">
             <ChatTreinamento />
           </TabsContent>
+
+          <TabsContent value="aprender">
+            <AprenderConversas />
+          </TabsContent>
+
 
           <TabsContent value="instrucoes" className="space-y-6">
             {/* Stats */}
