@@ -282,6 +282,13 @@ export function LeadCard({
 
       <LeadEditDialog lead={lead} open={editOpen} onOpenChange={setEditOpen} onSaved={onRefresh} columns={columns} />
       <LeadAlertsDialog leadId={lead.id} leadName={lead.nome || "Sem nome"} open={alertsOpen} onOpenChange={setAlertsOpen} />
+      <LeadChatDialog
+        open={chatOpen}
+        onOpenChange={setChatOpen}
+        leadId={lead.id}
+        leadNome={lead.nome || "Sem nome"}
+        telefone={lead.telefone}
+      />
     </>
   );
 }
