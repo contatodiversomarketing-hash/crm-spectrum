@@ -20,6 +20,7 @@ import {
 
 const menuItems = [
   { title: "Painel Principal", url: "/", icon: Brain },
+  { title: "Agenda", url: "/agenda", icon: CalendarDays },
   { title: "CRM / Leads", url: "/crm", icon: Users },
   { title: "Supervisão IA", url: "/supervisao", icon: Eye },
   { title: "Dashboard IA", url: "/dashboard-ia", icon: BarChart3 },
