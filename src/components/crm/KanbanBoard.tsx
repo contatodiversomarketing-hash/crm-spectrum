@@ -54,7 +54,7 @@ export function KanbanBoard({ leads, onRefresh, columns }: KanbanBoardProps) {
                 {colLeads.length}
               </span>
             </div>
-            <ScrollArea className="flex-1 p-2">
+            <ScrollArea className="flex-1 p-2 w-full [&>div>div]:!block [&>div>div]:!min-w-0">
               <div className="space-y-2 min-w-0">
                 {colLeads.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-8">
