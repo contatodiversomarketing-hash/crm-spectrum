@@ -568,6 +568,8 @@ Você está atendendo pelo WhatsApp.
 
 ${METODO_MESTRE_DAS_VENDAS}
 
+${TRIAGENS_CONTEXTO}
+
 ## RAPPORT (regra fixa)
 - CAPTURE O NOME na primeira mensagem e USE o nome nos momentos-chave da conversa
 - Aplique SPIN dentro do método: Situação → Problema → Implicação → Necessidade
