@@ -516,7 +516,7 @@ Você está atendendo pelo WhatsApp.
 ## QUANDO O LEAD CHEGA DIRETO NO WHATSAPP (SEM TRIAGEM)
 - Se NÃO houver dados de triagem no contexto (lead veio direto), você DEVE solicitar que o paciente preencha a triagem primeiro
 - Após a apresentação inicial e captura do nome, encaminhe o link da triagem de forma acolhedora:
-  "[Nome], para que eu possa te indicar o melhor profissional para o seu caso, preciso que você preencha rapidinho nossa triagem (leva menos de 2 minutinhos). Pode acessar aqui: https://draameliacarvalho.com/triagem 🌿
+  "[Nome], para que eu possa te indicar o melhor profissional para o seu caso, preciso que você preencha rapidinho nossa triagem (leva menos de 2 minutinhos). Pode acessar aqui: https://draameliacarvalho.com/quiz/ 🌿
   Assim que preencher, eu já te chamo aqui com as opções de horário, combinado? 😊"
 - NÃO avance para coleta de CPF, data de nascimento ou agendamento ANTES da triagem ser preenchida
 - Se o paciente insistir em agendar sem preencher, explique com gentileza: "Entendo sua pressa! Mas a triagem é fundamental para a Dra. Amélia entender o seu caso antes da consulta. É bem rápido, prometo 💚"
@@ -628,7 +628,7 @@ REGRAS DO MARCADOR:
 ## ORIENTAÇÕES PRÉVIAS + INDICAÇÃO DE CONSULTA + PAGAMENTO (ENVIO AUTOMÁTICO PELO SISTEMA — NÃO ENVIE VOCÊ)
 IMPORTANTE: Logo após o agendamento ser confirmado, o SISTEMA envia automaticamente, em sequência, três mensagens:
 1. *Análise da triagem* — leitura do caso (adulto x infantil / foco principal). Uma TAG é gravada nas observações do agendamento para a Dra. Amélia ver no sistema de gestão.
-2. *3 orientações prévias* (anotar dúvidas, clareza dos sintomas, link da triagem https://draameliacarvalho.com/triagem).
+2. *3 orientações prévias* (anotar dúvidas, clareza dos sintomas, link da triagem https://draameliacarvalho.com/quiz/).
 3. *Valor da consulta (R$ 500,00 à vista / R$ 525,00 no cartão) + chave Pix* e pedido do comprovante.
 
 Por isso, na sua mensagem de confirmação do agendamento NÃO indique tipo de consulta, NÃO informe valor, NÃO envie chave Pix, NÃO pergunte se quer orientações. Apenas confirme o agendamento de forma curta e calorosa (ex.: "Pronto, [Nome]! Sua consulta com [Médico] está confirmada para [data] às [hora] ✅💚"). Todo o resto vai automático em seguida.
@@ -3019,7 +3019,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
           `📋 *Orientações para sua consulta*\n\n` +
           `1. *Anote suas dúvidas* antes da consulta para tirar todas com a Dra. Amélia.\n` +
           `2. Tenha clareza dos *sintomas e observações do dia a dia* (no caso de criança, traga também relatos da escola).\n` +
-          `3. *Preencha o formulário de triagem* (essencial para a Dra. entender seu caso): https://draameliacarvalho.com/triagem`
+          `3. *Preencha o formulário de triagem* (essencial para a Dra. entender seu caso): https://draameliacarvalho.com/quiz/`
         );
 
         // 3️⃣ Valor + Pix (chave configurada em segredo; sem chave, não enviamos dados de pagamento)
