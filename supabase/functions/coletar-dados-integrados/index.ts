@@ -68,25 +68,28 @@ Deno.serve(async (req) => {
     const GESTAO_API_URL = Deno.env.get("GESTAO_API_URL");
     const GESTAO_API_TOKEN = Deno.env.get("GESTAO_API_TOKEN");
 
-    if (!GESTAO_API_URL || !GESTAO_API_TOKEN) {
-      return new Response(
-        JSON.stringify({ error: "Secrets não configurados: GESTAO" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
+    const gestaoConfigurada = Boolean(GESTAO_API_URL && GESTAO_API_TOKEN);
+    const semGestao: SystemResult = {
+      data: null, ok: false, status: 0,
+      error: "Integração Gestão não configurada", duration_ms: 0,
+    };
+
     // Buscar dados do CRM interno + gestão em paralelo
-    const gestaoHeaders = { "apikey": GESTAO_API_TOKEN };
+    const gestaoHeaders = { "apikey": GESTAO_API_TOKEN ?? "" };
 
     const [gestaoMedicos, gestaoAgendamentos, leadsResult] = await Promise.all([
-      fetchWithTimeout(GESTAO_API_URL, gestaoHeaders, TIMEOUT_MS, {
-        method: "POST", body: { action: "listar_medicos" },
-      }),
-      fetchWithTimeout(GESTAO_API_URL, gestaoHeaders, TIMEOUT_MS, {
-        method: "POST", body: { action: "listar_agendamentos" },
-      }),
+      gestaoConfigurada
+        ? fetchWithTimeout(GESTAO_API_URL!, gestaoHeaders, TIMEOUT_MS, {
+            method: "POST", body: { action: "listar_medicos" },
+          })
+        : Promise.resolve(semGestao),
+      gestaoConfigurada
+        ? fetchWithTimeout(GESTAO_API_URL!, gestaoHeaders, TIMEOUT_MS, {
+            method: "POST", body: { action: "listar_agendamentos" },
+          })
+        : Promise.resolve(semGestao),
       supabase.from("leads").select("*").order("criado_em", { ascending: false }).limit(200),
     ]);
 
