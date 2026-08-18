@@ -1448,7 +1448,7 @@ async function buscarTriagemDoLead(
 // =============================
 export interface DecisaoConsulta {
   tipo: "clinico_geral" | "especialista";
-  valor: number; // 59.99 ou 99.99
+  valor: number; // 500 (consulta inicial com a Dra. Amélia)
   valorTexto: string; // formatado p/ humano
   especialidadeSugerida: string | null; // ex.: "Psiquiatria", "Neurologia"
   justificativa: string; // 1 linha p/ a IA verbalizar
@@ -1481,8 +1481,8 @@ function decidirTipoConsultaPorRegex(triagemTexto: string): DecisaoConsulta {
     if (g.regex.test(txt)) {
       return {
         tipo: "especialista",
-        valor: 99.99,
-        valorTexto: "R$ 99,99",
+        valor: 500,
+        valorTexto: "R$ 500,00",
         especialidadeSugerida: g.especialidade,
         justificativa: `verifiquei sua triagem e, pelo seu caso (${g.motivo}), o ideal é a consulta com especialista`,
         tag: `ESPECIALISTA - ${g.especialidade}`,
@@ -1493,8 +1493,8 @@ function decidirTipoConsultaPorRegex(triagemTexto: string): DecisaoConsulta {
   // Default: Clínico Geral
   return {
     tipo: "clinico_geral",
-    valor: 59.99,
-    valorTexto: "R$ 59,99",
+    valor: 500,
+    valorTexto: "R$ 500,00",
     especialidadeSugerida: "Clínico Geral",
     justificativa: "verifiquei sua triagem e, para o seu caso, o clínico geral resolve perfeitamente",
     tag: "CLÍNICO GERAL",
@@ -1515,8 +1515,8 @@ async function decidirTipoConsultaPelaTriagem(triagemTexto: string): Promise<Dec
 
   try {
     const systemPrompt = `Você é uma triadora médica da Dra. Amélia Carvalho (clínica de cannabis medicinal/CBD). Com base na triagem do paciente, decida se a consulta inicial deve ser com:
-- "clinico_geral" (R$ 59,99) — casos comuns, sintomas leves/moderados, dores comuns, ansiedade leve, insônia ocasional, dúvidas iniciais sobre CBD.
-- "especialista" (R$ 99,99) — quando o caso exige conhecimento de RQE/pós: psiquiatria (autismo/TEA, TDAH, depressão severa, bipolar, pânico, psicose), neurologia (epilepsia, Parkinson, Alzheimer, dor neuropática, fibromialgia, enxaqueca crônica), pediatria (crianças), oncologia (câncer/paliativos), reumatologia (lúpus, artrite reumatoide).
+- "clinico_geral" — casos comuns, sintomas leves/moderados, dores comuns, ansiedade leve, insônia ocasional, dúvidas iniciais sobre CBD.
+- "especialista" — quando o caso exige conhecimento de RQE/pós: psiquiatria (autismo/TEA, TDAH, depressão severa, bipolar, pânico, psicose), neurologia (epilepsia, Parkinson, Alzheimer, dor neuropática, fibromialgia, enxaqueca crônica), pediatria (crianças), oncologia (câncer/paliativos), reumatologia (lúpus, artrite reumatoide).
 
 Responda APENAS um JSON válido, sem markdown, no formato:
 {"tipo":"clinico_geral"|"especialista","especialidade":"Clínico Geral"|"Psiquiatria"|"Neurologia"|"Pediatria"|"Oncologia"|"Reumatologia"|"...","motivo":"frase curta em pt-BR explicando o porquê (max 80 chars)"}`;
@@ -1560,8 +1560,8 @@ Responda APENAS um JSON válido, sem markdown, no formato:
     if (tipo === "especialista") {
       return {
         tipo: "especialista",
-        valor: 99.99,
-        valorTexto: "R$ 99,99",
+        valor: 500,
+        valorTexto: "R$ 500,00",
         especialidadeSugerida: especialidade,
         justificativa: `verifiquei sua triagem e, pelo seu caso (${motivo}), o ideal é a consulta com especialista`,
         tag: `ESPECIALISTA - ${especialidade}`,
@@ -1569,8 +1569,8 @@ Responda APENAS um JSON válido, sem markdown, no formato:
     }
     return {
       tipo: "clinico_geral",
-      valor: 59.99,
-      valorTexto: "R$ 59,99",
+      valor: 500,
+      valorTexto: "R$ 500,00",
       especialidadeSugerida: "Clínico Geral",
       justificativa: `verifiquei sua triagem e, para o seu caso (${motivo}), o clínico geral resolve perfeitamente`,
       tag: "CLÍNICO GERAL",
