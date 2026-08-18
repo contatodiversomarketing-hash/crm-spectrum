@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { PipelineColumn } from "@/hooks/usePipelineColumns";
-import { Phone, Mail, MapPin, Calendar, FileText, Eye, Pencil, StickyNote, BellRing, CheckCircle2, Bell, Baby, GripVertical, MoveRight, MessageCircle } from "lucide-react";
+import { Phone, Mail, MapPin, Calendar, FileText, Eye, Pencil, StickyNote, BellRing, CheckCircle2, Bell, Baby, GripVertical, MoveRight, MessageCircle, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,18 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { LeadEditDialog } from "./LeadEditDialog";
 import { LeadAlertsDialog } from "./LeadAlertsDialog";
 import { LeadChatDialog } from "./LeadChatDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 export interface Lead {
   id: string;
@@ -72,6 +84,22 @@ export function LeadCard({
   const [editOpen, setEditOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const excluirLead = async () => {
+    setDeleting(true);
+    await supabase.from("lead_alertas").delete().eq("lead_id", lead.id);
+    const { error } = await supabase.from("leads").delete().eq("id", lead.id);
+    setDeleting(false);
+    if (error) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+      return;
+    }
+    setDeleteOpen(false);
+    toast({ title: "Lead excluído", description: lead.nome || "Sem nome" });
+    onRefresh();
+  };
   const endereco = formatEndereco(lead);
   const docCount = Array.isArray(lead.documentos) ? lead.documentos.length : 0;
 
@@ -112,6 +140,15 @@ export function LeadCard({
             </Button>
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setAlertsOpen(true)} title="Lembretes">
               <Bell className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-destructive hover:text-destructive"
+              onClick={() => setDeleteOpen(true)}
+              title="Excluir lead"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
             </Button>
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditOpen(true)} title="Editar">
               <Pencil className="h-3.5 w-3.5" />
@@ -289,6 +326,32 @@ export function LeadCard({
         leadNome={lead.nome || "Sem nome"}
         telefone={lead.telefone}
       />
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir este lead?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{lead.nome || "Sem nome"}</strong>? Esta ação não pode ser desfeita
+              e removerá também os lembretes vinculados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                excluirLead();
+              }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </>
   );
 }

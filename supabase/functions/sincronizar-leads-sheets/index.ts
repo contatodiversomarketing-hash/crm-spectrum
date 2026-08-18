@@ -35,6 +35,8 @@ function linhasParaObjetos(values: string[][]) {
     header.forEach((h, i) => {
       if (h) obj[h] = (row[i] ?? "").toString().trim();
     });
+    // Coluna J (índice 9) = marcação manual "chamei" -> lead já em contato
+    obj["__coluna_j"] = (row[9] ?? "").toString().trim();
     return obj;
   });
 }
@@ -100,8 +102,21 @@ Deno.serve(async (req) => {
       if (coluna?.chave) statusPipeline = coluna.chave;
     }
 
+    // Coluna "Em contato" (para linhas marcadas como "chamei" na coluna J)
+    let statusEmContato = "em_contato";
+    if (pipeline?.id) {
+      const { data: colEmContato } = await supabase
+        .from("pipeline_colunas")
+        .select("chave")
+        .eq("pipeline_id", pipeline.id)
+        .eq("chave", "em_contato")
+        .maybeSingle();
+      if (colEmContato?.chave) statusEmContato = colEmContato.chave;
+    }
+
     const novos: any[] = [];
     const chaves: string[] = [];
+    const chavesEmContato: string[] = [];
 
     valueRanges.forEach((vr, idx) => {
       const aba = ABAS[idx] ?? (vr.range || "").split("!")[0];
@@ -114,6 +129,9 @@ Deno.serve(async (req) => {
         const chave = `sheets:${aba}:${datahora}:${telefone || nome}`;
         if (chaves.includes(chave)) continue;
         chaves.push(chave);
+
+        const marcadoChamei = (row["__coluna_j"] || "").length > 0;
+        if (marcadoChamei) chavesEmContato.push(chave);
 
         const quiz = row["quiz"] || row["origem"] || aba.toLowerCase();
         let respostas: unknown = row["respostas"] || null;
@@ -144,7 +162,7 @@ Deno.serve(async (req) => {
           email: row["e-mail"] || row["email"] || null,
           origem: `planilha_${aba.toLowerCase()}`,
           status: "novo",
-          status_pipeline: statusPipeline,
+          status_pipeline: marcadoChamei ? statusEmContato : statusPipeline,
           pipeline_id: pipeline?.id ?? null,
           nome_filho: row["paciente/criança"] || null,
           criado_em: parseDataHora(datahora) || new Date().toISOString(),
@@ -154,8 +172,21 @@ Deno.serve(async (req) => {
       }
     });
 
+    // Leads já importados que agora aparecem marcados como "chamei" vão para Em contato
+    let movidos = 0;
+    for (let i = 0; i < chavesEmContato.length; i += 200) {
+      const lote = chavesEmContato.slice(i, i + 200);
+      const { data: upd } = await supabase
+        .from("leads")
+        .update({ status_pipeline: statusEmContato })
+        .in("origem_externa_id", lote)
+        .eq("status_pipeline", statusPipeline)
+        .select("id");
+      movidos += upd?.length ?? 0;
+    }
+
     if (novos.length === 0) {
-      return new Response(JSON.stringify({ lidos: 0, importados: 0 }), {
+      return new Response(JSON.stringify({ lidos: 0, importados: 0, movidos }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -183,7 +214,7 @@ Deno.serve(async (req) => {
 
     console.log(`Sincronização Sheets: ${novos.length} linhas, ${importados} novos leads`);
 
-    return new Response(JSON.stringify({ lidos: novos.length, importados }), {
+    return new Response(JSON.stringify({ lidos: novos.length, importados, movidos, marcados_chamei: chavesEmContato.length }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
