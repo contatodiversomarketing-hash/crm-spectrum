@@ -1,4 +1,4 @@
-import { Brain, Eye, BarChart3, GraduationCap, LogOut, Users, CalendarDays, UserPlus } from "lucide-react";
+import { Brain, Eye, BarChart3, GraduationCap, LogOut, Users, CalendarDays, UserPlus, ShieldCheck } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,21 +18,25 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const menuItems = [
-  { title: "Painel Principal", url: "/", icon: Brain },
+type AppRole = "admin" | "supervisao" | "analista" | "auxiliar";
+
+const menuItems: { title: string; url: string; icon: typeof Brain; roles?: AppRole[] }[] = [
+  { title: "Painel Principal", url: "/", icon: Brain, roles: ["admin", "supervisao", "analista"] },
   { title: "Agenda", url: "/agenda", icon: CalendarDays },
   { title: "Pacientes", url: "/pacientes", icon: UserPlus },
   { title: "CRM / Leads", url: "/crm", icon: Users },
-  { title: "Supervisão IA", url: "/supervisao", icon: Eye },
-  { title: "Dashboard IA", url: "/dashboard-ia", icon: BarChart3 },
-  { title: "Treinamento IA", url: "/treinamento-ia", icon: GraduationCap },
+  { title: "Supervisão IA", url: "/supervisao", icon: Eye, roles: ["admin", "supervisao"] },
+  { title: "Dashboard IA", url: "/dashboard-ia", icon: BarChart3, roles: ["admin", "supervisao", "analista"] },
+  { title: "Treinamento IA", url: "/treinamento-ia", icon: GraduationCap, roles: ["admin"] },
+  { title: "Usuários", url: "/usuarios", icon: ShieldCheck, roles: ["admin"] },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
-  const { signOut, profile } = useAuth();
+  const { signOut, profile, hasAnyRole } = useAuth();
+  const visibleItems = menuItems.filter((item) => !item.roles || hasAnyRole(...item.roles));
 
   return (
     <Sidebar collapsible="icon">
@@ -53,7 +57,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
+              {visibleItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
