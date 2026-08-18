@@ -80,6 +80,17 @@ Deno.serve(async (req) => {
     }
 
     const data = await resp.json();
+    if (new URL(req.url).searchParams.get("debug") === "1") {
+      const vr0: Array<{ range: string; values?: string[][] }> = data.valueRanges || [];
+      return new Response(
+        JSON.stringify(vr0.map((v) => ({
+          range: v.range,
+          header: (v.values?.[0] || []),
+          amostraJ: (v.values || []).slice(1, 15).map((r) => [r[0], r[9] ?? ""]),
+        })), null, 2),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
     const valueRanges: Array<{ range: string; values?: string[][] }> = data.valueRanges || [];
 
     // Destino padrão no CRM: primeira pipeline + primeira coluna
