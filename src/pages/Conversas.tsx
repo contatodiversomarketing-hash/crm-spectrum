@@ -309,7 +309,7 @@ export default function Conversas({ modo }: { modo: "ia" | "atendente" }) {
                         <div className="flex justify-end">
                           <div className="max-w-[75%] rounded-2xl rounded-tr-sm bg-primary text-primary-foreground px-3.5 py-2 shadow-sm">
                             <p className="text-[10px] opacity-80 mb-0.5 font-medium">
-                              {i.supervisionado ? i.atendente_humano || "Atendente" : "Ana (IA)"}
+                              {i.supervisionado ? i.atendente_humano || "Atendente" : "Ana"}
                             </p>
                             <p className="text-sm whitespace-pre-wrap break-words">{i.resposta_final}</p>
                             <p className="text-[10px] opacity-70 mt-1">{hora(i.criado_em)}</p>
