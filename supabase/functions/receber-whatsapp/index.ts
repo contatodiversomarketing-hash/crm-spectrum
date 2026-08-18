@@ -1337,7 +1337,7 @@ async function registrarAgendamento(
 // =============================
 // BUSCAR TRIAGEM NO SISTEMA EXTERNO (draameliacarvalho.com)
 // =============================
-async function buscarTriagemVittaCare(
+async function buscarTriagemExterna(
   telefone: string,
   cpf?: string,
 ): Promise<any | null> {
@@ -1395,7 +1395,7 @@ async function buscarTriagemDoLead(
 ): Promise<string> {
   try {
     // 1) Fonte primária: API do draameliacarvalho.com (sistema oficial de triagem)
-    const triagemExterna = await buscarTriagemVittaCare(telefone, cpf);
+    const triagemExterna = await buscarTriagemExterna(telefone, cpf);
     if (triagemExterna) {
       return formatarTriagemTexto({
         nome: triagemExterna.nome,
