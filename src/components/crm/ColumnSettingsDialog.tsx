@@ -15,6 +15,7 @@ interface Props {
   onAdd: (nome: string, cor: string) => Promise<any>;
   onUpdate: (id: string, updates: { nome?: string; cor?: string }) => Promise<any>;
   onDelete: (id: string) => Promise<any>;
+  onReorder?: (ordered: PipelineColumn[]) => Promise<any>;
 }
 
 export function ColumnSettingsDialog({ open, onOpenChange, columns, onAdd, onUpdate, onDelete }: Props) {
