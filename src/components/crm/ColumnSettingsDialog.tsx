@@ -88,8 +88,32 @@ export function ColumnSettingsDialog({ open, onOpenChange, columns, onAdd, onUpd
 
         <div className="space-y-3 max-h-[50vh] overflow-y-auto">
           {columns.map((col) => (
-            <div key={col.id} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-muted/30">
-              <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
+            <div
+              key={col.id}
+              draggable={dragId === col.id}
+              onDragOver={(e) => {
+                if (!dragId) return;
+                e.preventDefault();
+                setOverId(col.id);
+              }}
+              onDragLeave={() => setOverId((c) => (c === col.id ? null : c))}
+              onDrop={(e) => {
+                e.preventDefault();
+                handleDrop(col.id);
+              }}
+              onDragEnd={() => {
+                setDragId(null);
+                setOverId(null);
+              }}
+              className={`flex items-center gap-2 p-2 rounded-lg border bg-muted/30 transition-colors ${
+                overId === col.id && dragId !== col.id ? "border-primary bg-primary/5" : "border-border"
+              } ${dragId === col.id ? "opacity-50" : ""}`}
+            >
+              <GripVertical
+                onMouseDown={() => setDragId(col.id)}
+                onTouchStart={() => setDragId(col.id)}
+                className="h-4 w-4 text-muted-foreground shrink-0 cursor-grab active:cursor-grabbing"
+              />
               {editingId === col.id ? (
                 <div className="flex-1 space-y-2">
                   <Input
