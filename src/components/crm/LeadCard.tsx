@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { PipelineColumn } from "@/hooks/usePipelineColumns";
-import { Phone, Mail, MapPin, Calendar, FileText, Eye, Pencil, StickyNote, BellRing, CheckCircle2, Bell, Baby, GripVertical, MoveRight } from "lucide-react";
+import { Phone, Mail, MapPin, Calendar, FileText, Eye, Pencil, StickyNote, BellRing, CheckCircle2, Bell, Baby, GripVertical, MoveRight, MessageCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { LeadEditDialog } from "./LeadEditDialog";
 import { LeadAlertsDialog } from "./LeadAlertsDialog";
+import { LeadChatDialog } from "./LeadChatDialog";
 
 export interface Lead {
   id: string;
@@ -70,6 +71,7 @@ export function LeadCard({
 }) {
   const [editOpen, setEditOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const endereco = formatEndereco(lead);
   const docCount = Array.isArray(lead.documentos) ? lead.documentos.length : 0;
 
@@ -105,6 +107,9 @@ export function LeadCard({
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setChatOpen(true)} title="Conversar no WhatsApp">
+              <MessageCircle className="h-3.5 w-3.5" />
+            </Button>
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setAlertsOpen(true)} title="Lembretes">
               <Bell className="h-3.5 w-3.5" />
             </Button>
@@ -277,6 +282,13 @@ export function LeadCard({
 
       <LeadEditDialog lead={lead} open={editOpen} onOpenChange={setEditOpen} onSaved={onRefresh} columns={columns} />
       <LeadAlertsDialog leadId={lead.id} leadName={lead.nome || "Sem nome"} open={alertsOpen} onOpenChange={setAlertsOpen} />
+      <LeadChatDialog
+        open={chatOpen}
+        onOpenChange={setChatOpen}
+        leadId={lead.id}
+        leadNome={lead.nome || "Sem nome"}
+        telefone={lead.telefone}
+      />
     </>
   );
 }
