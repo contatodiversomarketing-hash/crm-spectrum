@@ -1,4 +1,4 @@
-import { Brain, Eye, BarChart3, GraduationCap, LogOut, Users, CalendarDays } from "lucide-react";
+import { Brain, Eye, BarChart3, GraduationCap, LogOut, Users, CalendarDays, UserPlus } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,6 +21,7 @@ import {
 const menuItems = [
   { title: "Painel Principal", url: "/", icon: Brain },
   { title: "Agenda", url: "/agenda", icon: CalendarDays },
+  { title: "Pacientes", url: "/pacientes", icon: UserPlus },
   { title: "CRM / Leads", url: "/crm", icon: Users },
   { title: "Supervisão IA", url: "/supervisao", icon: Eye },
   { title: "Dashboard IA", url: "/dashboard-ia", icon: BarChart3 },
