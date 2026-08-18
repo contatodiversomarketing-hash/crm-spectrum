@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
           .eq("id", lead.id);
 
         await supabase.from("logs_decisao").insert({
-          evento: "followup_sofia",
+          evento: "followup_ana",
           decisao: ok ? "enviado" : "erro_envio",
           regra_aplicada: `etapa_${etapa.proxima}d${etapa.desconto ? `_desconto_${etapa.desconto}` : ""}`,
           dados_entrada: {
@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("[followup-sofia] erro:", e);
+    console.error("[followup-ana] erro:", e);
     return new Response(JSON.stringify({ error: String(e), relatorio }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -277,7 +277,7 @@ async function processarAgendamentoConfirmado(
   await supabase.from("leads").upsert({
     telefone,
     nome,
-    origem: "ligacao_ia_sofia",
+    origem: "ligacao_ia_ana",
     status: "ativo",
     status_pipeline: "agendado",
     ultima_interacao: new Date().toISOString(),

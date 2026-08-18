@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
           telefone: telefone || null,
           email: email || null,
           cpf: cpf || null,
-          origem: "site_vitta_care",
+          origem: "site_draamelia",
           status: "novo",
           status_pipeline: "triagem_recebida",
           dados_triagem: body,
@@ -160,7 +160,7 @@ Deno.serve(async (req) => {
         // Registrar interação
         await supabase.from("interacoes_ia").insert({
           paciente_externo_id: telefone,
-          sistema_origem: "site_vitta_care",
+          sistema_origem: "site_draamelia",
           canal: "whatsapp",
           mensagem_usuario: `[TRIAGEM SITE] Objetivo: ${objetivo || "N/I"} | Sintomas: ${sintomas || "N/I"}`,
           resposta_final: msgInicial,
