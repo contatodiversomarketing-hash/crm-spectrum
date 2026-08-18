@@ -3,6 +3,7 @@ import { Brain, MessageSquare, Phone, CheckCircle, TrendingUp, RefreshCw, Sparkl
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { RelatorioConversao } from "@/components/RelatorioConversao";
 
 interface DashboardData {
   totalMensagens: number;

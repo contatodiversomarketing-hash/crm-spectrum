@@ -234,6 +234,10 @@ const SupervisaoIA = () => {
           </div>
         </section>
 
+        {/* Relatórios de qualidade (IA + Atendente) */}
+        <RelatorioAtendimento />
+
+
         {/* Seção 1 — Fila de Supervisão */}
         <section className="rounded-lg border bg-card p-5 shadow-sm">
           <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
