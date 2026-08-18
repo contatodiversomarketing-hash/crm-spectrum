@@ -5,13 +5,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM = `Você é um analista de atendimento e vendas da Vitta Care (telemedicina de cannabis medicinal).
-Você recebe PRINTS (imagens) e/ou TEXTOS de conversas REAIS de WhatsApp entre um atendente humano da Vitta Care e pacientes.
+const SYSTEM = `Você é um analista de atendimento e vendas da Dra. Amélia Carvalho (telemedicina de cannabis medicinal).
+Você recebe PRINTS (imagens) e/ou TEXTOS de conversas REAIS de WhatsApp entre um atendente humano da Dra. Amélia Carvalho e pacientes.
 
 Sua tarefa:
 1. TRANSCREVER a conversa fielmente, identificando quem fala (ATENDENTE / PACIENTE). Preserve a escrita do atendente.
 2. EXTRAIR o estilo do atendente humano: tom, saudações, ritmo, forma de perguntar, como conduz para o agendamento, como responde objeções (preço, medo, desconfiança, "vou pensar").
-3. Gerar REGRAS DE TREINAMENTO acionáveis para a IA SofIA imitar esse atendente.
+3. Gerar REGRAS DE TREINAMENTO acionáveis para a IA Ana imitar esse atendente.
 
 Responda SOMENTE com JSON válido, sem markdown, neste formato:
 {

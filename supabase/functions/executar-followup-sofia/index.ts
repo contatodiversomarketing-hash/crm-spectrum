@@ -27,18 +27,18 @@ function montarMensagem(nome: string | null, etapa: typeof ETAPAS[number]): stri
   const saudacao = primeiroNome ? `Oi, ${primeiroNome}! ` : "Oi! ";
 
   if (etapa.proxima === 1) {
-    return `${saudacao}Aqui é a SofIA, da Vitta Care 💚\n\nVi que você começou seu cadastro com a gente, mas ainda não finalizamos seu agendamento. Tá tudo bem? \n\nLembre-se: cuidar da sua saúde hoje evita problemas amanhã. *Não deixe sua saúde para depois.* 🌿\n\nQuer que eu te ajude a marcar sua consulta agora?`;
+    return `${saudacao}Aqui é a Ana, da Dra. Amélia Carvalho 💚\n\nVi que você começou seu cadastro com a gente, mas ainda não finalizamos seu agendamento. Tá tudo bem? \n\nLembre-se: cuidar da sua saúde hoje evita problemas amanhã. *Não deixe sua saúde para depois.* 🌿\n\nQuer que eu te ajude a marcar sua consulta agora?`;
   }
   if (etapa.proxima === 3) {
-    return `${saudacao}Sou a SofIA da Vitta Care 💚\n\nPassando pra te lembrar com carinho: *prevenir é sempre melhor do que remediar.* \n\nSeu bem-estar merece atenção. Posso reservar um horário pra você esta semana?`;
+    return `${saudacao}Sou a Ana da Dra. Amélia Carvalho 💚\n\nPassando pra te lembrar com carinho: *prevenir é sempre melhor do que remediar.* \n\nSeu bem-estar merece atenção. Posso reservar um horário pra você esta semana?`;
   }
   if (etapa.proxima === 7 && etapa.desconto) {
-    return `${saudacao}Aqui é a SofIA novamente 💚\n\nNão quero que você adie mais o cuidado com a sua saúde. Por isso, separei algo especial pra você:\n\n🎁 *R$ ${etapa.desconto},00 de desconto* na sua primeira consulta na Vitta Care.\n\nEsse benefício é exclusivo e por tempo limitado. Posso confirmar seu agendamento?`;
+    return `${saudacao}Aqui é a Ana novamente 💚\n\nNão quero que você adie mais o cuidado com a sua saúde. Por isso, separei algo especial pra você:\n\n🎁 *R$ ${etapa.desconto},00 de desconto* na sua primeira consulta na Dra. Amélia Carvalho.\n\nEsse benefício é exclusivo e por tempo limitado. Posso confirmar seu agendamento?`;
   }
   if (etapa.proxima === 15 && etapa.desconto) {
-    return `${saudacao}É a SofIA, da Vitta Care 💚\n\nEsta é minha última mensagem por aqui — e quero que ela faça a diferença na sua vida. \n\nSua saúde é o bem mais valioso que você tem, e quero te ajudar a cuidar dela com um benefício ainda maior:\n\n🎁 *R$ ${etapa.desconto},00 de desconto* na sua primeira consulta.\n\nResponde aqui e eu garanto seu horário hoje mesmo. Conta comigo. 🌿`;
+    return `${saudacao}É a Ana, da Dra. Amélia Carvalho 💚\n\nEsta é minha última mensagem por aqui — e quero que ela faça a diferença na sua vida. \n\nSua saúde é o bem mais valioso que você tem, e quero te ajudar a cuidar dela com um benefício ainda maior:\n\n🎁 *R$ ${etapa.desconto},00 de desconto* na sua primeira consulta.\n\nResponde aqui e eu garanto seu horário hoje mesmo. Conta comigo. 🌿`;
   }
-  return `${saudacao}Aqui é a SofIA da Vitta Care. Como posso te ajudar hoje?`;
+  return `${saudacao}Aqui é a Ana da Dra. Amélia Carvalho. Como posso te ajudar hoje?`;
 }
 
 Deno.serve(async (req) => {

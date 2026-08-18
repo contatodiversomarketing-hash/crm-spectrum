@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const systemPrompt = `Você é um classificador de intenções para uma empresa de telemedicina especializada em cannabis medicinal (Vitta Care). Classifique a mensagem em UMA das seguintes intenções:
+    const systemPrompt = `Você é um classificador de intenções para uma empresa de telemedicina especializada em cannabis medicinal (Dra. Amélia Carvalho). Classifique a mensagem em UMA das seguintes intenções:
 - agendamento: quer marcar consulta médica
 - reagendamento: quer mudar data/horário
 - cancelamento: quer cancelar consulta

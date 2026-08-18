@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
       if (jaEnviados.has(pacienteExternoId)) continue;
 
       const nomePrimeiro = paciente.nome ? paciente.nome.split(" ")[0] : "";
-      const mensagem = `Olá ${nomePrimeiro} 😊\nNotamos que já faz um tempo desde sua última consulta na Vitta Care.\nQue tal agendarmos um retorno para cuidar da sua saúde?`;
+      const mensagem = `Olá ${nomePrimeiro} 😊\nNotamos que já faz um tempo desde sua última consulta na Dra. Amélia Carvalho.\nQue tal agendarmos um retorno para cuidar da sua saúde?`;
 
       try {
         const megaRes = await fetch(`${MEGA_API_URL}/api/v1/sendText`, {

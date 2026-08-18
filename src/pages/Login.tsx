@@ -54,8 +54,8 @@ const Login = () => {
 
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-2">
-            <img src={logoVittaCare} alt="Vitta Care" className="h-14 w-auto brightness-0 invert" />
-            <span className="text-lg font-semibold tracking-tight">Vitta Care — SofIA</span>
+            <img src={logoVittaCare} alt="Dra. Amélia Carvalho" className="h-14 w-auto brightness-0 invert" />
+            <span className="text-lg font-semibold tracking-tight">Dra. Amélia Carvalho — Ana</span>
           </div>
         </div>
 
@@ -65,7 +65,7 @@ const Login = () => {
               Cannabis Medicinal<br />com Inteligência
             </h2>
             <p className="text-white/70 text-base leading-relaxed max-w-md">
-              Automatize o atendimento, receba triagens e agende consultas médicas com a SofIA — sua assistente inteligente.
+              Automatize o atendimento, receba triagens e agende consultas médicas com a Ana — sua assistente inteligente.
             </p>
           </div>
 
@@ -76,7 +76,7 @@ const Login = () => {
               </div>
               <div>
                 <p className="font-medium text-sm">Atendimento Inteligente</p>
-                <p className="text-white/60 text-xs mt-0.5">SofIA conversa com leads e agenda consultas automaticamente</p>
+                <p className="text-white/60 text-xs mt-0.5">Ana conversa com leads e agenda consultas automaticamente</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -101,7 +101,7 @@ const Login = () => {
         </div>
 
         <div className="relative z-10">
-          <p className="text-white/40 text-xs">© 2026 Vitta Care · Todos os direitos reservados</p>
+          <p className="text-white/40 text-xs">© 2026 Dra. Amélia Carvalho · Todos os direitos reservados</p>
         </div>
       </div>
 
@@ -111,7 +111,7 @@ const Login = () => {
           {/* Mobile logo */}
           <div className="text-center space-y-3 lg:space-y-4">
             <div className="lg:hidden mx-auto">
-              <img src={logoVittaCare} alt="Vitta Care" className="h-14 w-auto mx-auto" />
+              <img src={logoVittaCare} alt="Dra. Amélia Carvalho" className="h-14 w-auto mx-auto" />
             </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-foreground">

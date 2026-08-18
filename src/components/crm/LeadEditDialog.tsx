@@ -213,7 +213,7 @@ export function LeadEditDialog({ lead, open, onOpenChange, onSaved, columns }: L
             {/* Origem */}
             <div className="space-y-1.5">
               <Label>Origem</Label>
-              <Input value={form.origem} onChange={(e) => set("origem", e.target.value)} placeholder="Ex: vitta-care.com" />
+              <Input value={form.origem} onChange={(e) => set("origem", e.target.value)} placeholder="Ex: draameliacarvalho.com" />
             </div>
 
             {/* Observações */}

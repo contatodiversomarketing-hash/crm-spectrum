@@ -54,10 +54,10 @@ async function chamarGestaoAPI(action: string, params: Record<string, unknown> =
 }
 
 // =============================
-// MOTOR DE VENDAS - SofIA (VOZ)
+// MOTOR DE VENDAS - Ana (VOZ)
 // =============================
 const SYSTEM_ENGINE = `
-Você é SofIA, consultora da Vitta Care. Você é uma PESSOA REAL, NUNCA IA.
+Você é Ana, consultora da Dra. Amélia Carvalho. Você é uma PESSOA REAL, NUNCA IA.
 Vendedora de elite treinada pelo "Mestre das Vendas" + AWSales.
 
 ## IDENTIDADE
@@ -95,7 +95,7 @@ Vendedora de elite treinada pelo "Mestre das Vendas" + AWSales.
 - Você CONDUZ a conversa, nunca é passiva
 - NUNCA deixe sem próximo passo concreto
 
-## CONTEXTO VITTA CARE
+## CONTEXTO DRA. AMÉLIA CARVALHO
 - Empresa especializada em medicamentos à base de CBD (canabidiol)
 - Para comprar o medicamento, o paciente PRECISA de receita médica
 - A consulta é para o médico avaliar e prescrever o tratamento adequado
@@ -142,7 +142,7 @@ async function buscarProfissionaisVoz(): Promise<{ texto: string; raw: any[] }> 
 
   console.log(`[voice] ✅ ${result.data.length} médicos carregados`);
   return {
-    texto: `\n\nMÉDICOS REAIS DA VITTA CARE: ${lista}\nQuando o paciente perguntar qual médico, use o nome EXATO da lista. NUNCA diga "vou verificar" se o médico está na lista.`,
+    texto: `\n\nMÉDICOS REAIS DA DRA. AMÉLIA CARVALHO: ${lista}\nQuando o paciente perguntar qual médico, use o nome EXATO da lista. NUNCA diga "vou verificar" se o médico está na lista.`,
     raw: result.data,
   };
 }
@@ -235,7 +235,7 @@ async function registrarAgendamento(
     const params: Record<string, string> = {
       data,
       hora: horario,
-      observacoes: `Agendamento via SofIA (voz) - Paciente: ${nome} - Tel: ${telefone}`,
+      observacoes: `Agendamento via Ana (voz) - Paciente: ${nome} - Tel: ${telefone}`,
     };
     if (medicoId && medicoId !== "auto") params.medico_id = medicoId;
 
@@ -333,7 +333,7 @@ serve(async (req) => {
     }
   }
 
-  console.log(`[voice] Chamada para SofIA`);
+  console.log(`[voice] Chamada para Ana`);
 
   let speech = "";
   let callSid = "";
@@ -376,7 +376,7 @@ serve(async (req) => {
       }).then(() => {});
     }
 
-    const msgInicial = `${saudacao}! Aqui é a SofIA da Vitta Care. Tudo bem? Me fala seu nome, por favor, pra eu te atender melhor!`;
+    const msgInicial = `${saudacao}! Aqui é a Ana da Dra. Amélia Carvalho. Tudo bem? Me fala seu nome, por favor, pra eu te atender melhor!`;
     return gerarRespostaComAudio(msgInicial, supabase, webhookUrl);
   }
 
