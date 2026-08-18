@@ -2575,6 +2575,10 @@ serve(async (req) => {
 
     console.log(`[whatsapp] 📩 De ${numero}: "${mensagem.slice(0, 100)}"${imagemBase64ParaIA ? " [+imagem]" : ""}`);
 
+    // Toda conversa vira card no CRM
+    await garantirLeadCRM(supabase, numero, body.pushName || body.sender?.pushName || null);
+
+
     // =============================
     // BUSCAR HISTÓRICO + PACIENTE + PROFISSIONAIS + TREINAMENTO EM PARALELO
     // =============================
