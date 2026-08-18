@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import { Brain, Plus, Trash2, Edit2, Save, X, ArrowLeft, MessageSquare, Phone, Globe, Paperclip, FileText, Image, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ChatTreinamento from "@/components/ChatTreinamento";
+import AprenderConversas from "@/components/AprenderConversas";
+
 
 interface Treinamento {
   id: string;
@@ -241,14 +243,20 @@ export default function TreinamentoIA() {
 
         {/* Tabs */}
         <Tabs defaultValue="chat" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="chat">💬 Conversar com a Maria</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="chat">💬 Conversar</TabsTrigger>
+            <TabsTrigger value="aprender">✨ Aprender com conversas</TabsTrigger>
             <TabsTrigger value="instrucoes">📋 Instruções</TabsTrigger>
           </TabsList>
 
           <TabsContent value="chat">
             <ChatTreinamento />
           </TabsContent>
+
+          <TabsContent value="aprender">
+            <AprenderConversas />
+          </TabsContent>
+
 
           <TabsContent value="instrucoes" className="space-y-6">
             {/* Stats */}
