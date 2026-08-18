@@ -3073,6 +3073,16 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       })().catch((e) => console.error("[whatsapp] Erro mensagens extras:", e));
     }
 
+    // Atualizar o CRM automaticamente com base na conversa (não bloqueia a resposta)
+    fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/ana-atualizar-crm`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+      },
+      body: JSON.stringify({ numero }),
+    }).catch((e) => console.error("[whatsapp] Erro ao atualizar CRM:", e));
+
     await liberarLockDB(supabase, numero);
     return new Response("ok");
   } catch (err) {
