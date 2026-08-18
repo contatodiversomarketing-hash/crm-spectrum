@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Brain, CheckCircle, Edit3, UserCheck, Clock, Shield, RefreshCw, ArrowLeft, Send } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { RelatorioAtendimento } from "@/components/RelatorioAtendimento";
 
 interface Interacao {
   id: string;
@@ -180,8 +181,8 @@ const SupervisaoIA = () => {
               <Shield className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-lg font-bold tracking-tight">Supervisão IA</h1>
-              <p className="text-xs text-muted-foreground">Painel de aprovação de respostas</p>
+              <h1 className="text-lg font-bold tracking-tight">Supervisão IA e Atendente</h1>
+              <p className="text-xs text-muted-foreground">Aprovação de respostas e avaliação de qualidade</p>
             </div>
           </div>
           <button
