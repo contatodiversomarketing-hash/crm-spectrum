@@ -65,9 +65,9 @@ const Index = () => {
             />
           </div>
           <StatusCard
-            title="Pacientes Inativos"
-            value={dados.loading ? "..." : (dados.gestao?.pacientes_inativos ?? 0)}
-            subtitle="Sem consulta há 6 meses"
+            title="Interações Hoje"
+            value={dados.loading ? "..." : dados.interacoesHoje}
+            subtitle="Conversas registradas"
             icon={Activity}
           />
           <div onClick={() => navigate("/dashboard-ia")} className="cursor-pointer">
