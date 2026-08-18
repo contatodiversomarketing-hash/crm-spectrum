@@ -1,0 +1,228 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+import { z } from "zod";
+import { ProntuarioTab } from "./ProntuarioTab";
+import { FinanceiroTab } from "./FinanceiroTab";
+
+export interface Paciente {
+  id: string;
+  nome: string | null;
+  email: string | null;
+  telefone: string | null;
+  cpf: string | null;
+  data_nascimento: string | null;
+  tipo: string;
+  cep: string | null; logradouro: string | null; numero: string | null; complemento: string | null;
+  bairro: string | null; cidade: string | null; estado: string | null;
+  observacoes: string | null;
+  responsavel_nome: string | null; responsavel_cpf: string | null;
+  responsavel_data_nascimento: string | null; responsavel_telefone: string | null;
+  responsavel_email: string | null; responsavel_parentesco: string | null;
+  responsavel_endereco_mesmo: boolean;
+  responsavel_cep: string | null; responsavel_logradouro: string | null; responsavel_numero: string | null;
+  responsavel_complemento: string | null; responsavel_bairro: string | null;
+  responsavel_cidade: string | null; responsavel_estado: string | null;
+}
+
+const vazio = {
+  nome: "", email: "", telefone: "", cpf: "", data_nascimento: "", tipo: "adulto",
+  cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "",
+  observacoes: "",
+  responsavel_nome: "", responsavel_cpf: "", responsavel_data_nascimento: "",
+  responsavel_telefone: "", responsavel_email: "", responsavel_parentesco: "",
+  responsavel_endereco_mesmo: true,
+  responsavel_cep: "", responsavel_logradouro: "", responsavel_numero: "",
+  responsavel_complemento: "", responsavel_bairro: "", responsavel_cidade: "", responsavel_estado: "",
+};
+
+type Form = typeof vazio;
+
+const schema = z.object({
+  nome: z.string().trim().min(3, "Informe o nome completo").max(150),
+  email: z.string().trim().email("E-mail inválido").max(255).or(z.literal("")),
+  telefone: z.string().trim().min(8, "Telefone inválido").max(30),
+  cpf: z.string().trim().max(20),
+});
+
+interface Props {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  paciente: Paciente | null;
+  autorNome: string;
+  onSaved: () => void;
+}
+
+export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSaved }: Props) {
+  const [form, setForm] = useState<Form>(vazio);
+  const [salvando, setSalvando] = useState(false);
+  const [aba, setAba] = useState("dados");
+
+  useEffect(() => {
+    if (!open) return;
+    setAba("dados");
+    if (paciente) {
+      const f: Form = { ...vazio };
+      (Object.keys(vazio) as (keyof Form)[]).forEach((k) => {
+        const v = (paciente as unknown as Record<string, unknown>)[k];
+        (f as Record<string, unknown>)[k] = v ?? (typeof vazio[k] === "boolean" ? vazio[k] : "");
+      });
+      setForm(f);
+    } else {
+      setForm(vazio);
+    }
+  }, [open, paciente]);
+
+  const set = (k: keyof Form, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }));
+
+  const salvar = async () => {
+    const parsed = schema.safeParse(form);
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0].message);
+      return;
+    }
+    if (form.tipo === "crianca" && !form.responsavel_nome.trim()) {
+      toast.error("Informe o nome completo do responsável");
+      return;
+    }
+    setSalvando(true);
+    const payload = {
+      ...form,
+      email: form.email || null,
+      data_nascimento: form.data_nascimento || null,
+      responsavel_data_nascimento: form.responsavel_data_nascimento || null,
+    };
+    const { error } = paciente
+      ? await supabase.from("pacientes").update(payload).eq("id", paciente.id)
+      : await supabase.from("pacientes").insert(payload);
+    setSalvando(false);
+    if (error) { toast.error("Erro ao salvar: " + error.message); return; }
+    toast.success(paciente ? "Cadastro atualizado" : "Paciente cadastrado");
+    onOpenChange(false);
+    onSaved();
+  };
+
+  const campo = (label: string, k: keyof Form, type = "text", ph = "") => (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <Input type={type} value={String(form[k] ?? "")} placeholder={ph}
+        onChange={(e) => set(k, e.target.value)} />
+    </div>
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-display text-2xl">
+            {paciente ? paciente.nome || "Paciente" : "Novo paciente"}
+          </DialogTitle>
+        </DialogHeader>
+
+        <Tabs value={aba} onValueChange={setAba}>
+          <TabsList>
+            <TabsTrigger value="dados">Dados cadastrais</TabsTrigger>
+            <TabsTrigger value="prontuario" disabled={!paciente}>Prontuário</TabsTrigger>
+            <TabsTrigger value="financeiro" disabled={!paciente}>Financeiro</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="dados" className="space-y-5 pt-4">
+            <div className="space-y-1.5">
+              <Label>Tipo de paciente</Label>
+              <Select value={form.tipo} onValueChange={(v) => set("tipo", v)}>
+                <SelectTrigger className="max-w-xs"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-popover z-50">
+                  <SelectItem value="adulto">Adulto</SelectItem>
+                  <SelectItem value="crianca">Criança / adolescente</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-3">
+              {campo("Nome completo", "nome")}
+              {campo("CPF", "cpf", "text", "000.000.000-00")}
+              {campo("Data de nascimento", "data_nascimento", "date")}
+              {campo("Telefone", "telefone", "text", "(00) 00000-0000")}
+              {campo("E-mail", "email", "email")}
+            </div>
+
+            <div>
+              <p className="text-sm font-medium mb-2">Endereço</p>
+              <div className="grid sm:grid-cols-3 gap-3">
+                {campo("CEP", "cep")}
+                <div className="sm:col-span-2">{campo("Logradouro", "logradouro")}</div>
+                {campo("Número", "numero")}
+                {campo("Complemento", "complemento")}
+                {campo("Bairro", "bairro")}
+                {campo("Cidade", "cidade")}
+                {campo("Estado", "estado", "text", "UF")}
+              </div>
+            </div>
+
+            {form.tipo === "crianca" && (
+              <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+                <p className="text-sm font-medium">Dados do responsável</p>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {campo("Nome completo", "responsavel_nome")}
+                  {campo("Parentesco", "responsavel_parentesco", "text", "Mãe, pai, tutor...")}
+                  {campo("CPF", "responsavel_cpf")}
+                  {campo("Data de nascimento", "responsavel_data_nascimento", "date")}
+                  {campo("Telefone", "responsavel_telefone")}
+                  {campo("E-mail", "responsavel_email", "email")}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Switch checked={form.responsavel_endereco_mesmo}
+                    onCheckedChange={(v) => set("responsavel_endereco_mesmo", v)} />
+                  <Label className="cursor-pointer">O endereço do responsável é o mesmo do paciente</Label>
+                </div>
+
+                {!form.responsavel_endereco_mesmo && (
+                  <div className="grid sm:grid-cols-3 gap-3">
+                    {campo("CEP", "responsavel_cep")}
+                    <div className="sm:col-span-2">{campo("Logradouro", "responsavel_logradouro")}</div>
+                    {campo("Número", "responsavel_numero")}
+                    {campo("Complemento", "responsavel_complemento")}
+                    {campo("Bairro", "responsavel_bairro")}
+                    {campo("Cidade", "responsavel_cidade")}
+                    {campo("Estado", "responsavel_estado", "text", "UF")}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label>Observações</Label>
+              <Textarea rows={3} value={form.observacoes} onChange={(e) => set("observacoes", e.target.value)} />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              <Button onClick={salvar} disabled={salvando}>{salvando ? "Salvando..." : "Salvar cadastro"}</Button>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="prontuario" className="pt-4">
+            {paciente && <ProntuarioTab pacienteId={paciente.id} autorNome={autorNome} />}
+          </TabsContent>
+
+          <TabsContent value="financeiro" className="pt-4">
+            {paciente && <FinanceiroTab pacienteId={paciente.id} />}
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
+  );
+}
