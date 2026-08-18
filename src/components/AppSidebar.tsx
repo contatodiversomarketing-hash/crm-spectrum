@@ -2,7 +2,7 @@ import { Brain, Eye, BarChart3, GraduationCap, LogOut, Users } from "lucide-reac
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import logo from "@/assets/vitta_care_logo.png";
+import logo from "@/assets/logo-amelia.png";
 
 import {
   Sidebar,
