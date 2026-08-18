@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import { Brain, Plus, Trash2, Edit2, Save, X, ArrowLeft, MessageSquare, Phone, Globe, Paperclip, FileText, Image, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ChatTreinamento from "@/components/ChatTreinamento";
+import AprenderConversas from "@/components/AprenderConversas";
+
 
 interface Treinamento {
   id: string;
