@@ -5,6 +5,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const ETIQUETAS_VALIDAS = [
+  "para_ele",
+  "para_filho",
+  "para_ambos",
+  "tea",
+  "tdah",
+  "outro",
+  "cannabis",
+  "neuroacesso",
+];
+
 const ETAPAS_VALIDAS = [
   "novo",
   "em_contato",
@@ -51,12 +62,23 @@ Responda APENAS com JSON válido no formato:
   "queixas": string[],
   "status_pipeline": "novo"|"em_contato"|"triagem_recebida"|"agendado"|"consultou"|"ganho"|"perdido",
   "temperatura": "frio"|"morno"|"quente",
+  "etiquetas": string[],
   "resumo": string,
   "proximo_passo": string|null,
   "criar_alerta": boolean,
   "alerta_titulo": string|null,
   "alerta_em_horas": number|null
 }
+
+Regras de etiquetas (use SOMENTE estas chaves, quantas se aplicarem, [] se nada estiver claro):
+- "para_ele": o tratamento é para a própria pessoa que fala
+- "para_filho": é para o filho(a)/criança
+- "para_ambos": é para ela E para o filho(a)
+- "tea": suspeita ou diagnóstico de autismo
+- "tdah": suspeita ou diagnóstico de TDAH
+- "outro": outro quadro de neurodesenvolvimento/saúde mental
+- "cannabis": interesse em cannabis medicinal
+- "neuroacesso": é médico/clínica interessado na mentoria NeuroAcesso
 
 Regras de etapa:
 - "agendado" só se houver confirmação de data/horário de consulta.
@@ -147,7 +169,7 @@ Deno.serve(async (req) => {
     const variacoes = variacoesTelefone(numero);
     const { data: candidatos } = await supabase
       .from("leads")
-      .select("id, nome, email, cpf, data_nascimento, nome_filho, cidade, status_pipeline, observacoes, dados_triagem, pipeline_id, followup_etapa")
+      .select("id, nome, email, cpf, data_nascimento, nome_filho, cidade, status_pipeline, observacoes, dados_triagem, pipeline_id, followup_etapa, etiquetas")
       .in("telefone", variacoes)
       .order("criado_em", { ascending: false })
       .limit(1);
@@ -180,6 +202,13 @@ Deno.serve(async (req) => {
       atualizado_por_ana_em: new Date().toISOString(),
     };
 
+    const etiquetasNovas = Array.isArray(extraido.etiquetas)
+      ? (extraido.etiquetas as unknown[])
+          .map((e) => String(e).trim().toLowerCase())
+          .filter((e) => ETIQUETAS_VALIDAS.includes(e))
+      : [];
+    const etiquetasFinais = [...new Set([...(((lead as any)?.etiquetas as string[] | null) ?? []), ...etiquetasNovas])];
+
     const cpfLimpo = so(extraido.cpf as string | null);
     const payload: Record<string, unknown> = {
       nome: (extraido.nome as string) || lead?.nome || null,
@@ -189,6 +218,7 @@ Deno.serve(async (req) => {
       nome_filho: (extraido.nome_filho as string) || lead?.nome_filho || null,
       cidade: (extraido.cidade as string) || lead?.cidade || null,
       status_pipeline: etapaFinal,
+      etiquetas: etiquetasFinais,
       dados_triagem: triagem,
       observacoes: extraido.resumo
         ? `[Ana ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}] ${extraido.resumo}`

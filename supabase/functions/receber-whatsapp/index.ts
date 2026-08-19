@@ -650,6 +650,19 @@ ${TRIAGENS_CONTEXTO}
 - Se o paciente resistir a fornecer o CPF, diga que é necessário para o cadastro no sistema e emissão de receita médica
 - Quando o paciente fornecer CPF, inclua: ##ATUALIZAR_CPF|cpf_informado##
 - Quando o paciente fornecer data de nascimento, inclua: ##ATUALIZAR_NASCIMENTO|YYYY-MM-DD##
+
+## ETIQUETAS DO CRM (OBRIGATÓRIO)
+Assim que ficar claro o perfil da pessoa, inclua ao final da mensagem o marcador ##ETIQUETAS|chave1,chave2## (é removido automaticamente, o paciente nunca vê).
+Chaves permitidas (use só estas, quantas se aplicarem):
+- para_ele = tratamento é para a própria pessoa
+- para_filho = é para o filho(a)/criança
+- para_ambos = é para ela e para o filho(a)
+- tea = suspeita/diagnóstico de autismo
+- tdah = suspeita/diagnóstico de TDAH
+- outro = outro quadro
+- cannabis = interesse em cannabis medicinal
+- neuroacesso = médico/clínica interessado na mentoria NeuroAcesso
+Atualize o marcador sempre que surgir informação nova. Nunca invente etiqueta sem indício claro.
 - Você mesma conduz o agendamento no sistema. NUNCA diga que não consegue editar, lançar ou colocar na agenda.
 
 ## INSTRUÇÃO CRÍTICA: CONFIRMAÇÃO DE AGENDAMENTO (PRIORIDADE MÁXIMA!)
@@ -1949,6 +1962,25 @@ function extrairCPF(resposta: string): { cpf: string; textoLimpo: string } | nul
   return { cpf: match[1].trim(), textoLimpo: resposta.replace(regex, "").trim() };
 }
 
+const ETIQUETAS_VALIDAS_ANA = [
+  "para_ele", "para_filho", "para_ambos", "tea", "tdah", "outro", "cannabis", "neuroacesso",
+];
+
+function extrairEtiquetas(resposta: string): { etiquetas: string[]; textoLimpo: string } | null {
+  const regex = /##ETIQUETAS\|([^#]*)##/g;
+  const encontradas: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = regex.exec(resposta)) !== null) {
+    for (const parte of m[1].split(",")) {
+      const chave = parte.trim().toLowerCase();
+      if (ETIQUETAS_VALIDAS_ANA.includes(chave)) encontradas.push(chave);
+    }
+  }
+  const textoLimpo = resposta.replace(/\n?##ETIQUETAS\|[^#]*##/g, "").replace(/\n{3,}/g, "\n\n").trim();
+  if (encontradas.length === 0) return resposta === textoLimpo ? null : { etiquetas: [], textoLimpo };
+  return { etiquetas: [...new Set(encontradas)], textoLimpo };
+}
+
 function extrairNascimento(resposta: string): { nascimento: string; textoLimpo: string } | null {
   const regex = /##ATUALIZAR_NASCIMENTO\|([^#]+)##/;
   const match = resposta.match(regex);
@@ -2893,6 +2925,29 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         chamarGestao("update_patient", { patient_id: pacienteEncontrado.id, data_nascimento: nascimentoDetectado.nascimento })
           .then(r => console.log(`[whatsapp] Data nascimento atualizada: ${r.ok}`))
           .catch(err => console.error("[whatsapp] Erro atualizar nascimento:", err));
+      }
+    }
+
+    // =============================
+    // DETECTAR ETIQUETAS DO CRM
+    // =============================
+    const etiquetasDetectadas = extrairEtiquetas(respostaFinal);
+    if (etiquetasDetectadas) {
+      respostaFinal = etiquetasDetectadas.textoLimpo;
+      if (etiquetasDetectadas.etiquetas.length > 0) {
+        try {
+          const leadEtiq = await buscarLead(supabase, numero, limparCpf(cpfColetado), "id, etiquetas");
+          if (leadEtiq?.id) {
+            const atuais: string[] = Array.isArray((leadEtiq as any).etiquetas) ? (leadEtiq as any).etiquetas : [];
+            const merged = [...new Set([...atuais, ...etiquetasDetectadas.etiquetas])];
+            if (merged.length !== atuais.length) {
+              await supabase.from("leads").update({ etiquetas: merged }).eq("id", leadEtiq.id);
+              console.log(`[whatsapp] Etiquetas atualizadas: ${merged.join(",")}`);
+            }
+          }
+        } catch (err) {
+          console.error("[whatsapp] Erro etiquetas:", err);
+        }
       }
     }
 
