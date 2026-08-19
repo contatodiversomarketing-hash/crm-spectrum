@@ -786,50 +786,64 @@ async function atualizarPacienteCPF(patientId: string, cpf: string): Promise<boo
 }
 
 // =============================
-// BUSCAR PROFISSIONAIS NO SISTEMA DE GESTÃO
+// AGENDA LOCAL (tabelas medicos + agendamentos)
 // =============================
+function supabaseAdmin() {
+  return createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+}
+
+const DIA_NOMES: Record<number, string> = { 0: "domingo", 1: "segunda-feira", 2: "terça-feira", 3: "quarta-feira", 4: "quinta-feira", 5: "sexta-feira", 6: "sábado" };
+
+function diasDoMedico(dias: string | null | undefined): number[] {
+  const txt = (dias || "").toLowerCase();
+  if (!txt.trim()) return [1, 2, 3, 4, 5];
+  const map: Array<{ k: RegExp; d: number }> = [
+    { k: /seg/, d: 1 }, { k: /ter(?!c)/, d: 2 }, { k: /qua/, d: 3 },
+    { k: /qui/, d: 4 }, { k: /sex/, d: 5 }, { k: /s[áa]b/, d: 6 }, { k: /dom/, d: 0 },
+  ];
+  const res = map.filter((m) => m.k.test(txt)).map((m) => m.d);
+  return res.length ? res : [1, 2, 3, 4, 5];
+}
+
+// "agora" no fuso de São Paulo (UTC-3)
+function agoraSP(): Date {
+  return new Date(Date.now() - 3 * 3600000);
+}
+
+function dataISOparaSP(dataISO: string, hora: string): string {
+  return `${dataISO}T${hora}:00-03:00`;
+}
+
 async function buscarProfissionais(): Promise<{ texto: string; raw: any[] }> {
   try {
-    if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) {
+    const supabase = supabaseAdmin();
+    const { data, error } = await supabase
+      .from("medicos")
+      .select("id, nome, especialidade, dias_atendimento, horario_inicio, horario_fim, ativo")
+      .eq("ativo", true);
+
+    if (error || !data || data.length === 0) {
+      console.log("[whatsapp] Nenhum médico ativo cadastrado na agenda local");
       return { texto: "", raw: [] };
     }
 
-    const result = await chamarGestao("listar_medicos");
-    if (!result.ok) {
-      console.log(`[whatsapp] Profissionais API falhou: ${result.status}`, JSON.stringify(result.data)?.slice(0, 200));
-      return { texto: "\n\nPROFISSIONAIS: Erro ao consultar.", raw: [] };
-    }
+    const raw = data.map((m: any) => ({
+      id: m.id,
+      full_name: m.nome,
+      name: m.nome,
+      especialidade: m.especialidade,
+      dias_atendimento: m.dias_atendimento,
+      horario_inicio: m.horario_inicio,
+      horario_fim: m.horario_fim,
+    }));
 
-    const profissionais = result.data?.data || result.data?.professionals || result.data || [];
-    if (!Array.isArray(profissionais) || profissionais.length === 0) {
-      return { texto: "\n\nPROFISSIONAIS: Lista vazia.", raw: [] };
-    }
-
-    const comEspecialidade = profissionais.filter((p: any) => {
-      const esp = especialidadeProfissional(p);
-      const ativo = p.is_active !== false;
-      return esp && esp.length > 1 && ativo;
-    });
-
-    if (comEspecialidade.length === 0) {
-      return { texto: "\n\nPROFISSIONAIS: Nenhum com especialidade definida.", raw: profissionais };
-    }
-
-    const lista = comEspecialidade.map((p: any) => {
-      const id = p.id || p.professional_id || "";
-      const nome = nomeProfissional(p);
-      const esp = especialidadeProfissional(p);
-      const espNorm = esp.charAt(0).toUpperCase() + esp.slice(1).toLowerCase();
-      return `- ${nome} (${espNorm}) [ID: ${id}]`;
-    }).join("\n");
-
-    console.log(`[whatsapp] ✅ ${comEspecialidade.length} profissionais carregados`);
+    const lista = raw.map((p: any) => `- ${p.full_name} (${p.especialidade || "Consulta"}) [ID: ${p.id}]`).join("\n");
 
     return { texto: `\n\n## PROFISSIONAIS REAIS DA DRA. AMÉLIA CARVALHO (USE ESTES NOMES):
 ${lista}
 
 REGRA ABSOLUTA: Use o NOME EXATO e o ID correto ao confirmar agendamento.
-NUNCA diga "vou confirmar com a equipe" se a especialidade está na lista!`, raw: comEspecialidade };
+NUNCA diga "vou confirmar com a equipe" — a agenda está aqui, você mesma agenda.`, raw };
   } catch (err) {
     console.error("[whatsapp] Erro buscar profissionais:", err);
     return { texto: "", raw: [] };
@@ -940,115 +954,116 @@ function detectarProfissionalPorNome(mensagem: string, profissionais: any[]): an
 }
 
 // =============================
-// BUSCAR HORÁRIOS DISPONÍVEIS VIA API DE GESTÃO
+// BUSCAR HORÁRIOS DISPONÍVEIS NA AGENDA LOCAL
 // =============================
+const DURACAO_CONSULTA_MIN = 45;
+
+async function listarSlotsLivres(profissionais: any[], dias = 14): Promise<Array<{ date: string; time: string; profNome: string; profId: string }>> {
+  const supabase = supabaseAdmin();
+  const agora = agoraSP();
+  const hojeISO = agora.toISOString().split("T")[0];
+  const fim = new Date(agora.getTime() + dias * 86400000).toISOString().split("T")[0];
+
+  const { data: ocupados } = await supabase
+    .from("agendamentos")
+    .select("data_hora, profissional, status")
+    .gte("data_hora", `${hojeISO}T00:00:00-03:00`)
+    .lte("data_hora", `${fim}T23:59:59-03:00`);
+
+  const ocupadosSet = new Set(
+    (ocupados || [])
+      .filter((a: any) => !["cancelado", "cancelada", "cancelada_clinica", "faltou"].includes(String(a.status)))
+      .map((a: any) => {
+        const d = new Date(a.data_hora as string);
+        const sp = new Date(d.getTime() - 3 * 3600000);
+        return `${(a.profissional || "").toLowerCase()}|${sp.toISOString().slice(0, 16)}`;
+      }),
+  );
+
+  const slots: Array<{ date: string; time: string; profNome: string; profId: string }> = [];
+
+  for (let i = 0; i <= dias; i++) {
+    const d = new Date(agora.getTime() + i * 86400000);
+    const dateISO = d.toISOString().split("T")[0];
+    const dow = new Date(dateISO + "T12:00:00Z").getUTCDay();
+
+    for (const prof of profissionais) {
+      const diasProf = diasDoMedico(prof.dias_atendimento);
+      if (!diasProf.includes(dow)) continue;
+
+      const ini = String(prof.horario_inicio || "09:00").slice(0, 5);
+      const fimH = String(prof.horario_fim || "15:00").slice(0, 5);
+      let minutos = Number(ini.split(":")[0]) * 60 + Number(ini.split(":")[1]);
+      const minutosFim = Number(fimH.split(":")[0]) * 60 + Number(fimH.split(":")[1]);
+
+      while (minutos + DURACAO_CONSULTA_MIN <= minutosFim) {
+        const hh = String(Math.floor(minutos / 60)).padStart(2, "0");
+        const mm = String(minutos % 60).padStart(2, "0");
+        const time = `${hh}:${mm}`;
+        minutos += DURACAO_CONSULTA_MIN;
+
+        // não oferecer horário no passado nem em menos de 2h
+        const inicioSP = new Date(`${dateISO}T${time}:00Z`);
+        if (inicioSP.getTime() < agora.getTime() + 2 * 3600000) continue;
+
+        const chave = `${String(prof.full_name || prof.name || "").toLowerCase()}|${dateISO}T${time}`;
+        if (ocupadosSet.has(chave)) continue;
+
+        slots.push({ date: dateISO, time, profNome: prof.full_name || prof.name, profId: prof.id });
+      }
+    }
+  }
+
+  slots.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+  return slots;
+}
+
 async function buscarHorariosDisponiveis(profissionais: any[]): Promise<string> {
   try {
-    if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) {
-      return `\n\nHORÁRIOS: Sistema de gestão não configurado.
-INSTRUÇÃO: Mesmo assim, se o paciente informou data, horário e profissional, CONFIRME o agendamento usando o marcador ##AGENDAMENTO_CONFIRMADO##. O sistema tentará registrar.`;
+    if (!profissionais || profissionais.length === 0) {
+      return `\n\nHORÁRIOS: Nenhum profissional ativo cadastrado na agenda.
+INSTRUÇÃO: Continue o atendimento normalmente e siga com a coleta de dados.`;
     }
 
-    const hoje = new Date();
-    const diasParaConsultar: string[] = [];
-    for (let i = 0; i <= 10 && diasParaConsultar.length < 7; i++) {
-      const d = new Date(hoje.getTime() + i * 86400000);
-      if (d.getDay() >= 1 && d.getDay() <= 5) {
-        diasParaConsultar.push(d.toISOString().split("T")[0]);
-      }
-    }
-
-    const profIds = profissionais
-      .filter((p: any) => p.id || p.professional_id)
-      .slice(0, 5)
-      .map((p: any) => ({ id: p.id || p.professional_id, nome: nomeProfissional(p) }));
-
-    if (profIds.length === 0) {
-      return `\n\nHORÁRIOS: Nenhum profissional com ID encontrado.
-INSTRUÇÃO: Se o paciente já informou data+horário+profissional, CONFIRME o agendamento usando ##AGENDAMENTO_CONFIRMADO##.`;
-    }
-
-    const slotsPromises = diasParaConsultar.flatMap(date =>
-      profIds.map(prof =>
-        chamarGestao("horarios_disponiveis", { medico_id: prof.id, data: date })
-          .then(r => ({ ...r, profNome: prof.nome, profId: prof.id, date }))
-          .catch(() => null)
-      )
-    );
-
-    const resultados = await Promise.all(slotsPromises);
-
-    const nomes: Record<number, string> = { 1: "segunda-feira", 2: "terça-feira", 3: "quarta-feira", 4: "quinta-feira", 5: "sexta-feira" };
-    // Agrupar por data e profissional
-    const slotsInfo: Array<{ date: string; time: string; profNome: string; profId: string }> = [];
-
-    for (const res of resultados) {
-      if (!res || !res.ok) continue;
-      const slots = extrairSlotsGestao(res.data);
-      if (slots.length === 0) {
-        console.log(`[whatsapp] horarios_disponiveis sem slots utilizáveis para ${res.profNome} em ${res.date}: ${JSON.stringify(res.data).slice(0, 250)}`);
-        continue;
-      }
-      for (const slot of slots) {
-        const time = typeof slot === "string" ? slot : "";
-        if (time) {
-          slotsInfo.push({ date: res.date, time: time.slice(0, 5), profNome: res.profNome, profId: res.profId });
-        }
-      }
-    }
+    const slotsInfo = await listarSlotsLivres(profissionais);
 
     if (slotsInfo.length === 0) {
-      console.log("[whatsapp] get_available_slots retornou vazio para todos os profissionais");
-      const profListaIds = profIds.map(p => `${p.nome} [ID: ${p.id}]`).join(", ");
-      return `\n\nHORÁRIOS DISPONÍVEIS: A agenda não retornou horários específicos no momento.
-
-INSTRUÇÃO CRÍTICA - SIGA ESTA REGRA:
-- NUNCA invente datas ou horários. Você NÃO sabe a disponibilidade real.
-- Pergunte a preferência de dia e turno do paciente e informe que vai consultar a agenda no sistema.
-- Se o paciente insistir em um horário específico, diga: "Vou verificar essa disponibilidade no sistema e já sigo com você por aqui!"
-- Se a agenda voltou vazia, continue a conversa normalmente oferecendo outros dias/horários.
-- Profissionais disponíveis: ${profListaIds}
-- Horário de funcionamento: segunda a sexta, 8h às 18h
-- NUNCA confirme agendamento com datas que você inventou`;
+      return `\n\nHORÁRIOS DISPONÍVEIS: A agenda não tem vagas livres nos próximos dias.
+INSTRUÇÃO: NUNCA invente horários. Explique que a agenda está lotada e ofereça colocar o paciente na lista de espera.`;
     }
 
-    // Agrupar por data
     const porData: Record<string, Array<{ time: string; profNome: string; profId: string }>> = {};
     for (const s of slotsInfo) {
-      if (!porData[s.date]) porData[s.date] = [];
-      porData[s.date].push({ time: s.time, profNome: s.profNome, profId: s.profId });
+      (porData[s.date] ||= []).push({ time: s.time, profNome: s.profNome, profId: s.profId });
     }
 
-    const linhas = Object.keys(porData).sort().map(dt => {
-      const d = new Date(dt + "T12:00:00Z");
-      const dow = d.getDay();
+    const linhas = Object.keys(porData).sort().slice(0, 7).map((dt) => {
+      const dow = new Date(dt + "T12:00:00Z").getUTCDay();
       const dia = dt.split("-").reverse().join("/");
-      const slots = porData[dt].sort((a, b) => a.time.localeCompare(b.time));
-      const manha = slots.filter(s => s.time < "12:00").map(s => `${s.time} (${s.profNome})`);
-      const tarde = slots.filter(s => s.time >= "12:00").map(s => `${s.time} (${s.profNome})`);
-      let desc = `${nomes[dow] || dt} (${dia}):`;
+      const lista = porData[dt].sort((a, b) => a.time.localeCompare(b.time));
+      const manha = lista.filter((s) => s.time < "12:00").map((s) => `${s.time} (${s.profNome})`);
+      const tarde = lista.filter((s) => s.time >= "12:00").map((s) => `${s.time} (${s.profNome})`);
+      let desc = `${DIA_NOMES[dow] || dt} (${dia}) [ISO: ${dt}]:`;
       if (manha.length > 0) desc += ` manhã: ${manha.join(", ")}`;
       if (tarde.length > 0) desc += ` | tarde: ${tarde.join(", ")}`;
       return desc;
     });
 
-    console.log(`[whatsapp] ✅ Agenda real: ${slotsInfo.length} slots em ${Object.keys(porData).length} dias`);
+    console.log(`[whatsapp] ✅ Agenda local: ${slotsInfo.length} slots livres`);
 
-    return `\n\nHORÁRIOS DISPONÍVEIS DA CLÍNICA (AGENDA REAL - USE SOMENTE ESTES):
+    return `\n\nHORÁRIOS REALMENTE LIVRES NA AGENDA (JÁ CONFERIDOS AGORA — USE SOMENTE ESTES):
 ${linhas.join("\n")}
 
 REGRAS ABSOLUTAS DE AGENDA:
-- Ofereça EXATAMENTE 1 horário do turno pedido, o mais próximo da lista ACIMA — você escolhe o dia, o paciente não escolhe
-- Informe apenas a HORA DE INÍCIO (ex.: "às 14h"). NUNCA use faixas como "13h-15h" e nunca fale a duração da consulta
-- NUNCA invente horários que NÃO estão nesta lista
-- NUNCA ofereça horários fora do expediente do profissional
-- Se o turno pedido não tem horários na lista, informe e sugira o outro turno (ainda com 1 horário só)
-- Use SEMPRE o enquadramento de escassez + conquista
-- Exemplo: "A agenda da Dra. Amélia está bem cheia, mas consegui abrir um encaixe na [dia] ([dd/mm]) às [hora]. Fico feliz por conseguir esse horário para você — posso reservar? 😊"`;
+- Esta lista JÁ É a consulta ao sistema. NUNCA diga "vou verificar/conferir a agenda", "já volto", "aguarde um instante" ou "vou consultar e te retorno" — você já sabe a disponibilidade AGORA
+- Ofereça EXATAMENTE 1 horário do turno pedido (o mais próximo da lista) — você escolhe o dia, o paciente não escolhe
+- Informe apenas a HORA DE INÍCIO (ex.: "às 14h"). NUNCA use faixas como "13h-15h" e nunca fale a duração
+- Quando o paciente aceitar o horário, RESERVE NA HORA e já responda confirmando (com o marcador ##AGENDAMENTO_CONFIRMADO##). NUNCA peça para ele aguardar
+- NUNCA invente horários fora desta lista
+- Use SEMPRE o enquadramento de escassez + conquista`;
   } catch (err) {
     console.error("[whatsapp] Erro buscar agenda:", err);
-    return `\n\nHORÁRIOS: Não foi possível consultar a agenda no momento.
-INSTRUÇÃO: Informe ao paciente que vai verificar a disponibilidade e retornará em breve. NUNCA invente horários.`;
+    return `\n\nHORÁRIOS: Não foi possível consultar a agenda no momento. NUNCA invente horários.`;
   }
 }
 
