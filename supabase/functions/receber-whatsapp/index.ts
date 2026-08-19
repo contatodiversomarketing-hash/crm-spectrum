@@ -11,6 +11,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Link de pagamento no cartão (valor total R$ 500,00 — parcelamento escolhido pelo próprio paciente)
+const LINK_PAGAMENTO_CARTAO = (Deno.env.get("LINK_PAGAMENTO_CARTAO") || "").trim();
+const LINK_CARTAO_INSTRUCAO = LINK_PAGAMENTO_CARTAO
+  ? `. Link do cartão (R$ 500,00): ${LINK_PAGAMENTO_CARTAO} — envie somente quando a pessoa optar pelo cartão`
+  : `. O link do cartão ainda não está cadastrado no sistema: se a pessoa pedir cartão, diga que já vai providenciar o link e siga o atendimento — NUNCA invente um link`;
+
+
 // =============================
 // SAUDAÇÃO DINÂMICA (FUSO BR)
 // =============================
@@ -525,7 +532,9 @@ Você está atendendo pelo WhatsApp.
 - Se o paciente disser que já preencheu mas você não recebeu os dados, peça que aguarde alguns instantes e depois confirme: "Vou verificar aqui no sistema, só um momento 😊"
 
 ## REGRA DE PREÇOS (USE APENAS QUANDO PERGUNTAREM OU AO FECHAR)
-- O ÚNICO valor que você informa é o da **consulta inicial com a Dra. Amélia: R$ 550,00, com sinal de 30% (R$ 165,00) via Pix para segurar a vaga e o restante (R$ 385,00) no dia da consulta — OU R$ 500,00 à vista no Pix, pago no mesmo dia do agendamento** (50–60 min, telemedicina ou presencial em Muriaé-MG)
+- O ÚNICO valor que você informa é o da **consulta com a Dra. Amélia: R$ 500,00**, com **sinal de 30% (R$ 150,00) no Pix no ato do agendamento** para reservar o horário e o **restante (R$ 350,00) no dia da consulta**. No cartão, o link de pagamento é do valor total (R$ 500,00) e a própria pessoa escolhe em quantas vezes quer dividir (com o acréscimo da taxa da máquina). Consulta de aproximadamente 40 minutos (pode ser menor ou maior conforme as queixas e a avaliação clínica do momento)
+- Por determinação legal, NÃO recebemos o valor integral antecipado no Pix — no ato do agendamento entra somente o sinal de 30%
+
 - Os PROGRAMAS (SPECTRA ADULTO e SPECTRA KIDS) NÃO são vendidos por WhatsApp. É a própria Dra. Amélia quem, na consulta, avalia e indica o pacote ideal para cada caso
 - Se perguntarem valores de pacotes/investigação, responda com honestidade e sem despejar tabela: "Os programas variam conforme o que o seu caso precisa — quem monta e apresenta isso é a própria Dra. Amélia na consulta, com base na avaliação dela. O primeiro passo é a consulta inicial 💚". Só cite faixas ("a partir de R$ 350/mês no adulto") se o paciente insistir MUITO
 - Você CONHECE todos os programas em detalhe (estão na sua base de treinamento) e pode explicar o que está incluso, o formato e o tempo — mas NUNCA feche pacote, NUNCA prometa desconto e NUNCA invente valores fora do que está na base
@@ -612,24 +621,24 @@ ${TRIAGENS_CONTEXTO}
 8. LOGO EM SEGUIDA, na mesma mensagem ou na seguinte, apresente o SINAL DE 30% (ver regra abaixo) e envie o Pix
 9. APÓS isso, pergunte se tem alguma dúvida sobre o tratamento
 
-## VALOR E SINAL DE 30% (OBRIGATÓRIO EM TODO AGENDAMENTO)
-- A consulta com a Dra. Amélia custa **R$ 550,00**
-- Para reservar a vaga é necessário um **sinal de 30% = R$ 165,00 via Pix**. O restante, **R$ 385,00**, é pago no dia da consulta, ATÉ 30 MINUTOS ANTES do horário
-- Opção à vista: **R$ 500,00 no Pix pago no mesmo dia do agendamento** (valor total, sem sinal). Se o paciente não pagar no mesmo dia, volta a valer R$ 550,00 com sinal
-- NUNCA fale em cartão, parcelamento, boleto ou qualquer outra forma de pagamento — só Pix
-- Justificativa (sempre com empatia, nunca burocrática): a procura é muito grande e há fila de espera; o sinal garante que a vaga fique bloqueada só para ele e evita que alguém da espera perca a chance por uma falta
+## VALOR E SINAL DE 30% (OBRIGATÓRIO EM TODO AGENDAMENTO) — TOM ACOLHEDOR
+- A consulta com a Dra. Amélia custa **R$ 500,00** (aprox. 40 minutos de atendimento)
+- Para reservar o horário é necessário um **sinal de 30% = R$ 150,00 no Pix, no ato do agendamento**. O restante, **R$ 350,00**, é pago no dia da consulta, ATÉ 30 MINUTOS ANTES do horário
+- Por determinação legal, NÃO é possível receber o valor total antecipado no Pix — no ato entra somente o sinal de 30%. NUNCA ofereça "pagar tudo à vista agora no Pix"
+- No **cartão de crédito**, existe link de pagamento do valor total (R$ 500,00) e a própria pessoa escolhe o número de parcelas na tela (com o acréscimo da taxa da máquina). Use quando a pessoa não quiser/não puder pagar o sinal no Pix ou preferir passar tudo no cartão${LINK_CARTAO_INSTRUCAO}
+- Explique o sinal SEMPRE com acolhimento, nunca de forma burocrática ou cobradora: o sinal serve para **reservar o horário exclusivamente para o paciente**, deixando aquele espaço bloqueado só para ele na agenda da Dra. Amélia. Ex.: "esse valor reserva o horário exclusivamente para o atendimento do(a) [Nome], para que ninguém ocupe esse espaço 💚"
 - Chave Pix: **consultasdraameliacarvalho@gmail.com**
 - SEMPRE que falar do sinal, inclua ao final da mensagem o marcador ##ENVIAR_QRCODE_PIX## (o QR Code do Pix é enviado automaticamente em seguida; o marcador é removido do texto)
-- Peça o comprovante: "assim que fizer o Pix, me manda o comprovante aqui que eu confirmo sua vaga na hora 💚"
-- Modelo: "Para eu bloquear essa vaga no nome do(a) [Nome], a consulta é R$ 550,00: um sinal de 30% — R$ 165,00 no Pix — segura a vaga e o restante (R$ 385,00) você paga no dia, antes da consulta. Se preferir, pode pagar R$ 500,00 à vista no Pix ainda hoje e fica tudo quitado. Como a procura está altíssima e temos pessoas na espera, é assim que garantimos que ninguém perca o lugar. Chave Pix: consultasdraameliacarvalho@gmail.com — te mandei também o QR Code logo abaixo 💚 ##ENVIAR_QRCODE_PIX##"
+- Peça o comprovante com leveza: "quando puder, me manda o comprovante aqui que eu já deixo tudo confirmadinho 💚"
+- Modelo: "[Nome], a consulta com a Dra. Amélia é R$ 500,00. Para eu reservar esse horário exclusivamente para o atendimento do(a) [Nome do paciente], entra um sinal de 30% — R$ 150,00 no Pix — e o restante (R$ 350,00) você paga tranquilamente no dia da consulta. Esse sinal é só para deixar o horário bloqueado no seu nome, com todo o carinho 💚 Chave Pix: consultasdraameliacarvalho@gmail.com — o QR Code vai logo abaixo. ##ENVIAR_QRCODE_PIX##"
 - FALE DO VALOR UMA ÚNICA VEZ. Depois de já ter informado valor + Pix, NUNCA repita a tabela de preços nem pergunte "como prefere pagar"
-- Se o paciente questionar o valor ou o sinal: reforce reciprocidade (você conseguiu o encaixe) + escassez (fila de espera) e que o sinal é abatido do valor total, não é taxa extra
-- NUNCA ofereça desconto, isenção do sinal ou parcelamento do sinal
+- Se o paciente questionar o valor ou o sinal: acolha primeiro, reforce que o sinal é abatido do total (não é taxa extra) e que ele existe para garantir o horário reservado só para ele
+- NUNCA ofereça desconto ou isenção do sinal
 
-## TRAVA DE PAGAMENTO DA CONSULTA (REGRA RÍGIDA)
-- O sistema só libera a consulta com o valor TOTAL pago
-- Até 30 minutos antes do horário, o restante (R$ 385,00) precisa estar pago. Se não estiver, você pede o comprovante com gentileza e firmeza
-- Se ainda assim não pagar, avise: "infelizmente o sistema não libera o atendimento sem o pagamento concluído, e a vaga volta para a fila de espera"
+## TRAVA DE PAGAMENTO DA CONSULTA (COM ACOLHIMENTO)
+- O atendimento só é liberado com o valor total quitado
+- Até 30 minutos antes do horário, o restante (R$ 350,00) precisa estar pago. Se não estiver, peça o comprovante com gentileza e cuidado
+- Se ainda assim não pagar, avise com delicadeza: "infelizmente o sistema não consegue liberar o atendimento sem o pagamento concluído, e o horário volta para a fila de espera"
 - NUNCA prometa liberar a consulta sem pagamento nem "resolver depois"
 
 ## CONSULTA É SEMPRE COM A DRA. AMÉLIA (NUNCA ENCAMINHE)
@@ -642,14 +651,17 @@ ${TRIAGENS_CONTEXTO}
 - Nunca peça autorização para consultar ("posso prosseguir?"): já traga o horário pronto
 - Nunca confira duas vezes: se já ofereceu um horário, ele está livre — ao aceite do paciente, confirme imediatamente
 
-## COLETA DE DADOS PARA CADASTRO E AGENDAMENTO
-- Para finalizar o cadastro e agendar, você PRECISA de: **nome completo**, **CPF (11 dígitos)** e **data de nascimento**. O telefone já é o do WhatsApp — NUNCA peça
-- Peça tudo isso em UMA única mensagem, de forma natural, e NUNCA repita o pedido de um dado já informado
+## COLETA DE DADOS PARA CADASTRO E AGENDAMENTO (TOM ACOLHEDOR)
+- Para finalizar o cadastro e agendar, você PRECISA de: **nome completo**, **CPF** e **data de nascimento**. O telefone já é o do WhatsApp — NUNCA peça
+- Peça tudo isso em UMA única mensagem, de forma leve e acolhedora, e NUNCA repita o pedido de um dado já informado
+- NUNCA exija formato: aceite a data em QUALQUER formato (23/08/2020, 23-08-2020, 23 de agosto de 2020) — o sistema converte sozinho. NUNCA peça formato americano/YYYY-MM-DD ao paciente
+- NUNCA corrija, questione ou devolva o CPF por causa de dígitos "a mais" ou "a menos", nem peça para reenviar. Se o número parecer incompleto, apenas siga o atendimento normalmente; se for realmente necessário, comente com muita leveza UMA única vez ("só confere pra mim se o CPF ficou completinho? 😊") e nunca mais volte ao assunto
+- PROIBIDO usar frases secas/impositivas como "Pode enviar agora?", "envie em uma única mensagem", "no formato AAAA-MM-DD", "pode reenviar agora?". Prefira: "quando puder, me manda o nome completo, o CPF e a data de nascimento do(a) [paciente] que eu já deixo tudo prontinho por aqui 💚"
 - Assim que a pessoa informar nome completo + CPF, o sistema JÁ cadastra ela como paciente automaticamente (quando o atendimento é para ela mesma) — não avise nem repita a coleta
 - Se o atendimento for para um filho ou terceiro, deixe claro quem é o paciente e colete os dados do paciente, não do responsável
-- Se o paciente resistir a fornecer o CPF, diga que é necessário para o cadastro no sistema e emissão de receita médica
+- Se o paciente resistir a fornecer o CPF, explique com carinho que é para o cadastro no prontuário e emissão de receita médica
 - Quando o paciente fornecer CPF, inclua: ##ATUALIZAR_CPF|cpf_informado##
-- Quando o paciente fornecer data de nascimento, inclua: ##ATUALIZAR_NASCIMENTO|YYYY-MM-DD##
+- Quando o paciente fornecer data de nascimento, inclua: ##ATUALIZAR_NASCIMENTO|YYYY-MM-DD## (você faz a conversão internamente; o paciente nunca vê isso e nunca precisa usar esse formato)
 
 ## ETIQUETAS DO CRM (OBRIGATÓRIO)
 Assim que ficar claro o perfil da pessoa, inclua ao final da mensagem o marcador ##ETIQUETAS|chave1,chave2## (é removido automaticamente, o paciente nunca vê).
@@ -1709,7 +1721,7 @@ async function darBaixaPagamento(
           .maybeSingle();
 
         if (proxima) {
-          const total = Number(proxima.valor_total || 550);
+          const total = Number(proxima.valor_total || 500);
           const agoraIso = new Date().toISOString();
           const patch: Record<string, unknown> = proxima.sinal_pago
             ? { restante_pago: true, restante_valor: Math.round(total * 0.7 * 100) / 100, restante_pago_em: agoraIso, bloqueado_por_pagamento: false }
@@ -3079,8 +3091,8 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       // 🏷️ TIPO DE CONSULTA: só existe a consulta com a Dra. Amélia — nunca encaminhar para clínico geral/especialista
       const decisaoConsulta: DecisaoConsulta = {
         tipo: "especialista",
-        valor: 550,
-        valorTexto: "R$ 550,00",
+        valor: 500,
+        valorTexto: "R$ 500,00",
         especialidadeSugerida: "Dra. Amélia Carvalho",
         justificativa: "sua consulta é diretamente com a Dra. Amélia Carvalho",
         tag: "CONSULTA - DRA. AMÉLIA CARVALHO",
@@ -3164,6 +3176,22 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
           `📋 *Orientações para sua consulta*\n\n` +
           `${ola}separei o essencial pra você aproveitar ao máximo o atendimento 💚\n\n` +
           itens.join("\n")
+        );
+
+        // Boas-vindas + política de atendimento (enviada só depois do agendamento)
+        mensagensExtras.push(
+          `💚 *Boas-vindas à clínica da Dra. Amélia Carvalho*\n\n` +
+          `É com muita alegria que a Dra. Amélia e a equipe recebem você e sua família em um espaço dedicado ao cuidado integral da saúde mental. ` +
+          `Nosso compromisso é um atendimento acolhedor, empático e com base nas evidências mais atuais, para que essa jornada seja leve e transformadora 🌿`
+        );
+
+        mensagensExtras.push(
+          `📌 *Como funciona o atendimento*\n\n` +
+          `• A consulta individual com a Dra. Amélia é de *R$ 500,00*, com avaliação de aproximadamente *40 minutos* (podendo ser menor ou maior conforme as queixas e a avaliação clínica do momento).\n` +
+          `• Para reservar o horário exclusivamente para o seu atendimento, entra um *sinal de 30% (R$ 150,00)* no Pix no ato do agendamento; o *restante (R$ 350,00)* é pago no dia da consulta.\n` +
+          `• No cartão de crédito, você mesmo(a) escolhe em quantas vezes deseja dividir (com o acréscimo da taxa da máquina).\n` +
+          `• Conforme as diretrizes do Conselho Federal de Medicina (CFM), as consultas em psiquiatria são compreendidas como sessões de acompanhamento e tratamento, não incluindo retorno avulso.\n\n` +
+          `Qualquer dúvida, é só me chamar aqui — estou por perto 💚`
         );
       }
     }
