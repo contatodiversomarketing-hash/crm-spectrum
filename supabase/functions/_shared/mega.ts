@@ -22,6 +22,22 @@ export function megaConfig() {
   return { origin, token, instanceKey, configurado: Boolean(origin && token && instanceKey) };
 }
 
+// Verifica se a instância está realmente logada antes de qualquer disparo em massa.
+export async function instanciaConectada(): Promise<{ conectada: boolean; status: string }> {
+  const { origin, token, instanceKey, configurado } = megaConfig();
+  if (!configurado) return { conectada: false, status: "nao_configurada" };
+  try {
+    const r = await fetch(`${origin}/rest/instance/${instanceKey}`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: token },
+    });
+    const body = await r.text();
+    const status = JSON.parse(body)?.instance?.status ?? "desconhecido";
+    return { conectada: status === "connected", status };
+  } catch (e) {
+    return { conectada: false, status: `erro:${String(e).slice(0, 60)}` };
+  }
+}
+
 export async function enviarTextoMega(numero: string, texto: string): Promise<{ ok: boolean; status: number; body: string }> {
   const { origin, token, instanceKey, configurado } = megaConfig();
   if (!configurado) return { ok: false, status: 0, body: "MEGA_API não configurada" };
