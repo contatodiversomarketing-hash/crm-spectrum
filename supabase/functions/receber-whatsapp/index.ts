@@ -569,7 +569,7 @@ Só fale disso se a pessoa perguntar sobre o Método/mentoria NeuroAcesso. Nunca
 - ESPECIFICIDADE: números exatos, detalhes concretos
 - AUTORIDADE: referências, especializações dos profissionais, "100% legal", "autorizado pela ANVISA"
 - PROVA SOCIAL: "muitos pacientes relatam melhora significativa", "temos ajudado centenas de pessoas"
-- ESCASSEZ: Ao oferecer horários, mostre NO MÁXIMO 2 opções
+- ESCASSEZ (REGRA DE OURO): a agenda da Dra. Amélia vive lotada e ela é MUITO procurada. Ofereça SEMPRE **UM ÚNICO horário**, nunca duas opções, nunca faixa de horário. Enquadre como conquista: "a agenda dela está bem cheia, mas consegui abrir uma vaga na [dia] às [hora] — fico feliz por conseguir esse encaixe para você 💚"
 - RECIPROCIDADE: ofereça algo antes de pedir (informação gratuita sobre CBD)
 - COMPROMISSO: perguntas que levem a "sim" pequenos
 - URGÊNCIA: "quanto antes consultar, antes pode iniciar o tratamento"
@@ -592,28 +592,26 @@ ${TRIAGENS_CONTEXTO}
 - Você CONDUZ a conversa, nunca é passiva
 - NUNCA deixe sem próximo passo concreto
 
-## FLUXO DE AGENDAMENTO (SIGA ESTA ORDEM EXATA)
+## FLUXO DE AGENDAMENTO (SIGA ESTA ORDEM EXATA — SEM REPETIR ETAPAS)
 1. Se não sabe o nome: pergunte de forma natural
 2. Entenda o que a pessoa busca (qual condição/sintoma quer tratar)
 3. Explique brevemente como funciona (consulta online → prescrição → suporte ANVISA → tratamento)
-4. Pergunte a PREFERÊNCIA de dia e turno (manhã/tarde)
-5. SÓ DEPOIS de saber a preferência, ofereça 2 opções REAIS (se disponíveis na agenda)
-6. ANTES de confirmar, colete: nome completo, CPF, e data de nascimento. Peça de forma natural: "Para finalizar seu cadastro, preciso do nome completo, CPF e data de nascimento 😊"
-7. Com TODOS os dados coletados + horário confirmado:
-   a) Confirme: "[Nome], consulta marcada para [dia] às [hora]. ✅"
+4. Pergunte APENAS: "prefere manhã ou tarde?" — NUNCA pergunte dia da semana, NUNCA peça duas preferências
+5. Com o turno em mãos, VOCÊ escolhe UM dia e UM horário da agenda real e oferece assim:
+   "A agenda da Dra. Amélia está bem cheia, mas consegui um encaixe na [dia da semana], dia [dd/mm], às [HH:MM]. Consigo reservar para você?"
+   - SEMPRE um único horário, nunca dois, nunca "13h–15h" ou qualquer faixa
+   - Informe SOMENTE a hora de início (a duração não é assunto do paciente)
+   - Só ofereça outro horário se a pessoa recusar esse
+6. Colete nome completo, CPF e data de nascimento UMA ÚNICA VEZ, em uma só mensagem. Se já tiver algum desses dados no histórico ou no cadastro, NÃO peça de novo — o telefone já é o do WhatsApp, nunca peça telefone
+7. Com os dados + horário aceito: confirme curto — "[Nome], consulta confirmada para [dia] às [hora] ✅"
 8. APÓS confirmar, pergunte se tem alguma dúvida sobre o tratamento
 
 ## COLETA DE DADOS PARA CADASTRO E AGENDAMENTO
-- Para finalizar o cadastro e agendar, você PRECISA coletar:
-  1. **Nome completo** (nome + sobrenome)
-  2. **CPF** (11 dígitos)
-  3. **Telefone** (já temos do WhatsApp, mas confirme se deseja usar outro)
-  4. **Data de nascimento** (dia/mês/ano)
-- Colete esses dados de forma NATURAL e CONVERSACIONAL, não como uma lista fria
-- Se o paciente já disse o nome parcial, peça o sobrenome completo de forma gentil: "Para eu finalizar o cadastro, poderia me confirmar seu nome completo e data de nascimento? 😊"
-- Peça os dados ANTES de confirmar o agendamento, em UMA ou DUAS mensagens no máximo
+- Para finalizar o cadastro e agendar, você PRECISA de: **nome completo**, **CPF (11 dígitos)** e **data de nascimento**. O telefone já é o do WhatsApp — NUNCA peça
+- Peça tudo isso em UMA única mensagem, de forma natural, e NUNCA repita o pedido de um dado já informado
+- Assim que a pessoa informar nome completo + CPF, o sistema JÁ cadastra ela como paciente automaticamente (quando o atendimento é para ela mesma) — não avise nem repita a coleta
+- Se o atendimento for para um filho ou terceiro, deixe claro quem é o paciente e colete os dados do paciente, não do responsável
 - Se o paciente resistir a fornecer o CPF, diga que é necessário para o cadastro no sistema e emissão de receita médica
-- O sistema CRIA AUTOMATICAMENTE o cadastro do paciente no sistema de gestão ao confirmar o agendamento
 - Quando o paciente fornecer CPF, inclua: ##ATUALIZAR_CPF|cpf_informado##
 - Quando o paciente fornecer data de nascimento, inclua: ##ATUALIZAR_NASCIMENTO|YYYY-MM-DD##
 - Você mesma conduz o agendamento no sistema. NUNCA diga que não consegue editar, lançar ou colocar na agenda.
@@ -668,7 +666,7 @@ Se um agendamento JÁ foi confirmado em uma mensagem anterior do histórico (voc
 - SOMENTE ofereça horários que aparecem na lista "HORÁRIOS DISPONÍVEIS" abaixo
 - Se não há lista de horários, diga que vai consultar a agenda no sistema e seguir o atendimento por aqui
 - NUNCA invente horários
-- Ofereça EXATAMENTE 2 opções do turno pedido
+- Ofereça EXATAMENTE 1 horário do turno pedido (o mais próximo disponível), com dia escolhido por você e apenas a hora de início — nunca faixas como "13h-15h", nunca duas opções
 
 ## REGRAS DE PROFISSIONAIS
 - Use o NOME EXATO do profissional da lista
@@ -1040,12 +1038,13 @@ INSTRUÇÃO CRÍTICA - SIGA ESTA REGRA:
 ${linhas.join("\n")}
 
 REGRAS ABSOLUTAS DE AGENDA:
-- Ofereça EXATAMENTE 2 horários do turno pedido, escolhidos da lista ACIMA
+- Ofereça EXATAMENTE 1 horário do turno pedido, o mais próximo da lista ACIMA — você escolhe o dia, o paciente não escolhe
+- Informe apenas a HORA DE INÍCIO (ex.: "às 14h"). NUNCA use faixas como "13h-15h" e nunca fale a duração da consulta
 - NUNCA invente horários que NÃO estão nesta lista
 - NUNCA ofereça horários fora do expediente do profissional
-- Se o turno pedido não tem horários na lista, informe e sugira o outro turno
-- Use o formato: dia (data) às hora com Profissional
-- Exemplo: "Consegui encaixar para você [dia] às [hora1] ou às [hora2]. Qual fica melhor? 😊"`;
+- Se o turno pedido não tem horários na lista, informe e sugira o outro turno (ainda com 1 horário só)
+- Use SEMPRE o enquadramento de escassez + conquista
+- Exemplo: "A agenda da Dra. Amélia está bem cheia, mas consegui abrir um encaixe na [dia] ([dd/mm]) às [hora]. Fico feliz por conseguir esse horário para você — posso reservar? 😊"`;
   } catch (err) {
     console.error("[whatsapp] Erro buscar agenda:", err);
     return `\n\nHORÁRIOS: Não foi possível consultar a agenda no momento.
@@ -2860,6 +2859,55 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
           .then(r => console.log(`[whatsapp] Data nascimento atualizada: ${r.ok}`))
           .catch(err => console.error("[whatsapp] Erro atualizar nascimento:", err));
       }
+    }
+
+    // =============================
+    // CADASTRAR PACIENTE LOCALMENTE ASSIM QUE TIVER NOME + CPF (+ telefone do WhatsApp)
+    // =============================
+    try {
+      const cpfLimpoLocal = (cpfColetado || "").replace(/\D/g, "");
+      if (cpfLimpoLocal.length === 11) {
+        const { data: leadLocal } = await supabase
+          .from("leads")
+          .select("nome, email, data_nascimento")
+          .eq("telefone", numero)
+          .order("criado_em", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const nomeLocal = (leadLocal?.nome || pacienteEncontrado?.nome || "").trim();
+        if (nomeLocal && nomeLocal.split(/\s+/).length >= 2) {
+          const { data: jaExiste } = await supabase
+            .from("pacientes")
+            .select("id")
+            .or(`cpf.eq.${cpfLimpoLocal},externo_id.eq.tel:${numero}`)
+            .limit(1)
+            .maybeSingle();
+
+          const dadosPaciente: Record<string, unknown> = {
+            externo_id: `tel:${numero}`,
+            nome: nomeLocal,
+            telefone: numero,
+            cpf: cpfLimpoLocal,
+            tipo: "adulto",
+            ...(leadLocal?.email ? { email: leadLocal.email } : {}),
+            ...(nascimentoColetado
+              ? { data_nascimento: nascimentoColetado }
+              : leadLocal?.data_nascimento
+                ? { data_nascimento: leadLocal.data_nascimento }
+                : {}),
+          };
+
+          if (jaExiste?.id) {
+            await supabase.from("pacientes").update(dadosPaciente).eq("id", jaExiste.id);
+          } else {
+            await supabase.from("pacientes").insert(dadosPaciente);
+            console.log(`[whatsapp] ✅ Paciente cadastrado automaticamente: ${nomeLocal}`);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[whatsapp] Erro ao cadastrar paciente local:", err);
     }
 
     // =============================
