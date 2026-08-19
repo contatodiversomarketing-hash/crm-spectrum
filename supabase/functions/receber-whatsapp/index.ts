@@ -1721,7 +1721,7 @@ async function darBaixaPagamento(
           .maybeSingle();
 
         if (proxima) {
-          const total = Number(proxima.valor_total || 550);
+          const total = Number(proxima.valor_total || 500);
           const agoraIso = new Date().toISOString();
           const patch: Record<string, unknown> = proxima.sinal_pago
             ? { restante_pago: true, restante_valor: Math.round(total * 0.7 * 100) / 100, restante_pago_em: agoraIso, bloqueado_por_pagamento: false }
@@ -3091,8 +3091,8 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       // 🏷️ TIPO DE CONSULTA: só existe a consulta com a Dra. Amélia — nunca encaminhar para clínico geral/especialista
       const decisaoConsulta: DecisaoConsulta = {
         tipo: "especialista",
-        valor: 550,
-        valorTexto: "R$ 550,00",
+        valor: 500,
+        valorTexto: "R$ 500,00",
         especialidadeSugerida: "Dra. Amélia Carvalho",
         justificativa: "sua consulta é diretamente com a Dra. Amélia Carvalho",
         tag: "CONSULTA - DRA. AMÉLIA CARVALHO",
