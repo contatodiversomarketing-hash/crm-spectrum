@@ -224,8 +224,17 @@ Deno.serve(async (req) => {
           });
 
           relatorio.enviados++;
+          falhasSeguidas = 0;
+          // Ritmo humano: 25 a 55 segundos entre mensagens
+          if (relatorio.enviados < MAX_POR_RODADA) {
+            await espera(25000 + Math.floor(Math.random() * 30000));
+          }
         } else {
           relatorio.erros.push(`lead ${lead.id}: status ${megaRes.status}`);
+          falhasSeguidas++;
+          if (falhasSeguidas >= MAX_FALHAS_SEGUIDAS) {
+            relatorio.interrompido = "falhas_consecutivas_whatsapp";
+          }
         }
 
         await supabase.from("logs_decisao").insert({
