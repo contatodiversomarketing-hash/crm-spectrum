@@ -3103,7 +3103,8 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     respostaFinal = respostaFinal.replace(/##ENVIAR_PDF_NEUROACESSO##/gi, "").trim();
 
     // QR Code do Pix do sinal de 30% → enviar PDF após a resposta
-    const enviarPixQr = /##ENVIAR_QRCODE_PIX##/i.test(respostaFinal);
+    // Sempre enviar quando um agendamento foi confirmado agora (mesmo se a IA esquecer o marcador)
+    const enviarPixQr = /##ENVIAR_QRCODE_PIX##/i.test(respostaFinal) || agendamentosConfirmados > 0;
     respostaFinal = respostaFinal.replace(/##ENVIAR_QRCODE_PIX##/gi, "").trim();
 
     // =============================
