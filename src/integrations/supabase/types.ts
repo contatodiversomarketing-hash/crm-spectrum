@@ -16,49 +16,82 @@ export type Database = {
     Tables: {
       agendamentos: {
         Row: {
+          aviso_bloqueio_em: string | null
+          bloqueado_por_pagamento: boolean
           clinica_id: string | null
           criado_em: string
           data_hora: string
           duracao_min: number
           id: string
+          lembrete_restante_em: string | null
+          lembrete_sinal_em: string | null
           observacoes: string | null
           paciente_id: string | null
           paciente_nome: string | null
           procedimento: string | null
           profissional: string | null
+          restante_pago: boolean
+          restante_pago_em: string | null
+          restante_valor: number | null
           sala: string | null
+          sinal_pago: boolean
+          sinal_pago_em: string | null
+          sinal_valor: number | null
           status: string
           tipo: string
+          valor_total: number
         }
         Insert: {
+          aviso_bloqueio_em?: string | null
+          bloqueado_por_pagamento?: boolean
           clinica_id?: string | null
           criado_em?: string
           data_hora: string
           duracao_min?: number
           id?: string
+          lembrete_restante_em?: string | null
+          lembrete_sinal_em?: string | null
           observacoes?: string | null
           paciente_id?: string | null
           paciente_nome?: string | null
           procedimento?: string | null
           profissional?: string | null
+          restante_pago?: boolean
+          restante_pago_em?: string | null
+          restante_valor?: number | null
           sala?: string | null
+          sinal_pago?: boolean
+          sinal_pago_em?: string | null
+          sinal_valor?: number | null
           status?: string
           tipo?: string
+          valor_total?: number
         }
         Update: {
+          aviso_bloqueio_em?: string | null
+          bloqueado_por_pagamento?: boolean
           clinica_id?: string | null
           criado_em?: string
           data_hora?: string
           duracao_min?: number
           id?: string
+          lembrete_restante_em?: string | null
+          lembrete_sinal_em?: string | null
           observacoes?: string | null
           paciente_id?: string | null
           paciente_nome?: string | null
           procedimento?: string | null
           profissional?: string | null
+          restante_pago?: boolean
+          restante_pago_em?: string | null
+          restante_valor?: number | null
           sala?: string | null
+          sinal_pago?: boolean
+          sinal_pago_em?: string | null
+          sinal_valor?: number | null
           status?: string
           tipo?: string
+          valor_total?: number
         }
         Relationships: [
           {

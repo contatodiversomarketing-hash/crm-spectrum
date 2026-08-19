@@ -525,7 +525,7 @@ Você está atendendo pelo WhatsApp.
 - Se o paciente disser que já preencheu mas você não recebeu os dados, peça que aguarde alguns instantes e depois confirme: "Vou verificar aqui no sistema, só um momento 😊"
 
 ## REGRA DE PREÇOS (USE APENAS QUANDO PERGUNTAREM OU AO FECHAR)
-- O ÚNICO valor que você informa é o da **consulta inicial com a Dra. Amélia: R$ 500,00 à vista (Pix) ou R$ 525,00 no cartão** (50–60 min, telemedicina ou presencial em Muriaé-MG)
+- O ÚNICO valor que você informa é o da **consulta inicial com a Dra. Amélia: R$ 550,00, com sinal de 30% (R$ 165,00) via Pix para segurar a vaga e o restante (R$ 385,00) no dia da consulta — OU R$ 500,00 à vista no Pix, pago no mesmo dia do agendamento** (50–60 min, telemedicina ou presencial em Muriaé-MG)
 - Os PROGRAMAS (SPECTRA ADULTO e SPECTRA KIDS) NÃO são vendidos por WhatsApp. É a própria Dra. Amélia quem, na consulta, avalia e indica o pacote ideal para cada caso
 - Se perguntarem valores de pacotes/investigação, responda com honestidade e sem despejar tabela: "Os programas variam conforme o que o seu caso precisa — quem monta e apresenta isso é a própria Dra. Amélia na consulta, com base na avaliação dela. O primeiro passo é a consulta inicial 💚". Só cite faixas ("a partir de R$ 350/mês no adulto") se o paciente insistir MUITO
 - Você CONHECE todos os programas em detalhe (estão na sua base de treinamento) e pode explicar o que está incluso, o formato e o tempo — mas NUNCA feche pacote, NUNCA prometa desconto e NUNCA invente valores fora do que está na base
@@ -612,16 +612,30 @@ ${TRIAGENS_CONTEXTO}
 8. LOGO EM SEGUIDA, na mesma mensagem ou na seguinte, apresente o SINAL DE 30% (ver regra abaixo) e envie o Pix
 9. APÓS isso, pergunte se tem alguma dúvida sobre o tratamento
 
-## SINAL DE 30% PARA GARANTIR A VAGA (OBRIGATÓRIO EM TODO AGENDAMENTO)
-- A consulta com a Dra. Amélia custa **R$ 500,00**
-- Para reservar a vaga é necessário um **sinal de 30% = R$ 150,00 via Pix**. O restante, **R$ 350,00**, é pago no dia da consulta, antes do atendimento
-- Justificativa (sempre explique com empatia, nunca de forma burocrática): a procura é muito grande e há fila de espera; o sinal garante que a vaga fique bloqueada só para ele e evita que alguém da espera perca a chance por uma falta
+## VALOR E SINAL DE 30% (OBRIGATÓRIO EM TODO AGENDAMENTO)
+- A consulta com a Dra. Amélia custa **R$ 550,00**
+- Para reservar a vaga é necessário um **sinal de 30% = R$ 165,00 via Pix**. O restante, **R$ 385,00**, é pago no dia da consulta, ATÉ 30 MINUTOS ANTES do horário
+- Opção à vista: **R$ 500,00 no Pix pago no mesmo dia do agendamento** (valor total, sem sinal). Se o paciente não pagar no mesmo dia, volta a valer R$ 550,00 com sinal
+- NUNCA fale em cartão, parcelamento, boleto ou qualquer outra forma de pagamento — só Pix
+- Justificativa (sempre com empatia, nunca burocrática): a procura é muito grande e há fila de espera; o sinal garante que a vaga fique bloqueada só para ele e evita que alguém da espera perca a chance por uma falta
 - Chave Pix: **consultasdraameliacarvalho@gmail.com**
 - SEMPRE que falar do sinal, inclua ao final da mensagem o marcador ##ENVIAR_QRCODE_PIX## (o QR Code do Pix é enviado automaticamente em seguida; o marcador é removido do texto)
 - Peça o comprovante: "assim que fizer o Pix, me manda o comprovante aqui que eu confirmo sua vaga na hora 💚"
-- Modelo: "Para eu bloquear essa vaga no nome do(a) [Nome], a Dra. pede um sinal de 30% — R$ 150,00 no Pix. O restante (R$ 350,00) você paga no dia, antes da consulta. Como a procura está altíssima e temos pessoas na espera, é assim que garantimos que ninguém perca o lugar. Chave Pix: consultasdraameliacarvalho@gmail.com — te mandei também o QR Code logo abaixo 💚 ##ENVIAR_QRCODE_PIX##"
+- Modelo: "Para eu bloquear essa vaga no nome do(a) [Nome], a consulta é R$ 550,00: um sinal de 30% — R$ 165,00 no Pix — segura a vaga e o restante (R$ 385,00) você paga no dia, antes da consulta. Se preferir, pode pagar R$ 500,00 à vista no Pix ainda hoje e fica tudo quitado. Como a procura está altíssima e temos pessoas na espera, é assim que garantimos que ninguém perca o lugar. Chave Pix: consultasdraameliacarvalho@gmail.com — te mandei também o QR Code logo abaixo 💚 ##ENVIAR_QRCODE_PIX##"
+- FALE DO VALOR UMA ÚNICA VEZ. Depois de já ter informado valor + Pix, NUNCA repita a tabela de preços nem pergunte "como prefere pagar"
 - Se o paciente questionar o valor ou o sinal: reforce reciprocidade (você conseguiu o encaixe) + escassez (fila de espera) e que o sinal é abatido do valor total, não é taxa extra
 - NUNCA ofereça desconto, isenção do sinal ou parcelamento do sinal
+
+## TRAVA DE PAGAMENTO DA CONSULTA (REGRA RÍGIDA)
+- O sistema só libera a consulta com o valor TOTAL pago
+- Até 30 minutos antes do horário, o restante (R$ 385,00) precisa estar pago. Se não estiver, você pede o comprovante com gentileza e firmeza
+- Se ainda assim não pagar, avise: "infelizmente o sistema não libera o atendimento sem o pagamento concluído, e a vaga volta para a fila de espera"
+- NUNCA prometa liberar a consulta sem pagamento nem "resolver depois"
+
+## CONSULTA É SEMPRE COM A DRA. AMÉLIA (NUNCA ENCAMINHE)
+- A clínica tem UM único atendimento: a consulta com a Dra. Amélia Carvalho
+- É PROIBIDO dizer que o caso "resolve com clínico geral", indicar outro profissional, outra especialidade ou outra clínica
+- Se a triagem já foi preenchida, NUNCA envie o link do quiz de novo nem peça que preencha novamente
 
 ## PROIBIDO "VOU CONFERIR" (REGRA DE OURO)
 - Você tem acesso DIRETO à agenda em tempo real (lista abaixo). Nunca finja que precisa consultar depois
@@ -657,13 +671,10 @@ REGRAS DO MARCADOR:
 - Prefira avançar no fluxo do que ficar repetindo perguntas
 - Colete nome completo, CPF e data de nascimento ANTES de confirmar o agendamento
 
-## ORIENTAÇÕES PRÉVIAS + INDICAÇÃO DE CONSULTA + PAGAMENTO (ENVIO AUTOMÁTICO PELO SISTEMA — NÃO ENVIE VOCÊ)
-IMPORTANTE: Logo após o agendamento ser confirmado, o SISTEMA envia automaticamente, em sequência, três mensagens:
-1. *Análise da triagem* — leitura do caso (adulto x infantil / foco principal). Uma TAG é gravada nas observações do agendamento para a Dra. Amélia ver no sistema de gestão.
-2. *3 orientações prévias* (anotar dúvidas, clareza dos sintomas, link da triagem https://draameliacarvalho.com/quiz/).
-3. *Valor da consulta (R$ 500,00 à vista / R$ 525,00 no cartão) + chave Pix* e pedido do comprovante.
+## ORIENTAÇÕES PRÉVIAS (ENVIO AUTOMÁTICO PELO SISTEMA — NÃO ENVIE VOCÊ)
+IMPORTANTE: Logo após o agendamento ser confirmado, o SISTEMA envia automaticamente UMA mensagem com as orientações prévias (anotar dúvidas, clareza dos sintomas e, SOMENTE se a triagem ainda não tiver sido preenchida, o link do quiz) e, em seguida, o QR Code do Pix.
 
-Por isso, na sua mensagem de confirmação do agendamento NÃO indique tipo de consulta, NÃO informe valor, NÃO envie chave Pix, NÃO pergunte se quer orientações. Apenas confirme o agendamento de forma curta e calorosa, celebrando a decisão (ex.: "Pronto, [Nome]! Sua consulta com a Dra. Amélia está *confirmada* para [data] às [hora] ✅ Foi um prazer te ajudar a cuidar da sua saúde — parabéns por esse passo tão importante 💚"). Todo o resto vai automático em seguida.
+Na sua mensagem de confirmação: confirme o agendamento de forma curta e calorosa, celebrando a decisão, e apresente o sinal de 30% com a chave Pix (marcador ##ENVIAR_QRCODE_PIX##). NÃO indique tipo de consulta, NÃO cite clínico geral/especialista, NÃO reenvie o link da triagem se ela já foi feita e NÃO repita a tabela de valores depois.
 
 ## QUANDO O PACIENTE ENVIAR COMPROVANTE DE PAGAMENTO
 Se o paciente enviar uma imagem/PDF e disser que é o comprovante (ou for óbvio pelo contexto), responda de forma BEM ENTUSIASMADA, calorosa e empática (ex.: "Aaah que maravilha, [Nome]! 🎉 Pagamento confirmado e seu nome JÁ está na agenda ✅ O(a) médico(a) está te aguardando — qualquer dúvida antes da consulta, é só me chamar 💚🌿"). NÃO repita valor nem chave Pix. O sistema cuida da baixa financeira automaticamente.
@@ -1671,29 +1682,32 @@ async function darBaixaPagamento(
   try {
     let baixaOk = false;
 
-    // Tentar atualizar último agendamento como pago no sistema de gestão
+    // Baixa na AGENDA LOCAL: 1º comprovante = sinal (30%), 2º = restante
     if (pacienteId) {
       try {
-        const r = await chamarGestao("listar_agendamentos", { paciente_id: pacienteId });
-        const lista = (r?.data?.data || r?.data || []) as any[];
-        const futuros = Array.isArray(lista)
-          ? lista
-              .filter((a) => a?.data_hora || a?.data || a?.id)
-              .sort((a, b) => new Date(b?.data_hora || b?.data || 0).getTime() - new Date(a?.data_hora || a?.data || 0).getTime())
-          : [];
-        const consultaId = futuros[0]?.id || futuros[0]?.consulta_id;
-        if (consultaId) {
-          const upd = await chamarGestao("registrar_pagamento", {
-            consulta_id: consultaId,
-            forma_pagamento: "pix",
-            status: "pago",
-            comprovante_recebido: true,
-          });
-          baixaOk = !!upd?.ok;
-          console.log(`[whatsapp] 💰 Tentativa baixa via registrar_pagamento (consulta=${consultaId}): ok=${baixaOk}`);
+        const { data: proxima } = await supabase
+          .from("agendamentos")
+          .select("id, sinal_pago, restante_pago, valor_total")
+          .eq("paciente_id", pacienteId)
+          .neq("status", "cancelado")
+          .gte("data_hora", new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString())
+          .order("data_hora", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (proxima) {
+          const total = Number(proxima.valor_total || 550);
+          const agoraIso = new Date().toISOString();
+          const patch: Record<string, unknown> = proxima.sinal_pago
+            ? { restante_pago: true, restante_valor: Math.round(total * 0.7 * 100) / 100, restante_pago_em: agoraIso, bloqueado_por_pagamento: false }
+            : { sinal_pago: true, sinal_valor: Math.round(total * 0.3 * 100) / 100, sinal_pago_em: agoraIso };
+
+          const { error } = await supabase.from("agendamentos").update(patch).eq("id", proxima.id);
+          baixaOk = !error;
+          console.log(`[whatsapp] 💰 Baixa local (agendamento=${proxima.id}): ${proxima.sinal_pago ? "restante" : "sinal"} ok=${baixaOk}`);
         }
       } catch (e) {
-        console.warn("[whatsapp] Falha ao tentar baixa automática na Gestão:", e);
+        console.warn("[whatsapp] Falha na baixa local do pagamento:", e);
       }
     }
 
@@ -3007,8 +3021,15 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         console.log(`[whatsapp] 📝 Triagem encontrada — anexando às observações do agendamento (${triagemTexto.length} chars)`);
       }
 
-      // 🏷️ Decidir TIPO DE CONSULTA (clínico geral x especialista) — IA decide livremente com base na triagem (fallback regex)
-      const decisaoConsulta = await decidirTipoConsultaPelaTriagem(triagemTexto || "");
+      // 🏷️ TIPO DE CONSULTA: só existe a consulta com a Dra. Amélia — nunca encaminhar para clínico geral/especialista
+      const decisaoConsulta: DecisaoConsulta = {
+        tipo: "especialista",
+        valor: 550,
+        valorTexto: "R$ 550,00",
+        especialidadeSugerida: "Dra. Amélia Carvalho",
+        justificativa: "sua consulta é diretamente com a Dra. Amélia Carvalho",
+        tag: "CONSULTA - DRA. AMÉLIA CARVALHO",
+      };
       console.log(`[whatsapp] 🏷️ Tipo de consulta decidido pela triagem: ${decisaoConsulta.tag} | ${decisaoConsulta.valorTexto}`);
 
       // Processar TODOS os agendamentos em paralelo - AGUARDAR resultado antes de enviar mensagem
@@ -3070,34 +3091,24 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         }
       }
 
-      // Para cada agendamento confirmado com sucesso → enfileirar mensagens (leitura da triagem + orientações + valor/Pix)
+      // Após o agendamento confirmado → apenas UMA mensagem de orientações (sem análise de triagem, sem repetir valores)
       if (agendamentosConfirmados > 0) {
         const nomePaciente = pacienteEncontrado?.nome?.split(" ")[0] || agendamentos[0]?.nome?.split(" ")[0] || "";
         const ola = nomePaciente ? `${nomePaciente}, ` : "";
 
-        // 1️⃣ Leitura do caso com base na triagem
-        mensagensExtras.push(
-          `🔎 *Análise da sua triagem*\n\n` +
-          `${ola}${decisaoConsulta.justificativa}. 💚`
-        );
+        const itens = [
+          `1. *Anote suas dúvidas* antes da consulta para tirar todas com a Dra. Amélia.`,
+          `2. Tenha clareza dos *sintomas e observações do dia a dia* (no caso de criança, traga também relatos da escola).`,
+        ];
+        // Só pedir a triagem se ela AINDA não foi preenchida
+        if (!triagemTexto) {
+          itens.push(`3. *Preencha o formulário de triagem* (essencial para a Dra. entender seu caso): https://draameliacarvalho.com/quiz/`);
+        }
 
-        // 2️⃣ Orientações prévias
         mensagensExtras.push(
           `📋 *Orientações para sua consulta*\n\n` +
-          `1. *Anote suas dúvidas* antes da consulta para tirar todas com a Dra. Amélia.\n` +
-          `2. Tenha clareza dos *sintomas e observações do dia a dia* (no caso de criança, traga também relatos da escola).\n` +
-          `3. *Preencha o formulário de triagem* (essencial para a Dra. entender seu caso): https://draameliacarvalho.com/quiz/`
-        );
-
-        // 3️⃣ Valor + Pix (chave configurada em segredo; sem chave, não enviamos dados de pagamento)
-        const chavePix = (Deno.env.get("CHAVE_PIX") || "").trim();
-        mensagensExtras.push(
-          `💳 *Valor da consulta com a Dra. Amélia*\n\n` +
-          `R$ 500,00 à vista (Pix) ou R$ 525,00 no cartão.\n\n` +
-          (chavePix
-            ? `🔑 *Pagamento via Pix* (chave): \`${chavePix}\`\n\n` +
-              `Após o pagamento, por favor *envie o comprovante por aqui* que eu já dou baixa automaticamente no sistema ✅`
-            : `Me confirma por aqui como prefere pagar que eu já te passo os dados ✅`)
+          `${ola}separei o essencial pra você aproveitar ao máximo o atendimento 💚\n\n` +
+          itens.join("\n")
         );
       }
     }
@@ -3113,7 +3124,8 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     respostaFinal = respostaFinal.replace(/##ENVIAR_PDF_NEUROACESSO##/gi, "").trim();
 
     // QR Code do Pix do sinal de 30% → enviar PDF após a resposta
-    const enviarPixQr = /##ENVIAR_QRCODE_PIX##/i.test(respostaFinal);
+    // Sempre enviar quando um agendamento foi confirmado agora (mesmo se a IA esquecer o marcador)
+    const enviarPixQr = /##ENVIAR_QRCODE_PIX##/i.test(respostaFinal) || agendamentosConfirmados > 0;
     respostaFinal = respostaFinal.replace(/##ENVIAR_QRCODE_PIX##/gi, "").trim();
 
     // =============================
