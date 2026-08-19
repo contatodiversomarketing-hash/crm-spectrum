@@ -1344,30 +1344,13 @@ async function registrarAgendamento(
     // 4) Garantir paciente local
     let patientIdFinal = pacienteId;
     if (!patientIdFinal) {
-      const telDigits = telefone.replace(/\D/g, "");
-      const { data: existente } = await supabase
-        .from("pacientes")
-        .select("id")
-        .eq("externo_id", telDigits)
-        .maybeSingle();
-      if (existente?.id) {
-        patientIdFinal = existente.id as string;
-      } else {
-        const { data: criado } = await supabase
-          .from("pacientes")
-          .insert({
-            externo_id: telDigits,
-            nome,
-            telefone: telDigits,
-            cpf: dadosPaciente?.cpf?.replace(/\D/g, "") || null,
-            email: dadosPaciente?.email || null,
-            data_nascimento: dadosPaciente?.dataNascimento || null,
-            tipo: "adulto",
-          })
-          .select("id")
-          .maybeSingle();
-        patientIdFinal = (criado?.id as string) || "";
-      }
+      patientIdFinal = (await upsertPaciente(supabase, {
+        nome,
+        telefone,
+        cpf: dadosPaciente?.cpf,
+        email: dadosPaciente?.email,
+        data_nascimento: dadosPaciente?.dataNascimento,
+      })) || "";
     }
 
     // 5) Observações (tag + triagem)
