@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { METODO_MESTRE_DAS_VENDAS } from "../_shared/metodo-vendas.ts";
 import { interpretarTriagem, TRIAGENS_CONTEXTO } from "../_shared/triagens.ts";
 import { enviarDocumentoMega, NEUROACESSO_PDF_URL, PIX_QRCODE_PDF_URL } from "../_shared/mega.ts";
-import { buscarLead, buscarPaciente, upsertPaciente, telCanonico, cpfLimpo as limparCpf } from "../_shared/dedup.ts";
+import { buscarLead, buscarPaciente, upsertPaciente, telCanonico, telVariacoes, cpfLimpo as limparCpf } from "../_shared/dedup.ts";
 
 
 const corsHeaders = {
@@ -2679,6 +2679,11 @@ serve(async (req) => {
 
     console.log(`[whatsapp] 📩 De ${numero}: "${mensagem.slice(0, 100)}"${imagemBase64ParaIA ? " [+imagem]" : ""}`);
 
+    // Identidade única do contato (histórico pode ter sido gravado em formatos diferentes)
+    const numeroCanonico = telCanonico(numero) || numero;
+    const numeroVariacoes = telVariacoes(numero);
+    const numerosBusca = numeroVariacoes.length ? Array.from(new Set([...numeroVariacoes, numero])) : [numero];
+
     // Toda conversa vira card no CRM
     await garantirLeadCRM(supabase, numero, body.pushName || body.sender?.pushName || null);
 
@@ -2690,7 +2695,7 @@ serve(async (req) => {
       supabase
         .from("interacoes_ia")
         .select("mensagem_usuario, resposta_final, criado_em")
-        .eq("paciente_externo_id", numero)
+        .in("paciente_externo_id", numerosBusca)
         .eq("canal", "whatsapp")
         .order("criado_em", { ascending: false })
         .limit(10),
@@ -3243,7 +3248,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     const { data: ultimaFresca } = await supabase
       .from("interacoes_ia")
       .select("resposta_final, criado_em")
-      .eq("paciente_externo_id", numero)
+      .in("paciente_externo_id", numerosBusca)
       .eq("canal", "whatsapp")
       .not("resposta_final", "is", null)
       .order("criado_em", { ascending: false })
@@ -3273,7 +3278,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
 
     const mensagemPersistida = (midia ? `[${midia.type}] ` : "") + mensagem.slice(0, 5000);
     const payloadInteracao = {
-      paciente_externo_id: numero,
+      paciente_externo_id: numeroCanonico,
       canal: "whatsapp",
       sistema_origem: "megaapi",
       mensagem_usuario: mensagemPersistida,
@@ -3345,7 +3350,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
           const ok = await enviarTexto(numero, extra, instanceKey);
           if (ok) {
             await supabase.from("interacoes_ia").insert({
-              paciente_externo_id: numero,
+              paciente_externo_id: numeroCanonico,
               canal: "whatsapp",
               sistema_origem: "megaapi",
               mensagem_usuario: null,

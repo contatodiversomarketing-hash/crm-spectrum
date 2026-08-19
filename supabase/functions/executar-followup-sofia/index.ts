@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { METODO_MESTRE_DAS_VENDAS } from "../_shared/metodo-vendas.ts";
 import { interpretarTriagem, TRIAGENS_CONTEXTO } from "../_shared/triagens.ts";
 import { enviarTextoMega } from "../_shared/mega.ts";
+import { telCanonico } from "../_shared/dedup.ts";
 
 
 const corsHeaders = {
@@ -185,7 +186,7 @@ Deno.serve(async (req) => {
             .eq("id", lead.id);
 
           await supabase.from("interacoes_ia").insert({
-            paciente_externo_id: telefone,
+            paciente_externo_id: telCanonico(telefone) || telefone,
             canal: "whatsapp",
             sistema_origem: "followup_ana",
             mensagem_usuario: null,
