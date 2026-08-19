@@ -3167,6 +3167,10 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     const enviarPdfNeuroacesso = /##ENVIAR_PDF_NEUROACESSO##/i.test(respostaFinal);
     respostaFinal = respostaFinal.replace(/##ENVIAR_PDF_NEUROACESSO##/gi, "").trim();
 
+    // QR Code do Pix do sinal de 30% → enviar PDF após a resposta
+    const enviarPixQr = /##ENVIAR_QRCODE_PIX##/i.test(respostaFinal);
+    respostaFinal = respostaFinal.replace(/##ENVIAR_QRCODE_PIX##/gi, "").trim();
+
     // =============================
     // ENVIAR RESPOSTA (com verificação FRESCA de duplicação no banco)
     // =============================
