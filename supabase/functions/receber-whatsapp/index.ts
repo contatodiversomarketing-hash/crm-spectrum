@@ -1780,27 +1780,27 @@ async function garantirLeadCRM(
     const digitos = telefone.replace(/\D/g, "");
     if (digitos.length < 10) return;
     const semDDI = digitos.startsWith("55") ? digitos.slice(2) : digitos;
-    const variacoes = Array.from(new Set([digitos, semDDI, `55${semDDI}`, `+55${semDDI}`]));
 
-    const { data: existentes } = await supabase
-      .from("leads")
-      .select("id")
-      .in("telefone", variacoes)
-      .order("criado_em", { ascending: false })
-      .limit(1);
-
-    if (existentes?.[0]?.id) {
+    // Lead único por pessoa: se já existe (qualquer formato de telefone), só atualiza
+    const existente = await buscarLead(supabase, telefone, null, "id, nome");
+    if (existente?.id) {
+      const nomeNovo = (nomePossivel || "").trim();
+      const nomeAtual = (existente.nome || "").trim();
+      const precisaNome = !nomeAtual || /^whatsapp\s/i.test(nomeAtual);
       await supabase
         .from("leads")
-        .update({ ultima_interacao: new Date().toISOString() })
-        .eq("id", existentes[0].id);
+        .update({
+          ultima_interacao: new Date().toISOString(),
+          ...(precisaNome && nomeNovo ? { nome: nomeNovo } : {}),
+        })
+        .eq("id", existente.id);
       return;
     }
 
     const pipelineId = await obterPipelinePacientesId(supabase);
     const { error } = await supabase.from("leads").insert({
       nome: (nomePossivel || "").trim() || `WhatsApp ${semDDI}`,
-      telefone: digitos,
+      telefone: telCanonico(telefone) || digitos,
       origem: "whatsapp_ana",
       status: "novo",
       status_pipeline: "em_contato",
