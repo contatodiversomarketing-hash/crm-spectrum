@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { interpretarTriagem } from "../_shared/triagens.ts";
+import { telBase, telCanonico, telVariacoes } from "../_shared/dedup.ts";
 
 
 const corsHeaders = {
