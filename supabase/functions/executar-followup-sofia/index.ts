@@ -118,11 +118,33 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Trava anti-ban: nunca dispara com a instância fora do ar e limita o ritmo por rodada.
+  const conexao = await instanciaConectada();
+  if (!conexao.conectada) {
+    await supabase.from("logs_decisao").insert({
+      evento: "followup_ana",
+      decisao: "abortado_desconectado",
+      regra_aplicada: "instancia_whatsapp_offline",
+      dados_entrada: { status_instancia: conexao.status },
+    });
+    return new Response(
+      JSON.stringify({ status: "whatsapp_desconectado", status_instancia: conexao.status }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  const MAX_POR_RODADA = 10; // no máx. 10 mensagens/hora → evita bloqueio do WhatsApp
+  const MAX_FALHAS_SEGUIDAS = 3;
+  const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  let falhasSeguidas = 0;
+
   const relatorio = {
     avaliados: 0,
     enviados: 0,
     pausados_responderam: 0,
     pausados_etapa_crm: 0,
+    limite_rodada: MAX_POR_RODADA,
+    interrompido: null as string | null,
     erros: [] as string[],
   };
 
