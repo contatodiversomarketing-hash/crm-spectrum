@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { ETIQUETAS, getEtiqueta } from "@/lib/etiquetas";
 
 export interface Lead {
   id: string;
@@ -47,6 +48,7 @@ export interface Lead {
   followup_finalizado?: boolean | null;
   nome_filho?: string | null;
   documentos?: any;
+  etiquetas?: string[] | null;
 }
 
 const ETAPA_LABEL: Record<number, { texto: string; tom: string }> = {
@@ -268,6 +270,23 @@ export function LeadCard({
             </div>
           )}
         </div>
+
+        {/* Etiquetas */}
+        {Array.isArray(lead.etiquetas) && lead.etiquetas.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {lead.etiquetas.map((chave) => {
+              const et = getEtiqueta(chave);
+              return (
+                <span
+                  key={chave}
+                  className={`text-[10px] px-1.5 py-0.5 rounded border break-words whitespace-normal ${et.classe}`}
+                >
+                  {et.nome}
+                </span>
+              );
+            })}
+          </div>
+        )}
 
         {/* Observações */}
         {lead.observacoes && (
