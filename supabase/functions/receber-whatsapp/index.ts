@@ -12,7 +12,7 @@ const corsHeaders = {
 };
 
 // Link de pagamento no cartão (valor total R$ 500,00 — parcelamento escolhido pelo próprio paciente)
-const LINK_PAGAMENTO_CARTAO = (Deno.env.get("LINK_PAGAMENTO_CARTAO") || "https://link.infinitepay.io/la-vitta/VC1D-RlNNX2Duvx-500,00").trim();
+const LINK_PAGAMENTO_CARTAO = (Deno.env.get("LINK_PAGAMENTO_CARTAO") || "https://link.infinitepay.io/la-vitta/VC1D-6AhRPEEVu2-500,00").trim();
 const LINK_CARTAO_INSTRUCAO = LINK_PAGAMENTO_CARTAO
   ? `. Link do cartão (R$ 500,00): ${LINK_PAGAMENTO_CARTAO} — envie somente quando a pessoa optar pelo cartão`
   : `. O link do cartão ainda não está cadastrado no sistema: se a pessoa pedir cartão, diga que já vai providenciar o link e siga o atendimento — NUNCA invente um link`;
