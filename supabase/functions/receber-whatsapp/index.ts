@@ -1038,12 +1038,13 @@ INSTRUÇÃO CRÍTICA - SIGA ESTA REGRA:
 ${linhas.join("\n")}
 
 REGRAS ABSOLUTAS DE AGENDA:
-- Ofereça EXATAMENTE 2 horários do turno pedido, escolhidos da lista ACIMA
+- Ofereça EXATAMENTE 1 horário do turno pedido, o mais próximo da lista ACIMA — você escolhe o dia, o paciente não escolhe
+- Informe apenas a HORA DE INÍCIO (ex.: "às 14h"). NUNCA use faixas como "13h-15h" e nunca fale a duração da consulta
 - NUNCA invente horários que NÃO estão nesta lista
 - NUNCA ofereça horários fora do expediente do profissional
-- Se o turno pedido não tem horários na lista, informe e sugira o outro turno
-- Use o formato: dia (data) às hora com Profissional
-- Exemplo: "Consegui encaixar para você [dia] às [hora1] ou às [hora2]. Qual fica melhor? 😊"`;
+- Se o turno pedido não tem horários na lista, informe e sugira o outro turno (ainda com 1 horário só)
+- Use SEMPRE o enquadramento de escassez + conquista
+- Exemplo: "A agenda da Dra. Amélia está bem cheia, mas consegui abrir um encaixe na [dia] ([dd/mm]) às [hora]. Fico feliz por conseguir esse horário para você — posso reservar? 😊"`;
   } catch (err) {
     console.error("[whatsapp] Erro buscar agenda:", err);
     return `\n\nHORÁRIOS: Não foi possível consultar a agenda no momento.
