@@ -3245,6 +3245,15 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       ).catch((e) => console.error("[whatsapp] falha ao enviar PDF NeuroAcesso:", e));
     }
 
+    if (enviarPixQr) {
+      enviarDocumentoMega(
+        numero,
+        PIX_QRCODE_PDF_URL,
+        "QRCode-Pix-Consulta.pdf",
+        "QR Code do Pix para o sinal de R$ 150,00 (30%) 💚 Chave Pix: consultasdraameliacarvalho@gmail.com",
+      ).catch((e) => console.error("[whatsapp] falha ao enviar QR Code Pix:", e));
+    }
+
     if (!envioOk) {
       if (interacaoSalva?.id) {
         await supabase
