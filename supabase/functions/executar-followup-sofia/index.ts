@@ -250,7 +250,8 @@ Deno.serve(async (req) => {
           falhasSeguidas = 0;
           // Ritmo humano: 25 a 55 segundos entre mensagens
           if (relatorio.enviados < MAX_POR_RODADA) {
-            await espera(25000 + Math.floor(Math.random() * 30000));
+            // Ritmo bem lento: 3 a 6 minutos entre mensagens
+            await espera(180000 + Math.floor(Math.random() * 180000));
           }
         } else {
           relatorio.erros.push(`lead ${lead.id}: status ${megaRes.status}`);
