@@ -3007,8 +3007,15 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         console.log(`[whatsapp] 📝 Triagem encontrada — anexando às observações do agendamento (${triagemTexto.length} chars)`);
       }
 
-      // 🏷️ Decidir TIPO DE CONSULTA (clínico geral x especialista) — IA decide livremente com base na triagem (fallback regex)
-      const decisaoConsulta = await decidirTipoConsultaPelaTriagem(triagemTexto || "");
+      // 🏷️ TIPO DE CONSULTA: só existe a consulta com a Dra. Amélia — nunca encaminhar para clínico geral/especialista
+      const decisaoConsulta: DecisaoConsulta = {
+        tipo: "especialista",
+        valor: 550,
+        valorTexto: "R$ 550,00",
+        especialidadeSugerida: "Dra. Amélia Carvalho",
+        justificativa: "sua consulta é diretamente com a Dra. Amélia Carvalho",
+        tag: "CONSULTA - DRA. AMÉLIA CARVALHO",
+      };
       console.log(`[whatsapp] 🏷️ Tipo de consulta decidido pela triagem: ${decisaoConsulta.tag} | ${decisaoConsulta.valorTexto}`);
 
       // Processar TODOS os agendamentos em paralelo - AGUARDAR resultado antes de enviar mensagem
