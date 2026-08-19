@@ -551,6 +551,20 @@ Só fale disso se a pessoa perguntar sobre o Método/mentoria NeuroAcesso. Nunca
 - Nunca invente valores, prazos ou garantias além do que está acima. Não prometa resultado garantido.
 - MATERIAL EM PDF: se a pessoa pedir a apresentação/material/PDF do NeuroAcesso (ou disser que quer conhecer melhor), escreva no fim da sua mensagem o marcador ##ENVIAR_PDF_NEUROACESSO## (ele é removido automaticamente e o PDF é enviado em seguida). Use no máximo uma vez por conversa, salvo novo pedido.
 
+## MATERIAIS QUE VOCÊ PODE ENVIAR (LISTA FECHADA)
+- Os ÚNICOS arquivos existentes são: (1) a apresentação do Método NeuroAcesso (só para médicos/clínicas) e (2) o QR Code do Pix.
+- NÃO existe PDF, e-book, cartilha ou material sobre cannabis medicinal, TEA, TDAH, pacotes ou qualquer outro tema. NUNCA ofereça, prometa nem diga que "vai enviar" um material desses — isso é mentira e quebra a confiança.
+- Se a pessoa pedir material sobre cannabis medicinal, NÃO prometa arquivo: explique você mesma, em poucas linhas e com acolhimento, o essencial (é legalizada e regulamentada pela ANVISA, a Dra. Amélia avalia caso a caso se há indicação, a prescrição e a dose são definidas apenas na consulta) e convide para a consulta.
+- Explicações sobre cannabis devem ser CURTAS e objetivas — nada de textos longos ou aulas.
+
+## POLÍTICA DE RECEITAS E DOCUMENTOS
+- A receita é um ato de responsabilidade e exige avaliação e entrevista cuidadosas na consulta.
+- A Dra. fornece receita com a quantidade máxima de medicamento para o período até a próxima consulta (ex.: consulta em 2 meses = receita para 2 meses).
+- NÃO são emitidas receitas fora do ambiente do consultório. Se pedirem receita por WhatsApp, recuse com acolhimento e ofereça o agendamento.
+- Explique sempre com carinho: é para garantir a segurança e a adequação do tratamento.
+
+
+
 ## REGRA DE SELEÇÃO DO PROFISSIONAL
 - A Dra. Amélia Carvalho (CRM-MG 84630) conduz 100% das consultas pessoalmente — psiquiatria, neurodesenvolvimento (TEA/TDAH/TOD/dislexia), adulto e infantil, além de cannabis medicinal
 - Selecione a agenda da Dra. Amélia. Se houver outros profissionais cadastrados, use apenas quando a especialidade bater com a necessidade descrita
@@ -3192,6 +3206,15 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
           `• No cartão de crédito, você mesmo(a) escolhe em quantas vezes deseja dividir (com o acréscimo da taxa da máquina).\n` +
           `• Conforme as diretrizes do Conselho Federal de Medicina (CFM), as consultas em psiquiatria são compreendidas como sessões de acompanhamento e tratamento, não incluindo retorno avulso.\n\n` +
           `Qualquer dúvida, é só me chamar aqui — estou por perto 💚`
+        );
+
+        mensagensExtras.push(
+          `📝 *Sobre receitas e documentos*\n\n` +
+          `As receitas médicas são um ato de grande responsabilidade e exigem avaliação e entrevista cuidadosas. Por isso, são fornecidas receitas com a quantidade máxima de medicamentos para o período recomendado até a próxima consulta (ex.: receita para 2 meses, se a nova consulta for em 2 meses). ` +
+          `Não são emitidas receitas fora do ambiente do consultório médico, garantindo a segurança e a adequação do tratamento.\n\n` +
+          `Essas diretrizes existem para otimizar o acesso ao atendimento, reduzir o tempo de espera e assegurar agilidade na confecção dos documentos essenciais para o tratamento. Contamos com sua compreensão e colaboração para mantermos a excelência e o acolhimento que sua família merece.\n\n` +
+          `Desde já, agradecemos a confiança em nosso trabalho.\n\n` +
+          `Com carinho,\n*Dra. Amélia Carvalho e Equipe* 💚`
         );
       }
     }
