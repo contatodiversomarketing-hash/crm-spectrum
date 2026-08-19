@@ -603,8 +603,14 @@ ${TRIAGENS_CONTEXTO}
    - Informe SOMENTE a hora de início (a duração não é assunto do paciente)
    - Só ofereça outro horário se a pessoa recusar esse
 6. Colete nome completo, CPF e data de nascimento UMA ÚNICA VEZ, em uma só mensagem. Se já tiver algum desses dados no histórico ou no cadastro, NÃO peça de novo — o telefone já é o do WhatsApp, nunca peça telefone
-7. Com os dados + horário aceito: confirme curto — "[Nome], consulta confirmada para [dia] às [hora] ✅"
+7. Assim que o paciente ACEITAR o horário: agende NA HORA e confirme na MESMA mensagem. PROIBIDO dizer "vou conferir", "vou verificar a agenda", "já volto", "aguarde um instante", "posso prosseguir?" ou pedir para ele esperar — a agenda já foi consultada e o horário oferecido já estava livre
+   Modelo da confirmação: "Pronto, [Nome]! ✅ Sua consulta com a Dra. Amélia está *confirmada* para [dia], dia [dd/mm], às [hora]. Foi um prazer te ajudar a cuidar da sua saúde 💚 Parabéns por dar esse passo tão importante para ter mais qualidade de vida 🌿"
 8. APÓS confirmar, pergunte se tem alguma dúvida sobre o tratamento
+
+## PROIBIDO "VOU CONFERIR" (REGRA DE OURO)
+- Você tem acesso DIRETO à agenda em tempo real (lista abaixo). Nunca finja que precisa consultar depois
+- Nunca peça autorização para consultar ("posso prosseguir?"): já traga o horário pronto
+- Nunca confira duas vezes: se já ofereceu um horário, ele está livre — ao aceite do paciente, confirme imediatamente
 
 ## COLETA DE DADOS PARA CADASTRO E AGENDAMENTO
 - Para finalizar o cadastro e agendar, você PRECISA de: **nome completo**, **CPF (11 dígitos)** e **data de nascimento**. O telefone já é o do WhatsApp — NUNCA peça
@@ -626,7 +632,7 @@ Se você disser "agendado" ou "marcado" sem incluir o marcador, o paciente ficar
 REGRAS DO MARCADOR:
 - O professional_id é OBRIGATÓRIO e deve ser o ID real do profissional na lista (campo "id")
 - NÃO use "auto" quando o profissional existir na lista
-- Se não houver ID válido, NÃO confirme agendamento automaticamente; diga apenas que vai checar a disponibilidade correta no sistema e já continuar por ali
+- Se não houver ID válido, use o ID do único profissional listado. Nunca diga que vai checar depois
 - PRIORIDADE MÁXIMA: se já tem nome + profissional + data + horário + ID válido → INCLUA O MARCADOR E CONFIRME.
 
 ## REGRA ANTI-LOOP (PRIORIDADE ABSOLUTA)
@@ -641,7 +647,7 @@ IMPORTANTE: Logo após o agendamento ser confirmado, o SISTEMA envia automaticam
 2. *3 orientações prévias* (anotar dúvidas, clareza dos sintomas, link da triagem https://draameliacarvalho.com/quiz/).
 3. *Valor da consulta (R$ 500,00 à vista / R$ 525,00 no cartão) + chave Pix* e pedido do comprovante.
 
-Por isso, na sua mensagem de confirmação do agendamento NÃO indique tipo de consulta, NÃO informe valor, NÃO envie chave Pix, NÃO pergunte se quer orientações. Apenas confirme o agendamento de forma curta e calorosa (ex.: "Pronto, [Nome]! Sua consulta com [Médico] está confirmada para [data] às [hora] ✅💚"). Todo o resto vai automático em seguida.
+Por isso, na sua mensagem de confirmação do agendamento NÃO indique tipo de consulta, NÃO informe valor, NÃO envie chave Pix, NÃO pergunte se quer orientações. Apenas confirme o agendamento de forma curta e calorosa, celebrando a decisão (ex.: "Pronto, [Nome]! Sua consulta com a Dra. Amélia está *confirmada* para [data] às [hora] ✅ Foi um prazer te ajudar a cuidar da sua saúde — parabéns por esse passo tão importante 💚"). Todo o resto vai automático em seguida.
 
 ## QUANDO O PACIENTE ENVIAR COMPROVANTE DE PAGAMENTO
 Se o paciente enviar uma imagem/PDF e disser que é o comprovante (ou for óbvio pelo contexto), responda de forma BEM ENTUSIASMADA, calorosa e empática (ex.: "Aaah que maravilha, [Nome]! 🎉 Pagamento confirmado e seu nome JÁ está na agenda ✅ O(a) médico(a) está te aguardando — qualquer dúvida antes da consulta, é só me chamar 💚🌿"). NÃO repita valor nem chave Pix. O sistema cuida da baixa financeira automaticamente.
@@ -664,7 +670,7 @@ Se um agendamento JÁ foi confirmado em uma mensagem anterior do histórico (voc
 
 ## REGRAS DE HORÁRIOS
 - SOMENTE ofereça horários que aparecem na lista "HORÁRIOS DISPONÍVEIS" abaixo
-- Se não há lista de horários, diga que vai consultar a agenda no sistema e seguir o atendimento por aqui
+- Se não há lista de horários, explique que a agenda está lotada no momento e ofereça lista de espera — NUNCA diga que vai conferir depois
 - NUNCA invente horários
 - Ofereça EXATAMENTE 1 horário do turno pedido (o mais próximo disponível), com dia escolhido por você e apenas a hora de início — nunca faixas como "13h-15h", nunca duas opções
 
@@ -786,50 +792,64 @@ async function atualizarPacienteCPF(patientId: string, cpf: string): Promise<boo
 }
 
 // =============================
-// BUSCAR PROFISSIONAIS NO SISTEMA DE GESTÃO
+// AGENDA LOCAL (tabelas medicos + agendamentos)
 // =============================
+function supabaseAdmin() {
+  return createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+}
+
+const DIA_NOMES: Record<number, string> = { 0: "domingo", 1: "segunda-feira", 2: "terça-feira", 3: "quarta-feira", 4: "quinta-feira", 5: "sexta-feira", 6: "sábado" };
+
+function diasDoMedico(dias: string | null | undefined): number[] {
+  const txt = (dias || "").toLowerCase();
+  if (!txt.trim()) return [1, 2, 3, 4, 5];
+  const map: Array<{ k: RegExp; d: number }> = [
+    { k: /seg/, d: 1 }, { k: /ter(?!c)/, d: 2 }, { k: /qua/, d: 3 },
+    { k: /qui/, d: 4 }, { k: /sex/, d: 5 }, { k: /s[áa]b/, d: 6 }, { k: /dom/, d: 0 },
+  ];
+  const res = map.filter((m) => m.k.test(txt)).map((m) => m.d);
+  return res.length ? res : [1, 2, 3, 4, 5];
+}
+
+// "agora" no fuso de São Paulo (UTC-3)
+function agoraSP(): Date {
+  return new Date(Date.now() - 3 * 3600000);
+}
+
+function dataISOparaSP(dataISO: string, hora: string): string {
+  return `${dataISO}T${hora}:00-03:00`;
+}
+
 async function buscarProfissionais(): Promise<{ texto: string; raw: any[] }> {
   try {
-    if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) {
+    const supabase = supabaseAdmin();
+    const { data, error } = await supabase
+      .from("medicos")
+      .select("id, nome, especialidade, dias_atendimento, horario_inicio, horario_fim, ativo")
+      .eq("ativo", true);
+
+    if (error || !data || data.length === 0) {
+      console.log("[whatsapp] Nenhum médico ativo cadastrado na agenda local");
       return { texto: "", raw: [] };
     }
 
-    const result = await chamarGestao("listar_medicos");
-    if (!result.ok) {
-      console.log(`[whatsapp] Profissionais API falhou: ${result.status}`, JSON.stringify(result.data)?.slice(0, 200));
-      return { texto: "\n\nPROFISSIONAIS: Erro ao consultar.", raw: [] };
-    }
+    const raw = data.map((m: any) => ({
+      id: m.id,
+      full_name: m.nome,
+      name: m.nome,
+      especialidade: m.especialidade,
+      dias_atendimento: m.dias_atendimento,
+      horario_inicio: m.horario_inicio,
+      horario_fim: m.horario_fim,
+    }));
 
-    const profissionais = result.data?.data || result.data?.professionals || result.data || [];
-    if (!Array.isArray(profissionais) || profissionais.length === 0) {
-      return { texto: "\n\nPROFISSIONAIS: Lista vazia.", raw: [] };
-    }
-
-    const comEspecialidade = profissionais.filter((p: any) => {
-      const esp = especialidadeProfissional(p);
-      const ativo = p.is_active !== false;
-      return esp && esp.length > 1 && ativo;
-    });
-
-    if (comEspecialidade.length === 0) {
-      return { texto: "\n\nPROFISSIONAIS: Nenhum com especialidade definida.", raw: profissionais };
-    }
-
-    const lista = comEspecialidade.map((p: any) => {
-      const id = p.id || p.professional_id || "";
-      const nome = nomeProfissional(p);
-      const esp = especialidadeProfissional(p);
-      const espNorm = esp.charAt(0).toUpperCase() + esp.slice(1).toLowerCase();
-      return `- ${nome} (${espNorm}) [ID: ${id}]`;
-    }).join("\n");
-
-    console.log(`[whatsapp] ✅ ${comEspecialidade.length} profissionais carregados`);
+    const lista = raw.map((p: any) => `- ${p.full_name} (${p.especialidade || "Consulta"}) [ID: ${p.id}]`).join("\n");
 
     return { texto: `\n\n## PROFISSIONAIS REAIS DA DRA. AMÉLIA CARVALHO (USE ESTES NOMES):
 ${lista}
 
 REGRA ABSOLUTA: Use o NOME EXATO e o ID correto ao confirmar agendamento.
-NUNCA diga "vou confirmar com a equipe" se a especialidade está na lista!`, raw: comEspecialidade };
+NUNCA diga "vou confirmar com a equipe" — a agenda está aqui, você mesma agenda.`, raw };
   } catch (err) {
     console.error("[whatsapp] Erro buscar profissionais:", err);
     return { texto: "", raw: [] };
@@ -940,115 +960,116 @@ function detectarProfissionalPorNome(mensagem: string, profissionais: any[]): an
 }
 
 // =============================
-// BUSCAR HORÁRIOS DISPONÍVEIS VIA API DE GESTÃO
+// BUSCAR HORÁRIOS DISPONÍVEIS NA AGENDA LOCAL
 // =============================
+const DURACAO_CONSULTA_MIN = 45;
+
+async function listarSlotsLivres(profissionais: any[], dias = 14): Promise<Array<{ date: string; time: string; profNome: string; profId: string }>> {
+  const supabase = supabaseAdmin();
+  const agora = agoraSP();
+  const hojeISO = agora.toISOString().split("T")[0];
+  const fim = new Date(agora.getTime() + dias * 86400000).toISOString().split("T")[0];
+
+  const { data: ocupados } = await supabase
+    .from("agendamentos")
+    .select("data_hora, profissional, status")
+    .gte("data_hora", `${hojeISO}T00:00:00-03:00`)
+    .lte("data_hora", `${fim}T23:59:59-03:00`);
+
+  const ocupadosSet = new Set(
+    (ocupados || [])
+      .filter((a: any) => !["cancelado", "cancelada", "cancelada_clinica", "faltou"].includes(String(a.status)))
+      .map((a: any) => {
+        const d = new Date(a.data_hora as string);
+        const sp = new Date(d.getTime() - 3 * 3600000);
+        return `${(a.profissional || "").toLowerCase()}|${sp.toISOString().slice(0, 16)}`;
+      }),
+  );
+
+  const slots: Array<{ date: string; time: string; profNome: string; profId: string }> = [];
+
+  for (let i = 0; i <= dias; i++) {
+    const d = new Date(agora.getTime() + i * 86400000);
+    const dateISO = d.toISOString().split("T")[0];
+    const dow = new Date(dateISO + "T12:00:00Z").getUTCDay();
+
+    for (const prof of profissionais) {
+      const diasProf = diasDoMedico(prof.dias_atendimento);
+      if (!diasProf.includes(dow)) continue;
+
+      const ini = String(prof.horario_inicio || "09:00").slice(0, 5);
+      const fimH = String(prof.horario_fim || "15:00").slice(0, 5);
+      let minutos = Number(ini.split(":")[0]) * 60 + Number(ini.split(":")[1]);
+      const minutosFim = Number(fimH.split(":")[0]) * 60 + Number(fimH.split(":")[1]);
+
+      while (minutos + DURACAO_CONSULTA_MIN <= minutosFim) {
+        const hh = String(Math.floor(minutos / 60)).padStart(2, "0");
+        const mm = String(minutos % 60).padStart(2, "0");
+        const time = `${hh}:${mm}`;
+        minutos += DURACAO_CONSULTA_MIN;
+
+        // não oferecer horário no passado nem em menos de 2h
+        const inicioSP = new Date(`${dateISO}T${time}:00Z`);
+        if (inicioSP.getTime() < agora.getTime() + 2 * 3600000) continue;
+
+        const chave = `${String(prof.full_name || prof.name || "").toLowerCase()}|${dateISO}T${time}`;
+        if (ocupadosSet.has(chave)) continue;
+
+        slots.push({ date: dateISO, time, profNome: prof.full_name || prof.name, profId: prof.id });
+      }
+    }
+  }
+
+  slots.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+  return slots;
+}
+
 async function buscarHorariosDisponiveis(profissionais: any[]): Promise<string> {
   try {
-    if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) {
-      return `\n\nHORÁRIOS: Sistema de gestão não configurado.
-INSTRUÇÃO: Mesmo assim, se o paciente informou data, horário e profissional, CONFIRME o agendamento usando o marcador ##AGENDAMENTO_CONFIRMADO##. O sistema tentará registrar.`;
+    if (!profissionais || profissionais.length === 0) {
+      return `\n\nHORÁRIOS: Nenhum profissional ativo cadastrado na agenda.
+INSTRUÇÃO: Continue o atendimento normalmente e siga com a coleta de dados.`;
     }
 
-    const hoje = new Date();
-    const diasParaConsultar: string[] = [];
-    for (let i = 0; i <= 10 && diasParaConsultar.length < 7; i++) {
-      const d = new Date(hoje.getTime() + i * 86400000);
-      if (d.getDay() >= 1 && d.getDay() <= 5) {
-        diasParaConsultar.push(d.toISOString().split("T")[0]);
-      }
-    }
-
-    const profIds = profissionais
-      .filter((p: any) => p.id || p.professional_id)
-      .slice(0, 5)
-      .map((p: any) => ({ id: p.id || p.professional_id, nome: nomeProfissional(p) }));
-
-    if (profIds.length === 0) {
-      return `\n\nHORÁRIOS: Nenhum profissional com ID encontrado.
-INSTRUÇÃO: Se o paciente já informou data+horário+profissional, CONFIRME o agendamento usando ##AGENDAMENTO_CONFIRMADO##.`;
-    }
-
-    const slotsPromises = diasParaConsultar.flatMap(date =>
-      profIds.map(prof =>
-        chamarGestao("horarios_disponiveis", { medico_id: prof.id, data: date })
-          .then(r => ({ ...r, profNome: prof.nome, profId: prof.id, date }))
-          .catch(() => null)
-      )
-    );
-
-    const resultados = await Promise.all(slotsPromises);
-
-    const nomes: Record<number, string> = { 1: "segunda-feira", 2: "terça-feira", 3: "quarta-feira", 4: "quinta-feira", 5: "sexta-feira" };
-    // Agrupar por data e profissional
-    const slotsInfo: Array<{ date: string; time: string; profNome: string; profId: string }> = [];
-
-    for (const res of resultados) {
-      if (!res || !res.ok) continue;
-      const slots = extrairSlotsGestao(res.data);
-      if (slots.length === 0) {
-        console.log(`[whatsapp] horarios_disponiveis sem slots utilizáveis para ${res.profNome} em ${res.date}: ${JSON.stringify(res.data).slice(0, 250)}`);
-        continue;
-      }
-      for (const slot of slots) {
-        const time = typeof slot === "string" ? slot : "";
-        if (time) {
-          slotsInfo.push({ date: res.date, time: time.slice(0, 5), profNome: res.profNome, profId: res.profId });
-        }
-      }
-    }
+    const slotsInfo = await listarSlotsLivres(profissionais);
 
     if (slotsInfo.length === 0) {
-      console.log("[whatsapp] get_available_slots retornou vazio para todos os profissionais");
-      const profListaIds = profIds.map(p => `${p.nome} [ID: ${p.id}]`).join(", ");
-      return `\n\nHORÁRIOS DISPONÍVEIS: A agenda não retornou horários específicos no momento.
-
-INSTRUÇÃO CRÍTICA - SIGA ESTA REGRA:
-- NUNCA invente datas ou horários. Você NÃO sabe a disponibilidade real.
-- Pergunte a preferência de dia e turno do paciente e informe que vai consultar a agenda no sistema.
-- Se o paciente insistir em um horário específico, diga: "Vou verificar essa disponibilidade no sistema e já sigo com você por aqui!"
-- Se a agenda voltou vazia, continue a conversa normalmente oferecendo outros dias/horários.
-- Profissionais disponíveis: ${profListaIds}
-- Horário de funcionamento: segunda a sexta, 8h às 18h
-- NUNCA confirme agendamento com datas que você inventou`;
+      return `\n\nHORÁRIOS DISPONÍVEIS: A agenda não tem vagas livres nos próximos dias.
+INSTRUÇÃO: NUNCA invente horários. Explique que a agenda está lotada e ofereça colocar o paciente na lista de espera.`;
     }
 
-    // Agrupar por data
     const porData: Record<string, Array<{ time: string; profNome: string; profId: string }>> = {};
     for (const s of slotsInfo) {
-      if (!porData[s.date]) porData[s.date] = [];
-      porData[s.date].push({ time: s.time, profNome: s.profNome, profId: s.profId });
+      (porData[s.date] ||= []).push({ time: s.time, profNome: s.profNome, profId: s.profId });
     }
 
-    const linhas = Object.keys(porData).sort().map(dt => {
-      const d = new Date(dt + "T12:00:00Z");
-      const dow = d.getDay();
+    const linhas = Object.keys(porData).sort().slice(0, 7).map((dt) => {
+      const dow = new Date(dt + "T12:00:00Z").getUTCDay();
       const dia = dt.split("-").reverse().join("/");
-      const slots = porData[dt].sort((a, b) => a.time.localeCompare(b.time));
-      const manha = slots.filter(s => s.time < "12:00").map(s => `${s.time} (${s.profNome})`);
-      const tarde = slots.filter(s => s.time >= "12:00").map(s => `${s.time} (${s.profNome})`);
-      let desc = `${nomes[dow] || dt} (${dia}):`;
+      const lista = porData[dt].sort((a, b) => a.time.localeCompare(b.time));
+      const manha = lista.filter((s) => s.time < "12:00").map((s) => `${s.time} (${s.profNome})`);
+      const tarde = lista.filter((s) => s.time >= "12:00").map((s) => `${s.time} (${s.profNome})`);
+      let desc = `${DIA_NOMES[dow] || dt} (${dia}) [ISO: ${dt}]:`;
       if (manha.length > 0) desc += ` manhã: ${manha.join(", ")}`;
       if (tarde.length > 0) desc += ` | tarde: ${tarde.join(", ")}`;
       return desc;
     });
 
-    console.log(`[whatsapp] ✅ Agenda real: ${slotsInfo.length} slots em ${Object.keys(porData).length} dias`);
+    console.log(`[whatsapp] ✅ Agenda local: ${slotsInfo.length} slots livres`);
 
-    return `\n\nHORÁRIOS DISPONÍVEIS DA CLÍNICA (AGENDA REAL - USE SOMENTE ESTES):
+    return `\n\nHORÁRIOS REALMENTE LIVRES NA AGENDA (JÁ CONFERIDOS AGORA — USE SOMENTE ESTES):
 ${linhas.join("\n")}
 
 REGRAS ABSOLUTAS DE AGENDA:
-- Ofereça EXATAMENTE 1 horário do turno pedido, o mais próximo da lista ACIMA — você escolhe o dia, o paciente não escolhe
-- Informe apenas a HORA DE INÍCIO (ex.: "às 14h"). NUNCA use faixas como "13h-15h" e nunca fale a duração da consulta
-- NUNCA invente horários que NÃO estão nesta lista
-- NUNCA ofereça horários fora do expediente do profissional
-- Se o turno pedido não tem horários na lista, informe e sugira o outro turno (ainda com 1 horário só)
-- Use SEMPRE o enquadramento de escassez + conquista
-- Exemplo: "A agenda da Dra. Amélia está bem cheia, mas consegui abrir um encaixe na [dia] ([dd/mm]) às [hora]. Fico feliz por conseguir esse horário para você — posso reservar? 😊"`;
+- Esta lista JÁ É a consulta ao sistema. NUNCA diga "vou verificar/conferir a agenda", "já volto", "aguarde um instante" ou "vou consultar e te retorno" — você já sabe a disponibilidade AGORA
+- Ofereça EXATAMENTE 1 horário do turno pedido (o mais próximo da lista) — você escolhe o dia, o paciente não escolhe
+- Informe apenas a HORA DE INÍCIO (ex.: "às 14h"). NUNCA use faixas como "13h-15h" e nunca fale a duração
+- Quando o paciente aceitar o horário, RESERVE NA HORA e já responda confirmando (com o marcador ##AGENDAMENTO_CONFIRMADO##). NUNCA peça para ele aguardar
+- NUNCA invente horários fora desta lista
+- Use SEMPRE o enquadramento de escassez + conquista`;
   } catch (err) {
     console.error("[whatsapp] Erro buscar agenda:", err);
-    return `\n\nHORÁRIOS: Não foi possível consultar a agenda no momento.
-INSTRUÇÃO: Informe ao paciente que vai verificar a disponibilidade e retornará em breve. NUNCA invente horários.`;
+    return `\n\nHORÁRIOS: Não foi possível consultar a agenda no momento. NUNCA invente horários.`;
   }
 }
 
@@ -1264,65 +1285,101 @@ async function registrarAgendamento(
   dadosPaciente?: { cpf?: string; email?: string; dataNascimento?: string; triagemTexto?: string; tagConsulta?: string },
 ): Promise<boolean> {
   try {
-    if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) return false;
+    const supabase = supabaseAdmin();
+    const horaFmt = horario.slice(0, 5);
+    const dataHora = dataISOparaSP(data, horaFmt);
 
-    if (!professionalId || professionalId === "auto") {
-      console.warn(`[whatsapp] professional_id inválido para create_appointment: "${professionalId}"`);
+    // 1) Profissional (agenda local)
+    let medico: any = null;
+    if (professionalId && professionalId !== "auto") {
+      const { data: m } = await supabase.from("medicos").select("*").eq("id", professionalId).maybeSingle();
+      medico = m;
+    }
+    if (!medico) {
+      const { data: ativos } = await supabase.from("medicos").select("*").eq("ativo", true).limit(1);
+      medico = ativos?.[0] || null;
+    }
+    if (!medico) {
+      console.error("[whatsapp] ❌ Nenhum médico cadastrado — impossível agendar");
       return false;
     }
 
-    const validacao = await validarDiaProfissional(professionalId, data);
-    if (!validacao.valido) {
-      console.error(`[whatsapp] ❌ Agendamento BLOQUEADO por validação de dia: ${validacao.mensagemErro}`);
+    // 2) Validar dia de atendimento
+    const dow = new Date(data + "T12:00:00Z").getUTCDay();
+    if (!diasDoMedico(medico.dias_atendimento).includes(dow)) {
+      console.error(`[whatsapp] ❌ ${medico.nome} não atende em ${DIA_NOMES[dow]} (${data})`);
       return false;
     }
 
+    // 3) Conferir se o horário continua livre
+    const { data: conflito } = await supabase
+      .from("agendamentos")
+      .select("id, status")
+      .eq("data_hora", dataHora)
+      .eq("profissional", medico.nome)
+      .maybeSingle();
+    if (conflito && !["cancelado", "cancelada", "cancelada_clinica"].includes(String(conflito.status))) {
+      console.error(`[whatsapp] ❌ Horário já ocupado: ${data} ${horaFmt} (${medico.nome})`);
+      return false;
+    }
+
+    // 4) Garantir paciente local
     let patientIdFinal = pacienteId;
     if (!patientIdFinal) {
-      console.log(`[whatsapp] 🔄 Paciente sem ID — tentando criar cadastro antes de agendar...`);
-      const novoId = await criarPacienteGestao(
-        nome,
-        telefone,
-        dadosPaciente?.cpf,
-        dadosPaciente?.email,
-        dadosPaciente?.dataNascimento,
-      );
-      if (novoId) {
-        patientIdFinal = novoId;
-        console.log(`[whatsapp] ✅ Paciente criado automaticamente: ID=${novoId}`);
+      const telDigits = telefone.replace(/\D/g, "");
+      const { data: existente } = await supabase
+        .from("pacientes")
+        .select("id")
+        .eq("externo_id", telDigits)
+        .maybeSingle();
+      if (existente?.id) {
+        patientIdFinal = existente.id as string;
       } else {
-        console.warn(`[whatsapp] ⚠️ Não foi possível criar paciente. Tentando agendar sem paciente_id...`);
+        const { data: criado } = await supabase
+          .from("pacientes")
+          .insert({
+            externo_id: telDigits,
+            nome,
+            telefone: telDigits,
+            cpf: dadosPaciente?.cpf?.replace(/\D/g, "") || null,
+            email: dadosPaciente?.email || null,
+            data_nascimento: dadosPaciente?.dataNascimento || null,
+            tipo: "adulto",
+          })
+          .select("id")
+          .maybeSingle();
+        patientIdFinal = (criado?.id as string) || "";
       }
     }
 
-    // 🏷️ TAG do tipo de consulta (visível p/ médicos no sistema de gestão) + relatório de triagem
+    // 5) Observações (tag + triagem)
     let observacoes = "";
-    if (dadosPaciente?.tagConsulta) {
-      observacoes += `🏷️ [TIPO DE CONSULTA: ${dadosPaciente.tagConsulta}]\n\n`;
-    }
+    if (dadosPaciente?.tagConsulta) observacoes += `🏷️ [TIPO DE CONSULTA: ${dadosPaciente.tagConsulta}]\n\n`;
     observacoes += `Agendado via WhatsApp (Ana) - Paciente: ${nome} - Tel: ${telefone}`;
-    if (dadosPaciente?.triagemTexto && dadosPaciente.triagemTexto.trim()) {
+    if (dadosPaciente?.triagemTexto?.trim()) {
       observacoes += `\n\n=== RELATÓRIO DE TRIAGEM ===\n${dadosPaciente.triagemTexto.trim().slice(0, 4000)}`;
     }
 
-    const params: Record<string, unknown> = {
-      data: data,
-      hora: horario,
-      medico_id: professionalId,
+    // 6) Gravar na agenda
+    const { error } = await supabase.from("agendamentos").insert({
+      paciente_id: patientIdFinal || null,
+      paciente_nome: nome,
+      data_hora: dataHora,
+      status: "agendado",
+      tipo: "Consulta",
+      procedimento: "Consulta inicial",
+      duracao_min: DURACAO_CONSULTA_MIN,
+      profissional: medico.nome,
       observacoes,
-    };
+    });
 
-    if (patientIdFinal) params.paciente_id = patientIdFinal;
+    if (error) {
+      console.error("[whatsapp] ❌ Erro ao gravar agendamento local:", error.message);
+      return false;
+    }
 
-    const result = await chamarGestao("criar_agendamento", params);
-    const payload = result.data || {};
-    const logicalError = payload?.error === true || payload?.success === false || Number(payload?.statusCode || 0) >= 400;
-    const created = isAppointmentCreatedResponse(payload);
-    const ok = result.ok && !logicalError && created;
-
-    console.log(`[whatsapp] Agendamento gestão: status=${result.status} http_ok=${result.ok} logical_error=${logicalError} created=${created} patient_id=${patientIdFinal || "NENHUM"} triagem=${dadosPaciente?.triagemTexto ? "ANEXA" : "—"} payload=${JSON.stringify(payload).slice(0, 300)}`);
-
-    return ok;
+    console.log(`[whatsapp] ✅ Agendamento gravado na agenda: ${nome} | ${data} ${horaFmt} | ${medico.nome}`);
+    return true;
   } catch (err) {
     console.error("[whatsapp] Erro agendamento:", err);
     return false;
