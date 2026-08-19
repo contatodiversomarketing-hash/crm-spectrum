@@ -3177,6 +3177,22 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
           `${ola}separei o essencial pra você aproveitar ao máximo o atendimento 💚\n\n` +
           itens.join("\n")
         );
+
+        // Boas-vindas + política de atendimento (enviada só depois do agendamento)
+        mensagensExtras.push(
+          `💚 *Boas-vindas à clínica da Dra. Amélia Carvalho*\n\n` +
+          `É com muita alegria que a Dra. Amélia e a equipe recebem você e sua família em um espaço dedicado ao cuidado integral da saúde mental. ` +
+          `Nosso compromisso é um atendimento acolhedor, empático e com base nas evidências mais atuais, para que essa jornada seja leve e transformadora 🌿`
+        );
+
+        mensagensExtras.push(
+          `📌 *Como funciona o atendimento*\n\n` +
+          `• A consulta individual com a Dra. Amélia é de *R$ 500,00*, com avaliação de aproximadamente *40 minutos* (podendo ser menor ou maior conforme as queixas e a avaliação clínica do momento).\n` +
+          `• Para reservar o horário exclusivamente para o seu atendimento, entra um *sinal de 30% (R$ 150,00)* no Pix no ato do agendamento; o *restante (R$ 350,00)* é pago no dia da consulta.\n` +
+          `• No cartão de crédito, você mesmo(a) escolhe em quantas vezes deseja dividir (com o acréscimo da taxa da máquina).\n` +
+          `• Conforme as diretrizes do Conselho Federal de Medicina (CFM), as consultas em psiquiatria são compreendidas como sessões de acompanhamento e tratamento, não incluindo retorno avulso.\n\n` +
+          `Qualquer dúvida, é só me chamar aqui — estou por perto 💚`
+        );
       }
     }
 
