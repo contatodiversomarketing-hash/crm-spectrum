@@ -684,6 +684,7 @@ export type Database = {
           documentos: Json
           email: string | null
           estado: string | null
+          etiquetas: string[]
           followup_etapa: number
           followup_finalizado: boolean
           followup_ultimo_envio: string | null
@@ -714,6 +715,7 @@ export type Database = {
           documentos?: Json
           email?: string | null
           estado?: string | null
+          etiquetas?: string[]
           followup_etapa?: number
           followup_finalizado?: boolean
           followup_ultimo_envio?: string | null
@@ -744,6 +746,7 @@ export type Database = {
           documentos?: Json
           email?: string | null
           estado?: string | null
+          etiquetas?: string[]
           followup_etapa?: number
           followup_finalizado?: boolean
           followup_ultimo_envio?: string | null
