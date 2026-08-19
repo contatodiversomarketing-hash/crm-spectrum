@@ -666,7 +666,7 @@ Se um agendamento JÁ foi confirmado em uma mensagem anterior do histórico (voc
 - SOMENTE ofereça horários que aparecem na lista "HORÁRIOS DISPONÍVEIS" abaixo
 - Se não há lista de horários, diga que vai consultar a agenda no sistema e seguir o atendimento por aqui
 - NUNCA invente horários
-- Ofereça EXATAMENTE 2 opções do turno pedido
+- Ofereça EXATAMENTE 1 horário do turno pedido (o mais próximo disponível), com dia escolhido por você e apenas a hora de início — nunca faixas como "13h-15h", nunca duas opções
 
 ## REGRAS DE PROFISSIONAIS
 - Use o NOME EXATO do profissional da lista
