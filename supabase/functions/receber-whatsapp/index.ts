@@ -3200,6 +3200,15 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
           `• Conforme as diretrizes do Conselho Federal de Medicina (CFM), as consultas em psiquiatria são compreendidas como sessões de acompanhamento e tratamento, não incluindo retorno avulso.\n\n` +
           `Qualquer dúvida, é só me chamar aqui — estou por perto 💚`
         );
+
+        mensagensExtras.push(
+          `📝 *Sobre receitas e documentos*\n\n` +
+          `As receitas médicas são um ato de grande responsabilidade e exigem avaliação e entrevista cuidadosas. Por isso, são fornecidas receitas com a quantidade máxima de medicamentos para o período recomendado até a próxima consulta (ex.: receita para 2 meses, se a nova consulta for em 2 meses). ` +
+          `Não são emitidas receitas fora do ambiente do consultório médico, garantindo a segurança e a adequação do tratamento.\n\n` +
+          `Essas diretrizes existem para otimizar o acesso ao atendimento, reduzir o tempo de espera e assegurar agilidade na confecção dos documentos essenciais para o tratamento. Contamos com sua compreensão e colaboração para mantermos a excelência e o acolhimento que sua família merece.\n\n` +
+          `Desde já, agradecemos a confiança em nosso trabalho.\n\n` +
+          `Com carinho,\n*Dra. Amélia Carvalho e Equipe* 💚`
+        );
       }
     }
 
