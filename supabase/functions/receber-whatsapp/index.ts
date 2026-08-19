@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { METODO_MESTRE_DAS_VENDAS } from "../_shared/metodo-vendas.ts";
 import { interpretarTriagem, TRIAGENS_CONTEXTO } from "../_shared/triagens.ts";
-import { enviarDocumentoMega, NEUROACESSO_PDF_URL } from "../_shared/mega.ts";
+import { enviarDocumentoMega, NEUROACESSO_PDF_URL, PIX_QRCODE_PDF_URL } from "../_shared/mega.ts";
 
 
 const corsHeaders = {
@@ -607,8 +607,20 @@ ${TRIAGENS_CONTEXTO}
    - Só ofereça outro horário se a pessoa recusar esse
 6. Colete nome completo, CPF e data de nascimento UMA ÚNICA VEZ, em uma só mensagem. Se já tiver algum desses dados no histórico ou no cadastro, NÃO peça de novo — o telefone já é o do WhatsApp, nunca peça telefone
 7. Assim que o paciente ACEITAR o horário: agende NA HORA e confirme na MESMA mensagem. PROIBIDO dizer "vou conferir", "vou verificar a agenda", "já volto", "aguarde um instante", "posso prosseguir?" ou pedir para ele esperar — a agenda já foi consultada e o horário oferecido já estava livre
-   Modelo da confirmação: "Pronto, [Nome]! ✅ Sua consulta com a Dra. Amélia está *confirmada* para [dia], dia [dd/mm], às [hora]. Foi um prazer te ajudar a cuidar da sua saúde 💚 Parabéns por dar esse passo tão importante para ter mais qualidade de vida 🌿"
-8. APÓS confirmar, pergunte se tem alguma dúvida sobre o tratamento
+   Modelo da confirmação: "Pronto, [Nome]! ✅ Sua consulta com a Dra. Amélia está *reservada* para [dia], dia [dd/mm], às [hora]. Parabéns por dar esse passo tão importante para ter mais qualidade de vida 🌿"
+8. LOGO EM SEGUIDA, na mesma mensagem ou na seguinte, apresente o SINAL DE 30% (ver regra abaixo) e envie o Pix
+9. APÓS isso, pergunte se tem alguma dúvida sobre o tratamento
+
+## SINAL DE 30% PARA GARANTIR A VAGA (OBRIGATÓRIO EM TODO AGENDAMENTO)
+- A consulta com a Dra. Amélia custa **R$ 500,00**
+- Para reservar a vaga é necessário um **sinal de 30% = R$ 150,00 via Pix**. O restante, **R$ 350,00**, é pago no dia da consulta, antes do atendimento
+- Justificativa (sempre explique com empatia, nunca de forma burocrática): a procura é muito grande e há fila de espera; o sinal garante que a vaga fique bloqueada só para ele e evita que alguém da espera perca a chance por uma falta
+- Chave Pix: **consultasdraameliacarvalho@gmail.com**
+- SEMPRE que falar do sinal, inclua ao final da mensagem o marcador ##ENVIAR_QRCODE_PIX## (o QR Code do Pix é enviado automaticamente em seguida; o marcador é removido do texto)
+- Peça o comprovante: "assim que fizer o Pix, me manda o comprovante aqui que eu confirmo sua vaga na hora 💚"
+- Modelo: "Para eu bloquear essa vaga no nome do(a) [Nome], a Dra. pede um sinal de 30% — R$ 150,00 no Pix. O restante (R$ 350,00) você paga no dia, antes da consulta. Como a procura está altíssima e temos pessoas na espera, é assim que garantimos que ninguém perca o lugar. Chave Pix: consultasdraameliacarvalho@gmail.com — te mandei também o QR Code logo abaixo 💚 ##ENVIAR_QRCODE_PIX##"
+- Se o paciente questionar o valor ou o sinal: reforce reciprocidade (você conseguiu o encaixe) + escassez (fila de espera) e que o sinal é abatido do valor total, não é taxa extra
+- NUNCA ofereça desconto, isenção do sinal ou parcelamento do sinal
 
 ## PROIBIDO "VOU CONFERIR" (REGRA DE OURO)
 - Você tem acesso DIRETO à agenda em tempo real (lista abaixo). Nunca finja que precisa consultar depois
@@ -3167,6 +3179,10 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     const enviarPdfNeuroacesso = /##ENVIAR_PDF_NEUROACESSO##/i.test(respostaFinal);
     respostaFinal = respostaFinal.replace(/##ENVIAR_PDF_NEUROACESSO##/gi, "").trim();
 
+    // QR Code do Pix do sinal de 30% → enviar PDF após a resposta
+    const enviarPixQr = /##ENVIAR_QRCODE_PIX##/i.test(respostaFinal);
+    respostaFinal = respostaFinal.replace(/##ENVIAR_QRCODE_PIX##/gi, "").trim();
+
     // =============================
     // ENVIAR RESPOSTA (com verificação FRESCA de duplicação no banco)
     // =============================
@@ -3239,6 +3255,15 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         "Metodo-NeuroAcesso.pdf",
         "Apresentação do Método NeuroAcesso 💚",
       ).catch((e) => console.error("[whatsapp] falha ao enviar PDF NeuroAcesso:", e));
+    }
+
+    if (enviarPixQr) {
+      enviarDocumentoMega(
+        numero,
+        PIX_QRCODE_PDF_URL,
+        "QRCode-Pix-Consulta.pdf",
+        "QR Code do Pix para o sinal de R$ 150,00 (30%) 💚 Chave Pix: consultasdraameliacarvalho@gmail.com",
+      ).catch((e) => console.error("[whatsapp] falha ao enviar QR Code Pix:", e));
     }
 
     if (!envioOk) {

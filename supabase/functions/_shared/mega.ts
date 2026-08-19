@@ -56,6 +56,11 @@ export async function enviarTextoMega(numero: string, texto: string): Promise<{ 
 export const NEUROACESSO_PDF_URL =
   "https://uftdsoqhyiqhxvckqxnp.supabase.co/storage/v1/object/public/treinamento-arquivos/materiais%2FMetodo_NeuroAcesso.pdf";
 
+export const PIX_QRCODE_PDF_URL =
+  "https://uftdsoqhyiqhxvckqxnp.supabase.co/storage/v1/object/public/treinamento-arquivos/materiais%2FQRCode_Pix_Consulta.pdf";
+
+export const PIX_CHAVE = "consultasdraameliacarvalho@gmail.com";
+
 export async function enviarDocumentoMega(
   numero: string,
   url: string,
