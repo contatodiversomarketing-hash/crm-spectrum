@@ -3350,7 +3350,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
           const ok = await enviarTexto(numero, extra, instanceKey);
           if (ok) {
             await supabase.from("interacoes_ia").insert({
-              paciente_externo_id: numero,
+              paciente_externo_id: numeroCanonico,
               canal: "whatsapp",
               sistema_origem: "megaapi",
               mensagem_usuario: null,
