@@ -1828,57 +1828,20 @@ async function criarLeadCRM(
     if (!pipelineId) return false;
 
     const nomeLimpo = nome.trim().replace(/\s+/g, " ");
-    const telefoneNormalizado = normalizarTelefoneGestao(telefone);
     const telefoneBruto = telefone.replace(/\D/g, "");
-    const cpfLimpo = dados?.cpf?.replace(/\D/g, "") || null;
+    const cpfLimpo = limparCpf(dados?.cpf) || null;
     const emailLimpo = dados?.email?.trim() || null;
     const observacaoAgendamento = dados?.data && dados?.horario
       ? `Agendamento confirmado via WhatsApp para ${dados.data} às ${dados.horario}.`
       : "Lead criado automaticamente após confirmação de agendamento via WhatsApp.";
 
-    let leadExistente: { id: string; observacoes?: string | null } | null = null;
-
-    if (cpfLimpo) {
-      const { data: leadsCpf, error: cpfError } = await supabase
-        .from("leads")
-        .select("id, observacoes")
-        .eq("cpf", cpfLimpo)
-        .order("criado_em", { ascending: false })
-        .limit(1);
-
-      if (cpfError) {
-        console.error("[whatsapp] Erro ao buscar lead por CPF:", cpfError);
-      } else {
-        leadExistente = leadsCpf?.[0] || null;
-      }
-    }
-
-    if (!leadExistente) {
-      const telefonesBusca = Array.from(new Set([
-        telefoneNormalizado,
-        telefoneBruto,
-        telefone,
-        telefoneNormalizado ? `55${telefoneNormalizado}` : "",
-        telefoneNormalizado ? `+55${telefoneNormalizado}` : "",
-      ].filter((item) => !!item)));
-
-      const { data: leadsTelefone, error: telError } = await supabase
-        .from("leads")
-        .select("id, observacoes")
-        .in("telefone", telefonesBusca)
-        .order("criado_em", { ascending: false })
-        .limit(1);
-
-      if (telError) {
-        console.error("[whatsapp] Erro ao buscar lead por telefone:", telError);
-      } else {
-        leadExistente = leadsTelefone?.[0] || null;
-      }
-    }
+    // Cadastro único: procura por CPF e por qualquer variação do telefone
+    const leadExistente: { id: string; observacoes?: string | null } | null =
+      await buscarLead(supabase, telefone, cpfLimpo, "id, observacoes");
 
     const payloadLead = {
       nome: nomeLimpo,
-      telefone: telefoneNormalizado || telefoneBruto || telefone,
+      telefone: telCanonico(telefone) || telefoneBruto || telefone,
       email: emailLimpo,
       cpf: cpfLimpo,
       data_nascimento: dados?.dataNascimento || null,
