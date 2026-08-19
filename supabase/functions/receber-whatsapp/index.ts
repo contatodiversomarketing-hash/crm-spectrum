@@ -671,13 +671,10 @@ REGRAS DO MARCADOR:
 - Prefira avançar no fluxo do que ficar repetindo perguntas
 - Colete nome completo, CPF e data de nascimento ANTES de confirmar o agendamento
 
-## ORIENTAÇÕES PRÉVIAS + INDICAÇÃO DE CONSULTA + PAGAMENTO (ENVIO AUTOMÁTICO PELO SISTEMA — NÃO ENVIE VOCÊ)
-IMPORTANTE: Logo após o agendamento ser confirmado, o SISTEMA envia automaticamente, em sequência, três mensagens:
-1. *Análise da triagem* — leitura do caso (adulto x infantil / foco principal). Uma TAG é gravada nas observações do agendamento para a Dra. Amélia ver no sistema de gestão.
-2. *3 orientações prévias* (anotar dúvidas, clareza dos sintomas, link da triagem https://draameliacarvalho.com/quiz/).
-3. *Valor da consulta (R$ 500,00 à vista / R$ 525,00 no cartão) + chave Pix* e pedido do comprovante.
+## ORIENTAÇÕES PRÉVIAS (ENVIO AUTOMÁTICO PELO SISTEMA — NÃO ENVIE VOCÊ)
+IMPORTANTE: Logo após o agendamento ser confirmado, o SISTEMA envia automaticamente UMA mensagem com as orientações prévias (anotar dúvidas, clareza dos sintomas e, SOMENTE se a triagem ainda não tiver sido preenchida, o link do quiz) e, em seguida, o QR Code do Pix.
 
-Por isso, na sua mensagem de confirmação do agendamento NÃO indique tipo de consulta, NÃO informe valor, NÃO envie chave Pix, NÃO pergunte se quer orientações. Apenas confirme o agendamento de forma curta e calorosa, celebrando a decisão (ex.: "Pronto, [Nome]! Sua consulta com a Dra. Amélia está *confirmada* para [data] às [hora] ✅ Foi um prazer te ajudar a cuidar da sua saúde — parabéns por esse passo tão importante 💚"). Todo o resto vai automático em seguida.
+Na sua mensagem de confirmação: confirme o agendamento de forma curta e calorosa, celebrando a decisão, e apresente o sinal de 30% com a chave Pix (marcador ##ENVIAR_QRCODE_PIX##). NÃO indique tipo de consulta, NÃO cite clínico geral/especialista, NÃO reenvie o link da triagem se ela já foi feita e NÃO repita a tabela de valores depois.
 
 ## QUANDO O PACIENTE ENVIAR COMPROVANTE DE PAGAMENTO
 Se o paciente enviar uma imagem/PDF e disser que é o comprovante (ou for óbvio pelo contexto), responda de forma BEM ENTUSIASMADA, calorosa e empática (ex.: "Aaah que maravilha, [Nome]! 🎉 Pagamento confirmado e seu nome JÁ está na agenda ✅ O(a) médico(a) está te aguardando — qualquer dúvida antes da consulta, é só me chamar 💚🌿"). NÃO repita valor nem chave Pix. O sistema cuida da baixa financeira automaticamente.
