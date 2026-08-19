@@ -1682,29 +1682,32 @@ async function darBaixaPagamento(
   try {
     let baixaOk = false;
 
-    // Tentar atualizar último agendamento como pago no sistema de gestão
+    // Baixa na AGENDA LOCAL: 1º comprovante = sinal (30%), 2º = restante
     if (pacienteId) {
       try {
-        const r = await chamarGestao("listar_agendamentos", { paciente_id: pacienteId });
-        const lista = (r?.data?.data || r?.data || []) as any[];
-        const futuros = Array.isArray(lista)
-          ? lista
-              .filter((a) => a?.data_hora || a?.data || a?.id)
-              .sort((a, b) => new Date(b?.data_hora || b?.data || 0).getTime() - new Date(a?.data_hora || a?.data || 0).getTime())
-          : [];
-        const consultaId = futuros[0]?.id || futuros[0]?.consulta_id;
-        if (consultaId) {
-          const upd = await chamarGestao("registrar_pagamento", {
-            consulta_id: consultaId,
-            forma_pagamento: "pix",
-            status: "pago",
-            comprovante_recebido: true,
-          });
-          baixaOk = !!upd?.ok;
-          console.log(`[whatsapp] 💰 Tentativa baixa via registrar_pagamento (consulta=${consultaId}): ok=${baixaOk}`);
+        const { data: proxima } = await supabase
+          .from("agendamentos")
+          .select("id, sinal_pago, restante_pago, valor_total")
+          .eq("paciente_id", pacienteId)
+          .neq("status", "cancelado")
+          .gte("data_hora", new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString())
+          .order("data_hora", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (proxima) {
+          const total = Number(proxima.valor_total || 550);
+          const agoraIso = new Date().toISOString();
+          const patch: Record<string, unknown> = proxima.sinal_pago
+            ? { restante_pago: true, restante_valor: Math.round(total * 0.7 * 100) / 100, restante_pago_em: agoraIso, bloqueado_por_pagamento: false }
+            : { sinal_pago: true, sinal_valor: Math.round(total * 0.3 * 100) / 100, sinal_pago_em: agoraIso };
+
+          const { error } = await supabase.from("agendamentos").update(patch).eq("id", proxima.id);
+          baixaOk = !error;
+          console.log(`[whatsapp] 💰 Baixa local (agendamento=${proxima.id}): ${proxima.sinal_pago ? "restante" : "sinal"} ok=${baixaOk}`);
         }
       } catch (e) {
-        console.warn("[whatsapp] Falha ao tentar baixa automática na Gestão:", e);
+        console.warn("[whatsapp] Falha na baixa local do pagamento:", e);
       }
     }
 
