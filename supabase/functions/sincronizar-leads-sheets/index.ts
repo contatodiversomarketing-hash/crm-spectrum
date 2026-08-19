@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { interpretarTriagem } from "../_shared/triagens.ts";
+import { telBase, telCanonico, telVariacoes } from "../_shared/dedup.ts";
 
 
 const corsHeaders = {
@@ -199,7 +200,50 @@ Deno.serve(async (req) => {
     if (errExist) throw errExist;
 
     const jaImportados = new Set((existentes || []).map((e: any) => e.origem_externa_id));
-    const paraInserir = novos.filter((l) => !jaImportados.has(l.origem_externa_id));
+    let candidatos = novos.filter((l) => !jaImportados.has(l.origem_externa_id));
+
+    // Cadastro único por telefone: 1 pessoa = 1 card, mesmo repetindo em várias abas/linhas
+    const porTelefone = new Map<string, any>();
+    const semTelefone: any[] = [];
+    for (const lead of candidatos) {
+      const base = telBase(lead.telefone);
+      if (!base) { semTelefone.push(lead); continue; }
+      const anterior = porTelefone.get(base);
+      if (!anterior || new Date(lead.criado_em) > new Date(anterior.criado_em)) {
+        porTelefone.set(base, { ...anterior, ...lead });
+      }
+    }
+    candidatos = [...porTelefone.values(), ...semTelefone];
+
+    // Quem já tem card no CRM (qualquer formato de telefone) é atualizado, não duplicado
+    const todasVariacoes = Array.from(new Set(candidatos.flatMap((l) => telVariacoes(l.telefone))));
+    const existentesPorTel = new Map<string, string>();
+    for (let i = 0; i < todasVariacoes.length; i += 300) {
+      const lote = todasVariacoes.slice(i, i + 300);
+      const { data } = await supabase.from("leads").select("id, telefone").in("telefone", lote);
+      for (const l of data || []) {
+        const base = telBase(l.telefone);
+        if (base && !existentesPorTel.has(base)) existentesPorTel.set(base, l.id);
+      }
+    }
+
+    let atualizados = 0;
+    const paraInserir: any[] = [];
+    for (const lead of candidatos) {
+      const idExistente = existentesPorTel.get(telBase(lead.telefone));
+      if (idExistente) {
+        const { error } = await supabase.from("leads").update({
+          ...(lead.nome ? { nome: lead.nome } : {}),
+          ...(lead.email ? { email: lead.email } : {}),
+          ...(lead.nome_filho ? { nome_filho: lead.nome_filho } : {}),
+          ...(lead.dados_triagem ? { dados_triagem: lead.dados_triagem } : {}),
+          telefone: telCanonico(lead.telefone),
+        }).eq("id", idExistente);
+        if (!error) atualizados++;
+        continue;
+      }
+      paraInserir.push({ ...lead, telefone: telCanonico(lead.telefone) || lead.telefone });
+    }
 
     let importados = 0;
     for (let i = 0; i < paraInserir.length; i += 200) {
@@ -211,6 +255,7 @@ Deno.serve(async (req) => {
       }
       importados += lote.length;
     }
+    console.log(`Sheets: ${atualizados} leads existentes atualizados (sem duplicar)`);
 
     console.log(`Sincronização Sheets: ${novos.length} linhas, ${importados} novos leads`);
 

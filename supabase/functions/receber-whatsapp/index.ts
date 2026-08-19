@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { METODO_MESTRE_DAS_VENDAS } from "../_shared/metodo-vendas.ts";
 import { interpretarTriagem, TRIAGENS_CONTEXTO } from "../_shared/triagens.ts";
 import { enviarDocumentoMega, NEUROACESSO_PDF_URL, PIX_QRCODE_PDF_URL } from "../_shared/mega.ts";
+import { buscarLead, buscarPaciente, upsertPaciente, telCanonico, cpfLimpo as limparCpf } from "../_shared/dedup.ts";
 
 
 const corsHeaders = {
@@ -1343,30 +1344,13 @@ async function registrarAgendamento(
     // 4) Garantir paciente local
     let patientIdFinal = pacienteId;
     if (!patientIdFinal) {
-      const telDigits = telefone.replace(/\D/g, "");
-      const { data: existente } = await supabase
-        .from("pacientes")
-        .select("id")
-        .eq("externo_id", telDigits)
-        .maybeSingle();
-      if (existente?.id) {
-        patientIdFinal = existente.id as string;
-      } else {
-        const { data: criado } = await supabase
-          .from("pacientes")
-          .insert({
-            externo_id: telDigits,
-            nome,
-            telefone: telDigits,
-            cpf: dadosPaciente?.cpf?.replace(/\D/g, "") || null,
-            email: dadosPaciente?.email || null,
-            data_nascimento: dadosPaciente?.dataNascimento || null,
-            tipo: "adulto",
-          })
-          .select("id")
-          .maybeSingle();
-        patientIdFinal = (criado?.id as string) || "";
-      }
+      patientIdFinal = (await upsertPaciente(supabase, {
+        nome,
+        telefone,
+        cpf: dadosPaciente?.cpf,
+        email: dadosPaciente?.email,
+        data_nascimento: dadosPaciente?.dataNascimento,
+      })) || "";
     }
 
     // 5) Observações (tag + triagem)
@@ -1796,27 +1780,27 @@ async function garantirLeadCRM(
     const digitos = telefone.replace(/\D/g, "");
     if (digitos.length < 10) return;
     const semDDI = digitos.startsWith("55") ? digitos.slice(2) : digitos;
-    const variacoes = Array.from(new Set([digitos, semDDI, `55${semDDI}`, `+55${semDDI}`]));
 
-    const { data: existentes } = await supabase
-      .from("leads")
-      .select("id")
-      .in("telefone", variacoes)
-      .order("criado_em", { ascending: false })
-      .limit(1);
-
-    if (existentes?.[0]?.id) {
+    // Lead único por pessoa: se já existe (qualquer formato de telefone), só atualiza
+    const existente = await buscarLead(supabase, telefone, null, "id, nome");
+    if (existente?.id) {
+      const nomeNovo = (nomePossivel || "").trim();
+      const nomeAtual = (existente.nome || "").trim();
+      const precisaNome = !nomeAtual || /^whatsapp\s/i.test(nomeAtual);
       await supabase
         .from("leads")
-        .update({ ultima_interacao: new Date().toISOString() })
-        .eq("id", existentes[0].id);
+        .update({
+          ultima_interacao: new Date().toISOString(),
+          ...(precisaNome && nomeNovo ? { nome: nomeNovo } : {}),
+        })
+        .eq("id", existente.id);
       return;
     }
 
     const pipelineId = await obterPipelinePacientesId(supabase);
     const { error } = await supabase.from("leads").insert({
       nome: (nomePossivel || "").trim() || `WhatsApp ${semDDI}`,
-      telefone: digitos,
+      telefone: telCanonico(telefone) || digitos,
       origem: "whatsapp_ana",
       status: "novo",
       status_pipeline: "em_contato",
@@ -1844,57 +1828,20 @@ async function criarLeadCRM(
     if (!pipelineId) return false;
 
     const nomeLimpo = nome.trim().replace(/\s+/g, " ");
-    const telefoneNormalizado = normalizarTelefoneGestao(telefone);
     const telefoneBruto = telefone.replace(/\D/g, "");
-    const cpfLimpo = dados?.cpf?.replace(/\D/g, "") || null;
+    const cpfLimpo = limparCpf(dados?.cpf) || null;
     const emailLimpo = dados?.email?.trim() || null;
     const observacaoAgendamento = dados?.data && dados?.horario
       ? `Agendamento confirmado via WhatsApp para ${dados.data} às ${dados.horario}.`
       : "Lead criado automaticamente após confirmação de agendamento via WhatsApp.";
 
-    let leadExistente: { id: string; observacoes?: string | null } | null = null;
-
-    if (cpfLimpo) {
-      const { data: leadsCpf, error: cpfError } = await supabase
-        .from("leads")
-        .select("id, observacoes")
-        .eq("cpf", cpfLimpo)
-        .order("criado_em", { ascending: false })
-        .limit(1);
-
-      if (cpfError) {
-        console.error("[whatsapp] Erro ao buscar lead por CPF:", cpfError);
-      } else {
-        leadExistente = leadsCpf?.[0] || null;
-      }
-    }
-
-    if (!leadExistente) {
-      const telefonesBusca = Array.from(new Set([
-        telefoneNormalizado,
-        telefoneBruto,
-        telefone,
-        telefoneNormalizado ? `55${telefoneNormalizado}` : "",
-        telefoneNormalizado ? `+55${telefoneNormalizado}` : "",
-      ].filter((item) => !!item)));
-
-      const { data: leadsTelefone, error: telError } = await supabase
-        .from("leads")
-        .select("id, observacoes")
-        .in("telefone", telefonesBusca)
-        .order("criado_em", { ascending: false })
-        .limit(1);
-
-      if (telError) {
-        console.error("[whatsapp] Erro ao buscar lead por telefone:", telError);
-      } else {
-        leadExistente = leadsTelefone?.[0] || null;
-      }
-    }
+    // Cadastro único: procura por CPF e por qualquer variação do telefone
+    const leadExistente: { id: string; observacoes?: string | null } | null =
+      await buscarLead(supabase, telefone, cpfLimpo, "id, observacoes");
 
     const payloadLead = {
       nome: nomeLimpo,
-      telefone: telefoneNormalizado || telefoneBruto || telefone,
+      telefone: telCanonico(telefone) || telefoneBruto || telefone,
       email: emailLimpo,
       cpf: cpfLimpo,
       data_nascimento: dados?.dataNascimento || null,
@@ -2939,44 +2886,30 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     // CADASTRAR PACIENTE LOCALMENTE ASSIM QUE TIVER NOME + CPF (+ telefone do WhatsApp)
     // =============================
     try {
-      const cpfLimpoLocal = (cpfColetado || "").replace(/\D/g, "");
-      if (cpfLimpoLocal.length === 11) {
-        const { data: leadLocal } = await supabase
-          .from("leads")
-          .select("nome, email, data_nascimento")
-          .eq("telefone", numero)
-          .order("criado_em", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+      const cpfLimpoLocal = limparCpf(cpfColetado);
+      if (cpfLimpoLocal) {
+        const leadLocal = await buscarLead(supabase, numero, cpfLimpoLocal, "id, nome, email, data_nascimento");
 
         const nomeLocal = (leadLocal?.nome || pacienteEncontrado?.nome || "").trim();
-        if (nomeLocal && nomeLocal.split(/\s+/).length >= 2) {
-          const { data: jaExiste } = await supabase
-            .from("pacientes")
-            .select("id")
-            .or(`cpf.eq.${cpfLimpoLocal},externo_id.eq.tel:${numero}`)
-            .limit(1)
-            .maybeSingle();
-
-          const dadosPaciente: Record<string, unknown> = {
-            externo_id: `tel:${numero}`,
+        if (nomeLocal && nomeLocal.split(/\s+/).length >= 2 && !/^whatsapp\s/i.test(nomeLocal)) {
+          // Cadastro único de paciente (por CPF ou telefone, em qualquer formato)
+          const pacienteId = await upsertPaciente(supabase, {
             nome: nomeLocal,
             telefone: numero,
             cpf: cpfLimpoLocal,
-            tipo: "adulto",
-            ...(leadLocal?.email ? { email: leadLocal.email } : {}),
-            ...(nascimentoColetado
-              ? { data_nascimento: nascimentoColetado }
-              : leadLocal?.data_nascimento
-                ? { data_nascimento: leadLocal.data_nascimento }
-                : {}),
-          };
+            email: leadLocal?.email || null,
+            data_nascimento: nascimentoColetado || leadLocal?.data_nascimento || null,
+          });
+          if (pacienteId) console.log(`[whatsapp] ✅ Paciente único garantido: ${nomeLocal}`);
 
-          if (jaExiste?.id) {
-            await supabase.from("pacientes").update(dadosPaciente).eq("id", jaExiste.id);
-          } else {
-            await supabase.from("pacientes").insert(dadosPaciente);
-            console.log(`[whatsapp] ✅ Paciente cadastrado automaticamente: ${nomeLocal}`);
+          // Mantém o lead do CRM sincronizado (sem criar card duplicado)
+          if (leadLocal?.id) {
+            await supabase.from("leads").update({
+              nome: nomeLocal,
+              cpf: cpfLimpoLocal,
+              telefone: telCanonico(numero),
+              ultima_interacao: new Date().toISOString(),
+            }).eq("id", leadLocal.id);
           }
         }
       }
