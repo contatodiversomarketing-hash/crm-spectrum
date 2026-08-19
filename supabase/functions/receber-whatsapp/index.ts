@@ -2863,6 +2863,55 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     }
 
     // =============================
+    // CADASTRAR PACIENTE LOCALMENTE ASSIM QUE TIVER NOME + CPF (+ telefone do WhatsApp)
+    // =============================
+    try {
+      const cpfLimpoLocal = (cpfColetado || "").replace(/\D/g, "");
+      if (cpfLimpoLocal.length === 11) {
+        const { data: leadLocal } = await supabase
+          .from("leads")
+          .select("nome, email, data_nascimento")
+          .eq("telefone", numero)
+          .order("criado_em", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const nomeLocal = (leadLocal?.nome || pacienteEncontrado?.nome || "").trim();
+        if (nomeLocal && nomeLocal.split(/\s+/).length >= 2) {
+          const { data: jaExiste } = await supabase
+            .from("pacientes")
+            .select("id")
+            .or(`cpf.eq.${cpfLimpoLocal},externo_id.eq.tel:${numero}`)
+            .limit(1)
+            .maybeSingle();
+
+          const dadosPaciente: Record<string, unknown> = {
+            externo_id: `tel:${numero}`,
+            nome: nomeLocal,
+            telefone: numero,
+            cpf: cpfLimpoLocal,
+            tipo: "adulto",
+            ...(leadLocal?.email ? { email: leadLocal.email } : {}),
+            ...(nascimentoColetado
+              ? { data_nascimento: nascimentoColetado }
+              : leadLocal?.data_nascimento
+                ? { data_nascimento: leadLocal.data_nascimento }
+                : {}),
+          };
+
+          if (jaExiste?.id) {
+            await supabase.from("pacientes").update(dadosPaciente).eq("id", jaExiste.id);
+          } else {
+            await supabase.from("pacientes").insert(dadosPaciente);
+            console.log(`[whatsapp] ✅ Paciente cadastrado automaticamente: ${nomeLocal}`);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[whatsapp] Erro ao cadastrar paciente local:", err);
+    }
+
+    // =============================
     // DETECTAR AGENDAMENTOS CONFIRMADOS (suporta múltiplos)
     // =============================
     let agendamentosConfirmados = 0;
