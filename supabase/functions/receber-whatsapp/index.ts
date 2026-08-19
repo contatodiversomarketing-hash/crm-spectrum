@@ -1279,65 +1279,101 @@ async function registrarAgendamento(
   dadosPaciente?: { cpf?: string; email?: string; dataNascimento?: string; triagemTexto?: string; tagConsulta?: string },
 ): Promise<boolean> {
   try {
-    if (!Deno.env.get("GESTAO_API_URL") || !Deno.env.get("GESTAO_API_TOKEN")) return false;
+    const supabase = supabaseAdmin();
+    const horaFmt = horario.slice(0, 5);
+    const dataHora = dataISOparaSP(data, horaFmt);
 
-    if (!professionalId || professionalId === "auto") {
-      console.warn(`[whatsapp] professional_id inválido para create_appointment: "${professionalId}"`);
+    // 1) Profissional (agenda local)
+    let medico: any = null;
+    if (professionalId && professionalId !== "auto") {
+      const { data: m } = await supabase.from("medicos").select("*").eq("id", professionalId).maybeSingle();
+      medico = m;
+    }
+    if (!medico) {
+      const { data: ativos } = await supabase.from("medicos").select("*").eq("ativo", true).limit(1);
+      medico = ativos?.[0] || null;
+    }
+    if (!medico) {
+      console.error("[whatsapp] ❌ Nenhum médico cadastrado — impossível agendar");
       return false;
     }
 
-    const validacao = await validarDiaProfissional(professionalId, data);
-    if (!validacao.valido) {
-      console.error(`[whatsapp] ❌ Agendamento BLOQUEADO por validação de dia: ${validacao.mensagemErro}`);
+    // 2) Validar dia de atendimento
+    const dow = new Date(data + "T12:00:00Z").getUTCDay();
+    if (!diasDoMedico(medico.dias_atendimento).includes(dow)) {
+      console.error(`[whatsapp] ❌ ${medico.nome} não atende em ${DIA_NOMES[dow]} (${data})`);
       return false;
     }
 
+    // 3) Conferir se o horário continua livre
+    const { data: conflito } = await supabase
+      .from("agendamentos")
+      .select("id, status")
+      .eq("data_hora", dataHora)
+      .eq("profissional", medico.nome)
+      .maybeSingle();
+    if (conflito && !["cancelado", "cancelada", "cancelada_clinica"].includes(String(conflito.status))) {
+      console.error(`[whatsapp] ❌ Horário já ocupado: ${data} ${horaFmt} (${medico.nome})`);
+      return false;
+    }
+
+    // 4) Garantir paciente local
     let patientIdFinal = pacienteId;
     if (!patientIdFinal) {
-      console.log(`[whatsapp] 🔄 Paciente sem ID — tentando criar cadastro antes de agendar...`);
-      const novoId = await criarPacienteGestao(
-        nome,
-        telefone,
-        dadosPaciente?.cpf,
-        dadosPaciente?.email,
-        dadosPaciente?.dataNascimento,
-      );
-      if (novoId) {
-        patientIdFinal = novoId;
-        console.log(`[whatsapp] ✅ Paciente criado automaticamente: ID=${novoId}`);
+      const telDigits = telefone.replace(/\D/g, "");
+      const { data: existente } = await supabase
+        .from("pacientes")
+        .select("id")
+        .eq("externo_id", telDigits)
+        .maybeSingle();
+      if (existente?.id) {
+        patientIdFinal = existente.id as string;
       } else {
-        console.warn(`[whatsapp] ⚠️ Não foi possível criar paciente. Tentando agendar sem paciente_id...`);
+        const { data: criado } = await supabase
+          .from("pacientes")
+          .insert({
+            externo_id: telDigits,
+            nome,
+            telefone: telDigits,
+            cpf: dadosPaciente?.cpf?.replace(/\D/g, "") || null,
+            email: dadosPaciente?.email || null,
+            data_nascimento: dadosPaciente?.dataNascimento || null,
+            tipo: "adulto",
+          })
+          .select("id")
+          .maybeSingle();
+        patientIdFinal = (criado?.id as string) || "";
       }
     }
 
-    // 🏷️ TAG do tipo de consulta (visível p/ médicos no sistema de gestão) + relatório de triagem
+    // 5) Observações (tag + triagem)
     let observacoes = "";
-    if (dadosPaciente?.tagConsulta) {
-      observacoes += `🏷️ [TIPO DE CONSULTA: ${dadosPaciente.tagConsulta}]\n\n`;
-    }
+    if (dadosPaciente?.tagConsulta) observacoes += `🏷️ [TIPO DE CONSULTA: ${dadosPaciente.tagConsulta}]\n\n`;
     observacoes += `Agendado via WhatsApp (Ana) - Paciente: ${nome} - Tel: ${telefone}`;
-    if (dadosPaciente?.triagemTexto && dadosPaciente.triagemTexto.trim()) {
+    if (dadosPaciente?.triagemTexto?.trim()) {
       observacoes += `\n\n=== RELATÓRIO DE TRIAGEM ===\n${dadosPaciente.triagemTexto.trim().slice(0, 4000)}`;
     }
 
-    const params: Record<string, unknown> = {
-      data: data,
-      hora: horario,
-      medico_id: professionalId,
+    // 6) Gravar na agenda
+    const { error } = await supabase.from("agendamentos").insert({
+      paciente_id: patientIdFinal || null,
+      paciente_nome: nome,
+      data_hora: dataHora,
+      status: "agendado",
+      tipo: "Consulta",
+      procedimento: "Consulta inicial",
+      duracao_min: DURACAO_CONSULTA_MIN,
+      profissional: medico.nome,
       observacoes,
-    };
+    });
 
-    if (patientIdFinal) params.paciente_id = patientIdFinal;
+    if (error) {
+      console.error("[whatsapp] ❌ Erro ao gravar agendamento local:", error.message);
+      return false;
+    }
 
-    const result = await chamarGestao("criar_agendamento", params);
-    const payload = result.data || {};
-    const logicalError = payload?.error === true || payload?.success === false || Number(payload?.statusCode || 0) >= 400;
-    const created = isAppointmentCreatedResponse(payload);
-    const ok = result.ok && !logicalError && created;
-
-    console.log(`[whatsapp] Agendamento gestão: status=${result.status} http_ok=${result.ok} logical_error=${logicalError} created=${created} patient_id=${patientIdFinal || "NENHUM"} triagem=${dadosPaciente?.triagemTexto ? "ANEXA" : "—"} payload=${JSON.stringify(payload).slice(0, 300)}`);
-
-    return ok;
+    console.log(`[whatsapp] ✅ Agendamento gravado na agenda: ${nome} | ${data} ${horaFmt} | ${medico.nome}`);
+    return true;
   } catch (err) {
     console.error("[whatsapp] Erro agendamento:", err);
     return false;
