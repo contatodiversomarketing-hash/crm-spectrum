@@ -1068,7 +1068,7 @@ REGRAS ABSOLUTAS DE AGENDA:
 - Informe apenas a HORA DE INÍCIO (ex.: "às 14h"). NUNCA use faixas como "13h-15h" e nunca fale a duração
 - Ao confirmar, reforce o valor do encaixe e o compromisso: "essa vaga é sua, guardei especialmente para você — me avisa com antecedência se precisar remarcar, porque ela é bem disputada 💚"
 - Quando o paciente aceitar o horário, RESERVE NA HORA e já responda confirmando (com o marcador ##AGENDAMENTO_CONFIRMADO##). NUNCA peça para ele aguardar
-- NUNCA invente horários fora desta lista
+- NUNCA invente horários fora desta lista`;
   } catch (err) {
     console.error("[whatsapp] Erro buscar agenda:", err);
     return `\n\nHORÁRIOS: Não foi possível consultar a agenda no momento. NUNCA invente horários.`;
