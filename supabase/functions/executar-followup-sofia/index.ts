@@ -133,10 +133,33 @@ Deno.serve(async (req) => {
     );
   }
 
-  const MAX_POR_RODADA = 10; // no máx. 10 mensagens/hora → evita bloqueio do WhatsApp
-  const MAX_FALHAS_SEGUIDAS = 3;
+  // Limite diário rígido: no máximo 5 mensagens por dia (aquecimento pós-bloqueio)
+  const MAX_POR_DIA = 5;
+  const MAX_FALHAS_SEGUIDAS = 2;
   const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
   let falhasSeguidas = 0;
+
+  // Quantas já foram enviadas hoje (dia de Brasília)?
+  const inicioDiaBR = new Date(agoraBR);
+  inicioDiaBR.setUTCHours(0, 0, 0, 0);
+  const inicioDiaUTC = new Date(inicioDiaBR.getTime() + 3 * 3600000).toISOString();
+
+  const { count: enviadosHoje } = await supabase
+    .from("logs_decisao")
+    .select("id", { count: "exact", head: true })
+    .eq("evento", "followup_ana")
+    .eq("decisao", "enviado")
+    .gte("criado_em", inicioDiaUTC);
+
+  const restanteHoje = MAX_POR_DIA - (enviadosHoje || 0);
+  if (restanteHoje <= 0) {
+    return new Response(
+      JSON.stringify({ status: "limite_diario_atingido", enviados_hoje: enviadosHoje, max_por_dia: MAX_POR_DIA }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  const MAX_POR_RODADA = restanteHoje;
 
   const relatorio = {
     avaliados: 0,
