@@ -164,6 +164,11 @@ Deno.serve(async (req) => {
     const agora = Date.now();
 
     for (const lead of leads || []) {
+      if (relatorio.enviados >= MAX_POR_RODADA) {
+        relatorio.interrompido = "limite_por_rodada";
+        break;
+      }
+      if (relatorio.interrompido) break;
       try {
         // Parar quando o lead já avançou no funil
         if (ETAPAS_PARADAS.includes(lead.status_pipeline)) {
