@@ -3070,34 +3070,24 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         }
       }
 
-      // Para cada agendamento confirmado com sucesso → enfileirar mensagens (leitura da triagem + orientações + valor/Pix)
+      // Após o agendamento confirmado → apenas UMA mensagem de orientações (sem análise de triagem, sem repetir valores)
       if (agendamentosConfirmados > 0) {
         const nomePaciente = pacienteEncontrado?.nome?.split(" ")[0] || agendamentos[0]?.nome?.split(" ")[0] || "";
         const ola = nomePaciente ? `${nomePaciente}, ` : "";
 
-        // 1️⃣ Leitura do caso com base na triagem
-        mensagensExtras.push(
-          `🔎 *Análise da sua triagem*\n\n` +
-          `${ola}${decisaoConsulta.justificativa}. 💚`
-        );
+        const itens = [
+          `1. *Anote suas dúvidas* antes da consulta para tirar todas com a Dra. Amélia.`,
+          `2. Tenha clareza dos *sintomas e observações do dia a dia* (no caso de criança, traga também relatos da escola).`,
+        ];
+        // Só pedir a triagem se ela AINDA não foi preenchida
+        if (!triagemTexto) {
+          itens.push(`3. *Preencha o formulário de triagem* (essencial para a Dra. entender seu caso): https://draameliacarvalho.com/quiz/`);
+        }
 
-        // 2️⃣ Orientações prévias
         mensagensExtras.push(
           `📋 *Orientações para sua consulta*\n\n` +
-          `1. *Anote suas dúvidas* antes da consulta para tirar todas com a Dra. Amélia.\n` +
-          `2. Tenha clareza dos *sintomas e observações do dia a dia* (no caso de criança, traga também relatos da escola).\n` +
-          `3. *Preencha o formulário de triagem* (essencial para a Dra. entender seu caso): https://draameliacarvalho.com/quiz/`
-        );
-
-        // 3️⃣ Valor + Pix (chave configurada em segredo; sem chave, não enviamos dados de pagamento)
-        const chavePix = (Deno.env.get("CHAVE_PIX") || "").trim();
-        mensagensExtras.push(
-          `💳 *Valor da consulta com a Dra. Amélia*\n\n` +
-          `R$ 500,00 à vista (Pix) ou R$ 525,00 no cartão.\n\n` +
-          (chavePix
-            ? `🔑 *Pagamento via Pix* (chave): \`${chavePix}\`\n\n` +
-              `Após o pagamento, por favor *envie o comprovante por aqui* que eu já dou baixa automaticamente no sistema ✅`
-            : `Me confirma por aqui como prefere pagar que eu já te passo os dados ✅`)
+          `${ola}separei o essencial pra você aproveitar ao máximo o atendimento 💚\n\n` +
+          itens.join("\n")
         );
       }
     }
