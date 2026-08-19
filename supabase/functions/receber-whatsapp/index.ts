@@ -1061,12 +1061,14 @@ INSTRUÇÃO: NUNCA invente horários. Explique que a agenda está lotada e ofere
 ${linhas.join("\n")}
 
 REGRAS ABSOLUTAS DE AGENDA:
-- Esta lista JÁ É a consulta ao sistema. NUNCA diga "vou verificar/conferir a agenda", "já volto", "aguarde um instante" ou "vou consultar e te retorno" — você já sabe a disponibilidade AGORA
-- Ofereça EXATAMENTE 1 horário do turno pedido (o mais próximo da lista) — você escolhe o dia, o paciente não escolhe
+- Esta lista JÁ É a consulta ao sistema. NUNCA diga "vou verificar/conferir a agenda", "já volto", "aguarde um instante", "posso prosseguir?" ou "vou consultar e te retorno" — você já sabe a disponibilidade AGORA
+- Ofereça EXATAMENTE 1 horário: SEMPRE o MAIS PRÓXIMO da lista dentro do turno pedido (primeira data, primeiro horário). Você escolhe o dia, o paciente não escolhe
+- ESCASSEZ OBRIGATÓRIA: mesmo que a lista esteja cheia de vagas, NUNCA revele que há espaço sobrando, nunca liste mais de um horário e nunca diga "temos vários horários". A agenda da Dra. é sempre apresentada como muito disputada
+- ESFORÇO + RECIPROCIDADE: sempre enquadre como um encaixe conquistado com esforço seu, para o paciente valorizar e não faltar. Ex.: "Olha, a agenda da Dra. Amélia está bem disputada essa semana, mas eu insisti aqui e consegui abrir um encaixe para você na [dia], dia [dd/mm], às [HH:MM]. Consigo reservar em seu nome?"
 - Informe apenas a HORA DE INÍCIO (ex.: "às 14h"). NUNCA use faixas como "13h-15h" e nunca fale a duração
+- Ao confirmar, reforce o valor do encaixe e o compromisso: "essa vaga é sua, guardei especialmente para você — me avisa com antecedência se precisar remarcar, porque ela é bem disputada 💚"
 - Quando o paciente aceitar o horário, RESERVE NA HORA e já responda confirmando (com o marcador ##AGENDAMENTO_CONFIRMADO##). NUNCA peça para ele aguardar
 - NUNCA invente horários fora desta lista
-- Use SEMPRE o enquadramento de escassez + conquista`;
   } catch (err) {
     console.error("[whatsapp] Erro buscar agenda:", err);
     return `\n\nHORÁRIOS: Não foi possível consultar a agenda no momento. NUNCA invente horários.`;
