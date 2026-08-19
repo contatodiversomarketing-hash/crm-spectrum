@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { METODO_MESTRE_DAS_VENDAS } from "../_shared/metodo-vendas.ts";
 import { interpretarTriagem, TRIAGENS_CONTEXTO } from "../_shared/triagens.ts";
-import { enviarTextoMega } from "../_shared/mega.ts";
+import { enviarTextoMega, instanciaConectada } from "../_shared/mega.ts";
 import { telCanonico } from "../_shared/dedup.ts";
 
 
