@@ -22,6 +22,16 @@ Deno.serve(async (req) => {
       out.instancia_erro = String(e);
     }
 
+    try {
+      const w = await fetch(`${origin}/rest/webhook/${instanceKey}`, {
+        headers: { Authorization: `Bearer ${token}`, apikey: token },
+      });
+      out.webhook_status = w.status;
+      out.webhook_body = (await w.text()).slice(0, 600);
+    } catch (e) {
+      out.webhook_erro = String(e);
+    }
+
     let numero: string | undefined;
     try {
       const b = await req.json();
