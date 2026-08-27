@@ -668,9 +668,11 @@ ${TRIAGENS_CONTEXTO}
 ## COLETA DE DADOS PARA CADASTRO E AGENDAMENTO (TOM ACOLHEDOR)
 - Para finalizar o cadastro e agendar, você PRECISA de: **nome completo**, **CPF** e **data de nascimento**. O telefone já é o do WhatsApp — NUNCA peça
 - Peça tudo isso em UMA única mensagem, de forma leve e acolhedora, e NUNCA repita o pedido de um dado já informado
-- NUNCA exija formato: aceite a data em QUALQUER formato (23/08/2020, 23-08-2020, 23 de agosto de 2020) — o sistema converte sozinho. NUNCA peça formato americano/YYYY-MM-DD ao paciente
-- NUNCA corrija, questione ou devolva o CPF por causa de dígitos "a mais" ou "a menos", nem peça para reenviar. Se o número parecer incompleto, apenas siga o atendimento normalmente; se for realmente necessário, comente com muita leveza UMA única vez ("só confere pra mim se o CPF ficou completinho? 😊") e nunca mais volte ao assunto
-- PROIBIDO usar frases secas/impositivas como "Pode enviar agora?", "envie em uma única mensagem", "no formato AAAA-MM-DD", "pode reenviar agora?". Prefira: "quando puder, me manda o nome completo, o CPF e a data de nascimento do(a) [paciente] que eu já deixo tudo prontinho por aqui 💚"
+- REGRA ABSOLUTA (nunca quebre): assim que a pessoa mandar nome, CPF e data — em QUALQUER formato, com qualquer quantidade de dígitos, juntos ou separados — considere o cadastro COMPLETO, agradeça e AVANCE para o próximo passo (horário/agendamento). O sistema trata e corrige tudo internamente
+- É TERMINANTEMENTE PROIBIDO: contar dígitos do CPF, comentar quantidade de dígitos, dizer que o CPF/data está incompleto, errado ou "em formato DD/MM/AAAA", pedir reenvio, pedir "em uma única mensagem", pedir formato YYYY-MM-DD/AAAA-MM-DD ou qualquer outro formato, ou dizer "pode reenviar agora?"/"pode enviar agora?"
+- Aceite a data em QUALQUER formato (23/08/2020, 23-08-2020, 23 de agosto de 2020) — a conversão é interna e o paciente nunca vê isso
+- Se algum dado realmente estiver faltando (a pessoa não enviou), peça só o que falta, com leveza: "quando puder, me manda o nome completo, o CPF e a data de nascimento do(a) [paciente] que eu já deixo tudo prontinho por aqui 💚"
+
 - Assim que a pessoa informar nome completo + CPF, o sistema JÁ cadastra ela como paciente automaticamente (quando o atendimento é para ela mesma) — não avise nem repita a coleta
 - Se o atendimento for para um filho ou terceiro, deixe claro quem é o paciente e colete os dados do paciente, não do responsável
 - Se o paciente resistir a fornecer o CPF, explique com carinho que é para o cadastro no prontuário e emissão de receita médica
@@ -2007,11 +2009,23 @@ function extrairEtiquetas(resposta: string): { etiquetas: string[]; textoLimpo: 
   return { etiquetas: [...new Set(encontradas)], textoLimpo };
 }
 
+function normalizarDataNascimento(bruta: string): string {
+  const s = bruta.trim();
+  const iso = s.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (iso) return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
+  const br = s.match(/(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
+  if (br) {
+    const ano = br[3].length === 2 ? `19${br[3]}` : br[3];
+    return `${ano}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
+  }
+  return s;
+}
+
 function extrairNascimento(resposta: string): { nascimento: string; textoLimpo: string } | null {
   const regex = /##ATUALIZAR_NASCIMENTO\|([^#]+)##/;
   const match = resposta.match(regex);
   if (!match) return null;
-  return { nascimento: match[1].trim(), textoLimpo: resposta.replace(regex, "").trim() };
+  return { nascimento: normalizarDataNascimento(match[1]), textoLimpo: resposta.replace(regex, "").trim() };
 }
 
 // =============================
