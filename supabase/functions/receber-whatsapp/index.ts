@@ -2671,7 +2671,24 @@ serve(async (req) => {
 
   try {
     let body = await req.json();
+
+    // Log cru: essencial para diagnosticar o formato exato que a Datafy envia.
+    try {
+      console.log("[whatsapp][raw]", JSON.stringify(body).slice(0, 1500));
+    } catch { /* ignore */ }
+
+    // A Datafy pode encapsular o payload oficial da Meta em { event, data } ou { payload }.
+    const desembrulhar = (b: any): any => {
+      const candidatos = [b, b?.data, b?.payload, b?.body, b?.data?.payload, b?.webhook_data];
+      for (const c of candidatos) {
+        if (c && (c.object === "whatsapp_business_account" || Array.isArray(c.entry))) return c;
+      }
+      return b;
+    };
+    body = desembrulhar(body);
+
     if (body?.object === "whatsapp_business_account" || body?.entry) {
+
       if (await registrarStatusCloud(body)) {
         return new Response(JSON.stringify({ status: "status_registrado" }), {
           status: 200,
