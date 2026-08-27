@@ -225,9 +225,26 @@ Deno.serve(async (req) => {
         if (diasDesdeUltimoToque < intervaloDaEtapa(etapa)) continue;
 
         const telefone = lead.telefone!.replace(/[^\d+]/g, "");
-        const mensagem = (await gerarMensagemIA(lead, etapa)) || mensagemFallback(lead.nome, etapa);
+        let mensagem = (await gerarMensagemIA(lead, etapa)) || mensagemFallback(lead.nome, etapa);
 
-        const megaRes = await enviarTextoMega(telefone, mensagem);
+        // API oficial: fora da janela de 24h só sai template aprovado.
+        const janelaAberta = dentroDaJanela24h(lead.ultima_interacao);
+        let megaRes: { ok: boolean; status: number; body: string };
+        let viaTemplate = false;
+
+        if (oficial && !janelaAberta) {
+          const primeiro = (lead.nome || "").split(" ")[0] || "tudo bem";
+          const tpl = await enviarTemplateMega(telefone, [primeiro]);
+          if (tpl.usouTemplate) {
+            megaRes = tpl;
+            viaTemplate = true;
+            mensagem = `[template de reabordagem enviado para ${primeiro}]`;
+          } else {
+            megaRes = await enviarTextoMega(telefone, mensagem);
+          }
+        } else {
+          megaRes = await enviarTextoMega(telefone, mensagem);
+        }
         const ok = megaRes.ok;
 
         if (ok) {
