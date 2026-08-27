@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { METODO_MESTRE_DAS_VENDAS } from "../_shared/metodo-vendas.ts";
 import { interpretarTriagem, TRIAGENS_CONTEXTO } from "../_shared/triagens.ts";
-import { enviarDocumentoMega, NEUROACESSO_PDF_URL, PIX_QRCODE_PDF_URL } from "../_shared/mega.ts";
+import { enviarDocumentoMega, NEUROACESSO_PDF_URL, PIX_QRCODE_PDF_URL, baixarMidiaDatafy } from "../_shared/mega.ts";
 import { buscarLead, buscarPaciente, upsertPaciente, telCanonico, telVariacoes, cpfLimpo as limparCpf } from "../_shared/dedup.ts";
 
 
