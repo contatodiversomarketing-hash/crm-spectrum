@@ -3013,7 +3013,25 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         role: "system",
         content: "ATENÇÃO: esta conversa já possui histórico. É PROIBIDO se apresentar novamente, repetir a saudação inicial ou reenviar a última resposta. É PROIBIDO repetir uma pergunta que você já fez antes (ex.: perguntar o nome duas vezes) — se o paciente não respondeu àquela pergunta, siga a conversa de outro jeito, acolha o que ele disse e avance para o próximo passo. Responda SOMENTE ao conteúdo mais recente do paciente e faça a conversa avançar.",
       });
+
+      // RETOMADA DE CONVERSA FRIA: se ficou muitos dias parada, não continue
+      // do ponto exato onde parou (ex.: cobrando pagamento) — reabra com escuta.
+      const ultimoContatoMs = new Date(
+        historicoOrdenado[historicoOrdenado.length - 1]?.criado_em || Date.now(),
+      ).getTime();
+      const diasParada = (Date.now() - ultimoContatoMs) / 86400000;
+      if (diasParada >= 3) {
+        messages.push({
+          role: "system",
+          content: `RETOMADA DE CONVERSA FRIA: esta conversa ficou ${Math.round(diasParada)} dias sem contato e o paciente acabou de voltar a falar.
+- NÃO retome do ponto exato onde parou e NÃO repita informações que você já enviou antes (valores, formas de pagamento, links, orientações) como se nada tivesse acontecido.
+- Se a pessoa JÁ recebeu as formas de pagamento/valores antes, NÃO os ofereça de novo: reconheça o tempo, seja acolhedora e entenda primeiro o que aconteceu e o que ela precisa agora.
+- Faça a reabertura em 2 a 3 linhas: (1) acolha o retorno dela com calor humano, (2) faça UMA pergunta aberta para entender a situação atual (o que mudou, o que está pegando, o que ela precisa neste momento), (3) só depois de entender, conduza para o próximo passo.
+- Nada de tom de cobrança. O objetivo desta mensagem é reconectar e compreender, não fechar.`,
+        });
+      }
     }
+
 
     // Adicionar histórico (do mais antigo ao mais recente)
     for (const h of historicoOrdenado.slice(-8)) {
