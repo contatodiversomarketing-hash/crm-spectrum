@@ -1,5 +1,23 @@
-// Helper único de envio de texto pela MegaAPI (instância da Ana).
-// Aceita MEGA_API_URL como host (https://apinocodeXX.megaapi.com.br) ou como URL completa.
+// Camada única de envio de WhatsApp da Ana.
+// Provedor padrão: DatafyAPI (API OFICIAL do Meta / Cloud API, proxy transparente).
+// Fallback legado: MegaAPI (não oficial) — usado apenas se a Datafy não estiver configurada.
+
+export function datafyConfig() {
+  const DEFAULT_BASE = "https://cloud.datafyapi.com.br/v1";
+  let url = (Deno.env.get("DATAFY_API_URL") || "").trim();
+  const token = Deno.env.get("DATAFY_API_TOKEN") || "";
+  const phoneNumberId = Deno.env.get("DATAFY_INSTANCE_ID") || "";
+
+  if (url && !/^https?:\/\//i.test(url)) url = `https://${url}`;
+  // Ignora links de painel/onboarding colados por engano (ex.: /connect?t=...)
+  if (!url || /\?|\/connect/i.test(url) || /app\.datafyapi/i.test(url)) url = DEFAULT_BASE;
+  url = url.replace(/\/+$/, "");
+  // Aceita host puro (sem /v1) ou URL já com versão.
+  if (!/\/v\d+$/i.test(url)) url = `${url}/v1`;
+
+
+  return { base: url, token, phoneNumberId, configurado: Boolean(url && token && phoneNumberId) };
+}
 
 export function megaConfig() {
   let url = Deno.env.get("MEGA_API_URL") || "";
@@ -22,8 +40,57 @@ export function megaConfig() {
   return { origin, token, instanceKey, configurado: Boolean(origin && token && instanceKey) };
 }
 
-// Verifica se a instância está realmente logada antes de qualquer disparo em massa.
+export function provedorAtivo(): "datafy" | "mega" | "nenhum" {
+  if (datafyConfig().configurado) return "datafy";
+  if (megaConfig().configurado) return "mega";
+  return "nenhum";
+}
+
+// Normaliza para o formato E.164 sem "+" (ex.: 5532998034423)
+export function numeroE164(numero: string): string {
+  let n = (numero || "").replace(/\D/g, "");
+  if (!n.startsWith("55") && (n.length === 10 || n.length === 11)) n = `55${n}`;
+  return n;
+}
+
+type Resultado = { ok: boolean; status: number; body: string };
+
+async function datafyPost(payload: Record<string, unknown>): Promise<Resultado> {
+  const { base, token, phoneNumberId } = datafyConfig();
+  const resp = await fetch(`${base}/${phoneNumberId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", ...payload }),
+  });
+  const body = await resp.text();
+  let erroLogico = false;
+  try {
+    erroLogico = Boolean(JSON.parse(body)?.error);
+  } catch { /* corpo não-JSON */ }
+  const ok = resp.ok && !erroLogico;
+  if (!ok) console.error(`[datafy] envio falhou [${resp.status}]: ${body.slice(0, 400)}`);
+  return { ok, status: resp.status, body };
+}
+
+// Na API oficial não existe "sessão" que cai: se o token e o número estiverem
+// configurados, a conexão está sempre disponível.
 export async function instanciaConectada(): Promise<{ conectada: boolean; status: string }> {
+  const datafy = datafyConfig();
+  if (datafy.configurado) {
+    try {
+      const r = await fetch(`${datafy.base}/${datafy.phoneNumberId}`, {
+        headers: { Authorization: `Bearer ${datafy.token}` },
+      });
+      if (r.ok) return { conectada: true, status: "connected" };
+      const txt = (await r.text()).slice(0, 120);
+      // Alguns proxies não expõem GET do número; isso não impede o envio.
+      if (r.status === 404 || r.status === 405) return { conectada: true, status: "connected" };
+      return { conectada: false, status: `erro_${r.status}:${txt}` };
+    } catch (e) {
+      return { conectada: false, status: `erro:${String(e).slice(0, 60)}` };
+    }
+  }
+
   const { origin, token, instanceKey, configurado } = megaConfig();
   if (!configurado) return { conectada: false, status: "nao_configurada" };
   try {
@@ -38,11 +105,20 @@ export async function instanciaConectada(): Promise<{ conectada: boolean; status
   }
 }
 
-export async function enviarTextoMega(numero: string, texto: string): Promise<{ ok: boolean; status: number; body: string }> {
-  const { origin, token, instanceKey, configurado } = megaConfig();
-  if (!configurado) return { ok: false, status: 0, body: "MEGA_API não configurada" };
+export async function enviarTextoMega(numero: string, texto: string): Promise<Resultado> {
+  const destino = numeroE164(numero);
 
-  const destino = numero.replace(/\D/g, "");
+  if (datafyConfig().configurado) {
+    return await datafyPost({
+      to: destino,
+      type: "text",
+      text: { preview_url: true, body: texto },
+    });
+  }
+
+  const { origin, token, instanceKey, configurado } = megaConfig();
+  if (!configurado) return { ok: false, status: 0, body: "WhatsApp não configurado" };
+
   const resp = await fetch(`${origin}/rest/sendMessage/${instanceKey}/text`, {
     method: "POST",
     headers: {
@@ -54,15 +130,10 @@ export async function enviarTextoMega(numero: string, texto: string): Promise<{ 
   });
 
   const body = await resp.text();
-
-  // A MegaAPI pode responder HTTP 200 com { "error": true } — isso NÃO é envio entregue.
   let erroLogico = false;
   try {
-    const parsed = JSON.parse(body);
-    erroLogico = parsed?.error === true;
-  } catch {
-    /* corpo não-JSON */
-  }
+    erroLogico = JSON.parse(body)?.error === true;
+  } catch { /* corpo não-JSON */ }
 
   const ok = resp.ok && !erroLogico;
   if (!ok) console.error(`[mega] envio falhou [${resp.status}]: ${body.slice(0, 400)}`);
@@ -82,11 +153,20 @@ export async function enviarDocumentoMega(
   url: string,
   fileName: string,
   caption = "",
-): Promise<{ ok: boolean; status: number; body: string }> {
-  const { origin, token, instanceKey, configurado } = megaConfig();
-  if (!configurado) return { ok: false, status: 0, body: "MEGA_API não configurada" };
+): Promise<Resultado> {
+  const destino = numeroE164(numero);
 
-  const destino = numero.replace(/\D/g, "");
+  if (datafyConfig().configurado) {
+    return await datafyPost({
+      to: destino,
+      type: "document",
+      document: { link: url, filename: fileName, caption },
+    });
+  }
+
+  const { origin, token, instanceKey, configurado } = megaConfig();
+  if (!configurado) return { ok: false, status: 0, body: "WhatsApp não configurado" };
+
   const resp = await fetch(`${origin}/rest/sendMessage/${instanceKey}/document`, {
     method: "POST",
     headers: {
@@ -116,4 +196,34 @@ export async function enviarDocumentoMega(
   const ok = resp.ok && !erroLogico;
   if (!ok) console.error(`[mega] envio de documento falhou [${resp.status}]: ${body.slice(0, 400)}`);
   return { ok, status: resp.status, body };
+}
+
+// Baixa uma mídia recebida pela Cloud API (media id) e devolve em base64.
+export async function baixarMidiaDatafy(mediaId: string): Promise<{ base64: string; mimetype: string } | null> {
+  const { base, token, configurado } = datafyConfig();
+  if (!configurado || !mediaId) return null;
+  try {
+    const metaResp = await fetch(`${base}/${mediaId}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!metaResp.ok) {
+      console.error(`[datafy] metadados de mídia falharam [${metaResp.status}]`);
+      return null;
+    }
+    const meta = await metaResp.json();
+    if (!meta?.url) return null;
+
+    const binResp = await fetch(meta.url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!binResp.ok) {
+      console.error(`[datafy] download de mídia falhou [${binResp.status}]`);
+      return null;
+    }
+    const buf = new Uint8Array(await binResp.arrayBuffer());
+    let bin = "";
+    for (let i = 0; i < buf.length; i += 8192) {
+      bin += String.fromCharCode(...buf.subarray(i, i + 8192));
+    }
+    return { base64: btoa(bin), mimetype: meta.mime_type || "application/octet-stream" };
+  } catch (e) {
+    console.error("[datafy] erro ao baixar mídia:", e);
+    return null;
+  }
 }

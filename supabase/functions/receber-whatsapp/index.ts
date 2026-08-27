@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { METODO_MESTRE_DAS_VENDAS } from "../_shared/metodo-vendas.ts";
 import { interpretarTriagem, TRIAGENS_CONTEXTO } from "../_shared/triagens.ts";
-import { enviarDocumentoMega, NEUROACESSO_PDF_URL, PIX_QRCODE_PDF_URL } from "../_shared/mega.ts";
+import { enviarDocumentoMega, NEUROACESSO_PDF_URL, PIX_QRCODE_PDF_URL, baixarMidiaDatafy } from "../_shared/mega.ts";
 import { buscarLead, buscarPaciente, upsertPaciente, telCanonico, telVariacoes, cpfLimpo as limparCpf } from "../_shared/dedup.ts";
 
 
@@ -2563,13 +2563,92 @@ async function enviarAudio(numero: string, audioUrl: string): Promise<void> {
 // =============================
 // MAIN HANDLER
 // =============================
+// Converte o payload OFICIAL do Meta (Graph / Datafy) para o formato interno
+// que o restante desta função já entende (estilo MegaAPI).
+async function normalizarPayloadCloud(raw: any): Promise<any | null> {
+  const value = raw?.entry?.[0]?.changes?.[0]?.value;
+  if (!value) return null;
+
+  const m = value.messages?.[0];
+  if (!m) return { __ignorar: true }; // eventos de status (sent/delivered/read)
+
+  const numero = m.from || value.contacts?.[0]?.wa_id || "";
+  const nomeContato = value.contacts?.[0]?.profile?.name || "";
+  const out: any = {
+    key: { remoteJid: `${numero}@s.whatsapp.net`, fromMe: false, senderPn: numero },
+    jid: numero,
+    isGroup: false,
+    sender: { phone: numero, name: nomeContato },
+    message: {},
+    messageType: "",
+  };
+
+  if (m.type === "text") {
+    out.message.conversation = m.text?.body || "";
+    out.messageType = "conversation";
+    return out;
+  }
+
+  if (m.type === "interactive") {
+    out.message.conversation =
+      m.interactive?.button_reply?.title || m.interactive?.list_reply?.title || "";
+    out.messageType = "conversation";
+    return out;
+  }
+
+  const midiaTipos: Record<string, string> = {
+    image: "imageMessage",
+    audio: "audioMessage",
+    voice: "audioMessage",
+    document: "documentMessage",
+    video: "videoMessage",
+  };
+  const chave = midiaTipos[m.type];
+  if (chave) {
+    const dados = m[m.type] || {};
+    const baixado = await baixarMidiaDatafy(dados.id);
+    out.messageType = chave;
+    out.base64 = baixado?.base64;
+    out.message[chave] = {
+      mimetype: dados.mime_type || baixado?.mimetype || "",
+      caption: dados.caption || "",
+      fileName: dados.filename || "documento",
+      base64: baixado?.base64,
+    };
+    return out;
+  }
+
+  return { __ignorar: true };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Verificação do webhook (handshake do Meta/Datafy)
+  if (req.method === "GET") {
+    const u = new URL(req.url);
+    const challenge = u.searchParams.get("hub.challenge");
+    if (challenge) return new Response(challenge, { status: 200 });
+    return new Response("ok", { status: 200 });
+  }
+
   try {
-    const body = await req.json();
+    let body = await req.json();
+    if (body?.object === "whatsapp_business_account" || body?.entry) {
+      const convertido = await normalizarPayloadCloud(body);
+      if (convertido?.__ignorar) {
+        return new Response(JSON.stringify({ status: "evento_ignorado" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (convertido) {
+        console.log("[whatsapp] Payload oficial (Datafy/Meta) convertido");
+        body = convertido;
+      }
+    }
     console.log("[whatsapp] Webhook recebido:", JSON.stringify(body).slice(0, 800));
     console.log("[whatsapp] Webhook top-level keys:", Object.keys(body).join(", "));
     if (body.message) console.log("[whatsapp] message keys:", Object.keys(body.message).join(", "));
