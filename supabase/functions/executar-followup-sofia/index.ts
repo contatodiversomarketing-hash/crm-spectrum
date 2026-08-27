@@ -1,7 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { METODO_MESTRE_DAS_VENDAS } from "../_shared/metodo-vendas.ts";
 import { interpretarTriagem, TRIAGENS_CONTEXTO } from "../_shared/triagens.ts";
-import { enviarTextoMega, instanciaConectada } from "../_shared/mega.ts";
+import {
+  dentroDaJanela24h,
+  enviarTemplateMega,
+  enviarTextoMega,
+  instanciaConectada,
+  provedorAtivo,
+} from "../_shared/mega.ts";
 import { telCanonico } from "../_shared/dedup.ts";
 
 
@@ -96,16 +102,14 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  let MEGA_API_URL = Deno.env.get("MEGA_API_URL");
-  const MEGA_API_TOKEN = Deno.env.get("MEGA_API_TOKEN");
-  if (MEGA_API_URL && !/^https?:\/\//i.test(MEGA_API_URL)) MEGA_API_URL = `https://${MEGA_API_URL}`;
-  MEGA_API_URL = MEGA_API_URL?.replace(/\/+$/, "");
-  if (!MEGA_API_URL || !MEGA_API_TOKEN) {
-    return new Response(JSON.stringify({ error: "MEGA_API não configurada" }), {
+  const provedor = provedorAtivo();
+  if (provedor === "nenhum") {
+    return new Response(JSON.stringify({ error: "WhatsApp não configurado" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+  const oficial = provedor === "datafy";
 
   // Janela humana de envio: seg-sáb, 09h-19h (horário de Brasília)
   const agoraBR = new Date(Date.now() - 3 * 3600000);
@@ -133,8 +137,9 @@ Deno.serve(async (req) => {
     );
   }
 
-  // Limite diário rígido: no máximo 5 mensagens por dia (aquecimento pós-bloqueio)
-  const MAX_POR_DIA = 5;
+  // Limite diário: na API oficial do Meta o número novo começa em 250 conversas/dia.
+  // Mantemos folga (30/dia) para preservar a qualidade do número; na MegaAPI segue 5/dia.
+  const MAX_POR_DIA = oficial ? 30 : 5;
   const MAX_FALHAS_SEGUIDAS = 2;
   const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
   let falhasSeguidas = 0;
@@ -220,9 +225,26 @@ Deno.serve(async (req) => {
         if (diasDesdeUltimoToque < intervaloDaEtapa(etapa)) continue;
 
         const telefone = lead.telefone!.replace(/[^\d+]/g, "");
-        const mensagem = (await gerarMensagemIA(lead, etapa)) || mensagemFallback(lead.nome, etapa);
+        let mensagem = (await gerarMensagemIA(lead, etapa)) || mensagemFallback(lead.nome, etapa);
 
-        const megaRes = await enviarTextoMega(telefone, mensagem);
+        // API oficial: fora da janela de 24h só sai template aprovado.
+        const janelaAberta = dentroDaJanela24h(lead.ultima_interacao);
+        let megaRes: { ok: boolean; status: number; body: string };
+        let viaTemplate = false;
+
+        if (oficial && !janelaAberta) {
+          const primeiro = (lead.nome || "").split(" ")[0] || "tudo bem";
+          const tpl = await enviarTemplateMega(telefone, [primeiro]);
+          if (tpl.usouTemplate) {
+            megaRes = tpl;
+            viaTemplate = true;
+            mensagem = `[template de reabordagem enviado para ${primeiro}]`;
+          } else {
+            megaRes = await enviarTextoMega(telefone, mensagem);
+          }
+        } else {
+          megaRes = await enviarTextoMega(telefone, mensagem);
+        }
         const ok = megaRes.ok;
 
         if (ok) {
@@ -241,17 +263,20 @@ Deno.serve(async (req) => {
             sistema_origem: "followup_ana",
             mensagem_usuario: null,
             resposta_final: mensagem.slice(0, 5000),
-            intencao_detectada: "followup_automatico",
+            intencao_detectada: viaTemplate ? "followup_template" : "followup_automatico",
             estado_conversa: `followup_etapa_${etapa + 1}`,
             supervisionado: false,
           });
 
           relatorio.enviados++;
           falhasSeguidas = 0;
-          // Ritmo humano: 25 a 55 segundos entre mensagens
           if (relatorio.enviados < MAX_POR_RODADA) {
-            // Ritmo bem lento: 3 a 6 minutos entre mensagens
-            await espera(180000 + Math.floor(Math.random() * 180000));
+            // Oficial: 20-50s entre mensagens. MegaAPI (não oficial): 3-6 min.
+            await espera(
+              oficial
+                ? 20000 + Math.floor(Math.random() * 30000)
+                : 180000 + Math.floor(Math.random() * 180000),
+            );
           }
         } else {
           relatorio.erros.push(`lead ${lead.id}: status ${megaRes.status}`);
