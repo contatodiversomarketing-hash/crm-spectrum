@@ -3,14 +3,18 @@
 // Fallback legado: MegaAPI (não oficial) — usado apenas se a Datafy não estiver configurada.
 
 export function datafyConfig() {
-  let url = Deno.env.get("DATAFY_API_URL") || "https://cloud.datafyapi.com.br/v1";
+  const DEFAULT_BASE = "https://cloud.datafyapi.com.br/v1";
+  let url = (Deno.env.get("DATAFY_API_URL") || "").trim();
   const token = Deno.env.get("DATAFY_API_TOKEN") || "";
   const phoneNumberId = Deno.env.get("DATAFY_INSTANCE_ID") || "";
 
   if (url && !/^https?:\/\//i.test(url)) url = `https://${url}`;
+  // Ignora links de painel/onboarding colados por engano (ex.: /connect?t=...)
+  if (!url || /\?|\/connect/i.test(url) || /app\.datafyapi/i.test(url)) url = DEFAULT_BASE;
   url = url.replace(/\/+$/, "");
   // Aceita host puro (sem /v1) ou URL já com versão.
   if (!/\/v\d+$/i.test(url)) url = `${url}/v1`;
+
 
   return { base: url, token, phoneNumberId, configurado: Boolean(url && token && phoneNumberId) };
 }
