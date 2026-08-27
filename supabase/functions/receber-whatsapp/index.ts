@@ -2600,11 +2600,17 @@ async function registrarStatusCloud(raw: any): Promise<boolean> {
 }
 
 async function normalizarPayloadCloud(raw: any): Promise<any | null> {
-  const value = raw?.entry?.[0]?.changes?.[0]?.value;
+  const change = raw?.entry?.[0]?.changes?.[0];
+  const value = change?.value;
   if (!value) return null;
+
+  // Ecos das nossas próprias mensagens (smb_message_echoes) não devem gerar resposta.
+  if (String(change?.field || "").includes("echo")) return { __ignorar: true };
+  if (Array.isArray(value.message_echoes)) return { __ignorar: true };
 
   const m = value.messages?.[0];
   if (!m) return { __ignorar: true }; // eventos de status (sent/delivered/read)
+
 
 
   const numero = m.from || value.contacts?.[0]?.wa_id || "";
