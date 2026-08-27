@@ -2672,7 +2672,14 @@ serve(async (req) => {
   try {
     let body = await req.json();
     if (body?.object === "whatsapp_business_account" || body?.entry) {
+      if (await registrarStatusCloud(body)) {
+        return new Response(JSON.stringify({ status: "status_registrado" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const convertido = await normalizarPayloadCloud(body);
+
       if (convertido?.__ignorar) {
         return new Response(JSON.stringify({ status: "evento_ignorado" }), {
           status: 200,
