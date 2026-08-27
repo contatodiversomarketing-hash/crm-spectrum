@@ -263,7 +263,7 @@ Deno.serve(async (req) => {
             sistema_origem: "followup_ana",
             mensagem_usuario: null,
             resposta_final: mensagem.slice(0, 5000),
-            intencao_detectada: "followup_automatico",
+            intencao_detectada: viaTemplate ? "followup_template" : "followup_automatico",
             estado_conversa: `followup_etapa_${etapa + 1}`,
             supervisionado: false,
           });
