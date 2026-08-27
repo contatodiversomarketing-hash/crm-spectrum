@@ -96,16 +96,14 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  let MEGA_API_URL = Deno.env.get("MEGA_API_URL");
-  const MEGA_API_TOKEN = Deno.env.get("MEGA_API_TOKEN");
-  if (MEGA_API_URL && !/^https?:\/\//i.test(MEGA_API_URL)) MEGA_API_URL = `https://${MEGA_API_URL}`;
-  MEGA_API_URL = MEGA_API_URL?.replace(/\/+$/, "");
-  if (!MEGA_API_URL || !MEGA_API_TOKEN) {
-    return new Response(JSON.stringify({ error: "MEGA_API não configurada" }), {
+  const provedor = provedorAtivo();
+  if (provedor === "nenhum") {
+    return new Response(JSON.stringify({ error: "WhatsApp não configurado" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+  const oficial = provedor === "datafy";
 
   // Janela humana de envio: seg-sáb, 09h-19h (horário de Brasília)
   const agoraBR = new Date(Date.now() - 3 * 3600000);
