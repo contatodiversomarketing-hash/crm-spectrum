@@ -2565,12 +2565,47 @@ async function enviarAudio(numero: string, audioUrl: string): Promise<void> {
 // =============================
 // Converte o payload OFICIAL do Meta (Graph / Datafy) para o formato interno
 // que o restante desta função já entende (estilo MegaAPI).
+// Registra os eventos de status (sent/delivered/read/failed) da API oficial,
+// para sabermos se as mensagens realmente chegam ao destinatário.
+async function registrarStatusCloud(raw: any): Promise<boolean> {
+  const statuses = raw?.entry?.[0]?.changes?.[0]?.value?.statuses;
+  if (!Array.isArray(statuses) || statuses.length === 0) return false;
+  try {
+    const supabase = supabaseAdmin();
+    await supabase.from("logs_decisao").insert(
+      statuses.map((s: any) => ({
+        evento: "whatsapp_status",
+        regra_aplicada: "cloud_api",
+        decisao: s.status || "desconhecido",
+        dados_entrada: {
+          numero: s.recipient_id,
+          message_id: s.id,
+          timestamp: s.timestamp,
+          erros: s.errors ?? null,
+          conversa: s.conversation ?? null,
+        },
+      })),
+    );
+    for (const s of statuses) {
+      console.log(
+        `[whatsapp][status] ${s.recipient_id} -> ${s.status}${
+          s.errors ? " ERRO: " + JSON.stringify(s.errors).slice(0, 300) : ""
+        }`,
+      );
+    }
+  } catch (e) {
+    console.error("[whatsapp][status] falha ao registrar:", e);
+  }
+  return true;
+}
+
 async function normalizarPayloadCloud(raw: any): Promise<any | null> {
   const value = raw?.entry?.[0]?.changes?.[0]?.value;
   if (!value) return null;
 
   const m = value.messages?.[0];
   if (!m) return { __ignorar: true }; // eventos de status (sent/delivered/read)
+
 
   const numero = m.from || value.contacts?.[0]?.wa_id || "";
   const nomeContato = value.contacts?.[0]?.profile?.name || "";
@@ -2637,7 +2672,14 @@ serve(async (req) => {
   try {
     let body = await req.json();
     if (body?.object === "whatsapp_business_account" || body?.entry) {
+      if (await registrarStatusCloud(body)) {
+        return new Response(JSON.stringify({ status: "status_registrado" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const convertido = await normalizarPayloadCloud(body);
+
       if (convertido?.__ignorar) {
         return new Response(JSON.stringify({ status: "evento_ignorado" }), {
           status: 200,
