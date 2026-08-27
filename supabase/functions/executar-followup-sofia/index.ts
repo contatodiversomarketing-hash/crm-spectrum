@@ -137,8 +137,9 @@ Deno.serve(async (req) => {
     );
   }
 
-  // Limite diário rígido: no máximo 5 mensagens por dia (aquecimento pós-bloqueio)
-  const MAX_POR_DIA = 5;
+  // Limite diário: na API oficial do Meta o número novo começa em 250 conversas/dia.
+  // Mantemos folga (30/dia) para preservar a qualidade do número; na MegaAPI segue 5/dia.
+  const MAX_POR_DIA = oficial ? 30 : 5;
   const MAX_FALHAS_SEGUIDAS = 2;
   const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
   let falhasSeguidas = 0;
