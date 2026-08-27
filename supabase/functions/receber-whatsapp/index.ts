@@ -2009,11 +2009,23 @@ function extrairEtiquetas(resposta: string): { etiquetas: string[]; textoLimpo: 
   return { etiquetas: [...new Set(encontradas)], textoLimpo };
 }
 
+function normalizarDataNascimento(bruta: string): string {
+  const s = bruta.trim();
+  const iso = s.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (iso) return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
+  const br = s.match(/(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
+  if (br) {
+    const ano = br[3].length === 2 ? `19${br[3]}` : br[3];
+    return `${ano}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
+  }
+  return s;
+}
+
 function extrairNascimento(resposta: string): { nascimento: string; textoLimpo: string } | null {
   const regex = /##ATUALIZAR_NASCIMENTO\|([^#]+)##/;
   const match = resposta.match(regex);
   if (!match) return null;
-  return { nascimento: match[1].trim(), textoLimpo: resposta.replace(regex, "").trim() };
+  return { nascimento: normalizarDataNascimento(match[1]), textoLimpo: resposta.replace(regex, "").trim() };
 }
 
 // =============================
