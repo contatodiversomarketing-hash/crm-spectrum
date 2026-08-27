@@ -140,6 +140,39 @@ export async function enviarTextoMega(numero: string, texto: string): Promise<Re
   return { ok, status: resp.status, body };
 }
 
+// Envio de TEMPLATE aprovado (obrigatório na API oficial para reabordar quem
+// não fala com a gente há mais de 24h). Se não houver template configurado ou
+// o provedor for a MegaAPI (não oficial), cai para texto livre.
+export async function enviarTemplateMega(
+  numero: string,
+  parametros: string[] = [],
+): Promise<Resultado & { usouTemplate: boolean }> {
+  const destino = numeroE164(numero);
+  const nome = (Deno.env.get("WHATSAPP_TEMPLATE_NOME") || "").trim();
+  const idioma = (Deno.env.get("WHATSAPP_TEMPLATE_IDIOMA") || "pt_BR").trim();
+
+  if (!nome || !datafyConfig().configurado) {
+    return { ok: false, status: 0, body: "template_nao_configurado", usouTemplate: false };
+  }
+
+  const components = parametros.length
+    ? [{ type: "body", parameters: parametros.map((t) => ({ type: "text", text: t })) }]
+    : [];
+
+  const r = await datafyPost({
+    to: destino,
+    type: "template",
+    template: { name: nome, language: { code: idioma }, ...(components.length ? { components } : {}) },
+  });
+  return { ...r, usouTemplate: true };
+}
+
+// Verifica se o lead falou com a gente nas últimas 24h (janela livre do Meta).
+export function dentroDaJanela24h(ultimaMensagemDoCliente?: string | null): boolean {
+  if (!ultimaMensagemDoCliente) return false;
+  return Date.now() - new Date(ultimaMensagemDoCliente).getTime() < 24 * 3600000;
+}
+
 export const NEUROACESSO_PDF_URL =
   "https://uftdsoqhyiqhxvckqxnp.supabase.co/storage/v1/object/public/treinamento-arquivos/materiais%2FMetodo_NeuroAcesso.pdf";
 
