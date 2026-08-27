@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { METODO_MESTRE_DAS_VENDAS } from "../_shared/metodo-vendas.ts";
 import { interpretarTriagem, TRIAGENS_CONTEXTO } from "../_shared/triagens.ts";
-import { enviarDocumentoMega, NEUROACESSO_PDF_URL, PIX_QRCODE_PDF_URL, baixarMidiaDatafy } from "../_shared/mega.ts";
+import { enviarDocumentoMega, NEUROACESSO_PDF_URL, PIX_QRCODE_PDF_URL, baixarMidiaDatafy, enviarTextoMega, datafyConfig } from "../_shared/mega.ts";
 import { buscarLead, buscarPaciente, upsertPaciente, telCanonico, telVariacoes, cpfLimpo as limparCpf } from "../_shared/dedup.ts";
 
 
@@ -2523,10 +2523,20 @@ function megaResponseIndicaSucesso(status: number, parsedBody: unknown): boolean
 // ENVIAR MENSAGEM VIA MEGAAPI
 // =============================
 async function enviarTexto(numero: string, texto: string, instanceKey = Deno.env.get("MEGA_INSTANCE_KEY") || ""): Promise<boolean> {
+  // Provedor padrão: API OFICIAL do Meta via Datafy. Só cai para a MegaAPI
+  // (legado, não oficial) quando a Datafy não estiver configurada.
+  if (datafyConfig().configurado) {
+    const r = await enviarTextoMega(numero, texto);
+    console.log(`[whatsapp] Envio texto (datafy/meta): ${r.status} ok=${r.ok} | ${r.body.slice(0, 160)}`);
+    if (r.ok) return true;
+    console.error("[whatsapp] Datafy recusou o envio — não usando fallback MegaAPI");
+    return false;
+  }
+
   const MEGA_API_URL = Deno.env.get("MEGA_API_URL");
   const MEGA_API_TOKEN = Deno.env.get("MEGA_API_TOKEN");
   if (!MEGA_API_URL || !MEGA_API_TOKEN) {
-    console.error("[whatsapp] MEGA_API não configurada");
+    console.error("[whatsapp] Nenhum provedor de WhatsApp configurado");
     return false;
   }
 
