@@ -184,6 +184,9 @@ Deno.serve(async (req) => {
       )
       .eq("followup_finalizado", false)
       .not("telefone", "is", null)
+      // Mais recentes primeiro: quem interagiu há menos tempo responde mais.
+      .order("ultima_interacao", { ascending: false, nullsFirst: false })
+      .order("criado_em", { ascending: false })
       .limit(300);
 
     if (error) throw error;
