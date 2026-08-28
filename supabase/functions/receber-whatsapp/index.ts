@@ -510,10 +510,16 @@ Você está atendendo pelo WhatsApp.
 - NUNCA diga que cannabis cura doenças. Diga que "pode auxiliar no tratamento"
 
 ## FLUXO DE PRIMEIRA INTERAÇÃO (OBRIGATÓRIO - siga esta ORDEM EXATA)
-1. **Mensagem 1 (apresentação)**: Se apresente com nome, cumprimente e pergunte o nome:
-   "${getSaudacao()}! Aqui é a Ana, consultora comercial. Trabalho com a Dra. Amélia Carvalho 😊 Como você está? Qual é o seu nome?"
+1. **Mensagem 1 (apresentação)**: Se apresente com nome, cumprimente usando EXATAMENTE a saudação informada no bloco "DATA E HORA ATUAL", e pergunte o nome:
+   "[SAUDAÇÃO CORRETA DE AGORA]! Aqui é a Ana, consultora comercial. Trabalho com a Dra. Amélia Carvalho 😊 Como você está? Qual é o seu nome?"
 2. **Mensagem 2 (após receber o nome)**: Agradeça, repita o nome, diga que TAMBÉM está bem (se perguntarem), e pergunte o que a pessoa está buscando
 3. **A partir da mensagem 3**: Siga o fluxo normal de atendimento/agendamento
+
+## REGRA DE NOME (NUNCA QUEBRE)
+- NUNCA chame a pessoa por um nome que ela não tenha informado NESTA conversa ou que não esteja confirmado no cadastro do sistema. É PROIBIDO inventar, adivinhar ou deduzir nome
+- Nomes vindos de planilha, agenda do celular ou perfil do WhatsApp NÃO são confiáveis: se você não tem certeza, NÃO use nome nenhum — apenas pergunte com leveza "Como posso te chamar?"
+- Na dúvida entre usar um nome incerto e não usar nome: NÃO use nome
+
 
 ## QUANDO O LEAD VEM DO SITE (TRIAGEM JÁ PREENCHIDA)
 - Se o contexto indicar que o lead veio do site draameliacarvalho.com (origem: site_draamelia) E há dados de triagem no contexto, você JÁ TEM os dados
@@ -3033,9 +3039,24 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     }
 
 
+    const agoraBR = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    const horaBR = `${String(agoraBR.getUTCHours()).padStart(2, "0")}:${String(agoraBR.getUTCMinutes()).padStart(2, "0")}`;
+    const dataBR = `${String(agoraBR.getUTCDate()).padStart(2, "0")}/${String(agoraBR.getUTCMonth() + 1).padStart(2, "0")}/${agoraBR.getUTCFullYear()}`;
+    const blocoAgora = `
+
+## DATA E HORA ATUAL (fuso de Brasília) — OBRIGATÓRIO
+- Agora são ${horaBR} do dia ${dataBR}.
+- A ÚNICA saudação correta neste momento é: "${getSaudacao()}". É PROIBIDO usar qualquer outra (não diga "Boa tarde" à noite nem "Bom dia" à tarde).
+
+## NOME DA PESSOA — OBRIGATÓRIO
+- Você NÃO sabe o nome desta pessoa a menos que ele apareça explicitamente no histórico desta conversa ou no cadastro confirmado abaixo.
+- NUNCA invente nem chute um nome. Se não tiver certeza, cumprimente sem nome e pergunte: "Como posso te chamar?"
+`;
+
     const messages: Array<{ role: string; content: any }> = [
-      { role: "system", content: SYSTEM_ENGINE_WHATSAPP + contextExtra },
+      { role: "system", content: SYSTEM_ENGINE_WHATSAPP + blocoAgora + contextExtra },
     ];
+
 
     if (historicoOrdenado.length > 0) {
       messages.push({
