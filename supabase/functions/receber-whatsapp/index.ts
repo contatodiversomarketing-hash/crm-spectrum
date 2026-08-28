@@ -3039,9 +3039,24 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     }
 
 
+    const agoraBR = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    const horaBR = `${String(agoraBR.getUTCHours()).padStart(2, "0")}:${String(agoraBR.getUTCMinutes()).padStart(2, "0")}`;
+    const dataBR = `${String(agoraBR.getUTCDate()).padStart(2, "0")}/${String(agoraBR.getUTCMonth() + 1).padStart(2, "0")}/${agoraBR.getUTCFullYear()}`;
+    const blocoAgora = `
+
+## DATA E HORA ATUAL (fuso de Brasília) — OBRIGATÓRIO
+- Agora são ${horaBR} do dia ${dataBR}.
+- A ÚNICA saudação correta neste momento é: "${getSaudacao()}". É PROIBIDO usar qualquer outra (não diga "Boa tarde" à noite nem "Bom dia" à tarde).
+
+## NOME DA PESSOA — OBRIGATÓRIO
+- Você NÃO sabe o nome desta pessoa a menos que ele apareça explicitamente no histórico desta conversa ou no cadastro confirmado abaixo.
+- NUNCA invente nem chute um nome. Se não tiver certeza, cumprimente sem nome e pergunte: "Como posso te chamar?"
+`;
+
     const messages: Array<{ role: string; content: any }> = [
-      { role: "system", content: SYSTEM_ENGINE_WHATSAPP + contextExtra },
+      { role: "system", content: SYSTEM_ENGINE_WHATSAPP + blocoAgora + contextExtra },
     ];
+
 
     if (historicoOrdenado.length > 0) {
       messages.push({
