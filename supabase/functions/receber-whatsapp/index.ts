@@ -3154,12 +3154,6 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     // =============================
     let respostaFinal = await gerarRespostaOpenAI(messages, Boolean(imagemBase64ParaIA));
 
-    // Saudação simples é tratada de forma determinística: evita retomar cobrança,
-    // usar nome incorreto do cadastro/perfil ou errar o período do dia.
-    if (ehSomenteSaudacao(mensagem)) {
-      respostaFinal = `${getSaudacao()}! Como você está? Em que posso ajudar hoje? 😊`;
-    }
-
     if (ehRespostaRepetidaOuIntroducao(respostaFinal, historicoOrdenado)) {
       console.warn(`[whatsapp] ⚠️ Resposta repetida detectada para ${numero}; tentando regenerar`);
       const retryMessages = [
@@ -3175,6 +3169,20 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     if (ehRespostaRepetidaOuIntroducao(respostaFinal, historicoOrdenado)) {
       console.warn(`[whatsapp] ⚠️ Resposta inválida persistente para ${numero}; usando fallback seguro`);
       respostaFinal = "";
+    }
+
+    // Proteção determinística final: o modelo não pode reaproveitar um nome antigo
+    // do histórico/cadastro quando a pessoa ainda não o confirmou na sessão atual.
+    const nomeConfirmado = nomeConfirmadoNaSessao(historicoOrdenado, mensagem);
+    const nomesNaoConfirmados = nomeConfirmado
+      ? []
+      : [pacienteEncontrado?.nome || ""];
+    respostaFinal = removerNomeNaoConfirmado(respostaFinal, nomesNaoConfirmados);
+
+    // Deve ser a última transformação de conteúdo para impedir que uma regeneração
+    // volte a inserir nome, cobrança ou saudação incorreta em mensagens como "oi oi".
+    if (ehSomenteSaudacao(mensagem)) {
+      respostaFinal = `${getSaudacao()}! Como você está? Em que posso ajudar hoje? 😊`;
     }
 
     // Fallback: só usar saudação se NÃO houver histórico (primeira interação)
