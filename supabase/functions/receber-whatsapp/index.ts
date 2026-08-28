@@ -102,6 +102,14 @@ function nomeConfirmadoNaSessao(historico: HistoricoInteracao[], mensagemAtual: 
   return null;
 }
 
+function nomesAntigosDoHistorico(historico: HistoricoInteracao[]): string[] {
+  const inicioSessao = Date.now() - 12 * 60 * 60 * 1000;
+  return Array.from(new Set(historico
+    .filter((item) => new Date(item.criado_em || 0).getTime() < inicioSessao)
+    .map((item) => extrairNomeAutodeclarado(item.mensagem_usuario))
+    .filter((nome): nome is string => Boolean(nome))));
+}
+
 function removerNomeNaoConfirmado(resposta: string, nomesBloqueados: string[]): string {
   let limpa = resposta;
   for (const nome of nomesBloqueados) {
@@ -3176,7 +3184,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     const nomeConfirmado = nomeConfirmadoNaSessao(historicoOrdenado, mensagem);
     const nomesNaoConfirmados = nomeConfirmado
       ? []
-      : [pacienteEncontrado?.nome || ""];
+      : [pacienteEncontrado?.nome || "", ...nomesAntigosDoHistorico(historicoOrdenado)];
     respostaFinal = removerNomeNaoConfirmado(respostaFinal, nomesNaoConfirmados);
 
     // Deve ser a última transformação de conteúdo para impedir que uma regeneração
