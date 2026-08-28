@@ -75,7 +75,44 @@ function ehSomenteSaudacao(texto?: string | null): boolean {
     .replace(/\s+/g, " ")
     .trim();
 
-  return /^(oi|ola|bom dia|boa tarde|boa noite|oi bom dia|oi boa tarde|oi boa noite|ola bom dia|ola boa tarde|ola boa noite|tudo bem|oi tudo bem|ola tudo bem)$/.test(normalizado);
+  const palavras = normalizado.split(" ").filter(Boolean);
+  if (palavras.length === 0 || palavras.length > 5) return false;
+
+  const saudacoesPermitidas = new Set(["oi", "ola", "bom", "boa", "dia", "tarde", "noite", "tudo", "bem"]);
+  return palavras.every((palavra) => saudacoesPermitidas.has(palavra));
+}
+
+function extrairNomeAutodeclarado(texto?: string | null): string | null {
+  const original = (texto || "").trim();
+  const match = original.match(/\b(?:meu nome (?:e|é)|me chamo|pode me chamar de|eu sou)\s+([A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ'’-]{1,39})\b/i);
+  return match?.[1]?.trim() || null;
+}
+
+function nomeConfirmadoNaSessao(historico: HistoricoInteracao[], mensagemAtual: string): string | null {
+  const agora = Date.now();
+  const inicioSessao = agora - 12 * 60 * 60 * 1000;
+  const mensagensRecentes = historico
+    .filter((item) => new Date(item.criado_em || 0).getTime() >= inicioSessao)
+    .map((item) => item.mensagem_usuario || "");
+
+  for (const texto of [...mensagensRecentes, mensagemAtual].reverse()) {
+    const nome = extrairNomeAutodeclarado(texto);
+    if (nome) return nome;
+  }
+  return null;
+}
+
+function removerNomeNaoConfirmado(resposta: string, nomesBloqueados: string[]): string {
+  let limpa = resposta;
+  for (const nome of nomesBloqueados) {
+    const primeiroNome = nome.trim().split(/\s+/)[0];
+    if (!primeiroNome || primeiroNome.length < 2) continue;
+    const escapado = primeiroNome.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    limpa = limpa
+      .replace(new RegExp(`([,!;:]\\s*)${escapado}(?=[!,.?:;]|\\s|$)`, "giu"), "$1")
+      .replace(new RegExp(`^${escapado}([,!;:]\\s*)`, "iu"), "");
+  }
+  return limpa.replace(/,\s*([!?.])/g, "$1").replace(/\s{2,}/g, " ").trim();
 }
 
 function ehRespostaRepetidaOuIntroducao(resposta: string, historico: HistoricoInteracao[]): boolean {
