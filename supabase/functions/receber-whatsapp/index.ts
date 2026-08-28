@@ -69,6 +69,15 @@ function ehSaudacaoPadraoAna(texto?: string | null): boolean {
   );
 }
 
+function ehSomenteSaudacao(texto?: string | null): boolean {
+  const normalizado = normalizarTextoComparacao(texto)
+    .replace(/\b(ana|amelia|dra|doutora)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return /^(oi|ola|bom dia|boa tarde|boa noite|oi bom dia|oi boa tarde|oi boa noite|ola bom dia|ola boa tarde|ola boa noite|tudo bem|oi tudo bem|ola tudo bem)$/.test(normalizado);
+}
+
 function ehRespostaRepetidaOuIntroducao(resposta: string, historico: HistoricoInteracao[]): boolean {
   const respostaNormalizada = normalizarTextoComparacao(resposta);
   if (!respostaNormalizada) return false;
@@ -516,8 +525,8 @@ Você está atendendo pelo WhatsApp.
 3. **A partir da mensagem 3**: Siga o fluxo normal de atendimento/agendamento
 
 ## REGRA DE NOME (NUNCA QUEBRE)
-- NUNCA chame a pessoa por um nome que ela não tenha informado NESTA conversa ou que não esteja confirmado no cadastro do sistema. É PROIBIDO inventar, adivinhar ou deduzir nome
-- Nomes vindos de planilha, agenda do celular ou perfil do WhatsApp NÃO são confiáveis: se você não tem certeza, NÃO use nome nenhum — apenas pergunte com leveza "Como posso te chamar?"
+- NUNCA chame a pessoa por um nome que ela não tenha informado explicitamente NESTA conversa. É PROIBIDO inventar, adivinhar, deduzir ou aproveitar automaticamente o nome do cadastro
+- Nomes vindos de cadastro, planilha, agenda do celular ou perfil do WhatsApp NÃO são confirmação. Até a própria pessoa informar o nome na conversa, NÃO use nome nenhum — apenas pergunte com leveza "Como posso te chamar?"
 - Na dúvida entre usar um nome incerto e não usar nome: NÃO use nome
 
 
@@ -2975,7 +2984,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     contextExtra += contextProfissionais;
     contextExtra += contextAgenda;
     if (pacienteEncontrado?.nome) {
-      contextExtra += `\n\nNOME DO PACIENTE: ${pacienteEncontrado.nome}. Use o nome dele(a).`;
+      contextExtra += `\n\nNOME NO CADASTRO (NÃO CONFIRMADO NA CONVERSA): ${pacienteEncontrado.nome}. NÃO use este nome para chamar a pessoa até que ela mesma o informe explicitamente nesta conversa.`;
     }
     contextExtra += `\nTELEFONE DO PACIENTE: ${numero}`;
     if (pacienteEncontrado?.id) {
@@ -3049,7 +3058,8 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
 - A ÚNICA saudação correta neste momento é: "${getSaudacao()}". É PROIBIDO usar qualquer outra (não diga "Boa tarde" à noite nem "Bom dia" à tarde).
 
 ## NOME DA PESSOA — OBRIGATÓRIO
-- Você NÃO sabe o nome desta pessoa a menos que ele apareça explicitamente no histórico desta conversa ou no cadastro confirmado abaixo.
+- Você NÃO sabe o nome desta pessoa a menos que ela mesma o tenha informado explicitamente no histórico desta conversa.
+- Nome de cadastro, planilha, perfil ou pushName NÃO confirma como a pessoa quer ser chamada e NÃO pode ser usado na saudação.
 - NUNCA invente nem chute um nome. Se não tiver certeza, cumprimente sem nome e pergunte: "Como posso te chamar?"
 `;
 
@@ -3106,6 +3116,12 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     // GERAR RESPOSTA COM OPENAI
     // =============================
     let respostaFinal = await gerarRespostaOpenAI(messages, Boolean(imagemBase64ParaIA));
+
+    // Saudação simples é tratada de forma determinística: evita retomar cobrança,
+    // usar nome incorreto do cadastro/perfil ou errar o período do dia.
+    if (ehSomenteSaudacao(mensagem)) {
+      respostaFinal = `${getSaudacao()}! Como você está? Em que posso ajudar hoje? 😊`;
+    }
 
     if (ehRespostaRepetidaOuIntroducao(respostaFinal, historicoOrdenado)) {
       console.warn(`[whatsapp] ⚠️ Resposta repetida detectada para ${numero}; tentando regenerar`);
