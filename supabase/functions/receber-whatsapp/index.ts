@@ -2967,6 +2967,19 @@ IMPORTANTE: O paciente já existe no sistema. Pode seguir com o agendamento usan
       }
     }
 
+    const historicoDaSessao = (historico || []).filter(
+      (item) => new Date(item.criado_em || 0).getTime() >= Date.now() - 12 * 60 * 60 * 1000,
+    );
+    const nomeConfirmadoAtual = nomeConfirmadoNaSessao(historicoDaSessao, mensagem);
+
+    // O cadastro ajuda nas operações internas, mas seu nome não entra no prompt
+    // enquanto a própria pessoa não se identificar na conversa atual.
+    if (pacienteEncontrado && !nomeConfirmadoAtual) {
+      contextPaciente = `\n\n## CADASTRO LOCALIZADO
+- Há um cadastro associado a este telefone.
+- Use-o apenas para operações internas. Não presuma nem mencione o nome cadastrado.`;
+    }
+
     // Detectar profissional mencionado pelo NOME na mensagem atual
     const profMencionado = detectarProfissionalPorNome(mensagem, profResult.raw);
     
@@ -3028,8 +3041,8 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     contextExtra += contextPaciente;
     contextExtra += contextProfissionais;
     contextExtra += contextAgenda;
-    if (pacienteEncontrado?.nome) {
-      contextExtra += `\n\nNOME NO CADASTRO (NÃO CONFIRMADO NA CONVERSA): ${pacienteEncontrado.nome}. NÃO use este nome para chamar a pessoa até que ela mesma o informe explicitamente nesta conversa.`;
+    if (nomeConfirmadoAtual) {
+      contextExtra += `\n\nNOME INFORMADO PELA PRÓPRIA PESSOA NESTA CONVERSA: ${nomeConfirmadoAtual}.`;
     }
     contextExtra += `\nTELEFONE DO PACIENTE: ${numero}`;
     if (pacienteEncontrado?.id) {
@@ -3076,8 +3089,8 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     }
 
     // Montar mensagens para IA (suporte multimodal com vision)
-    const historicoOrdenado: HistoricoInteracao[] = historico
-      ? [...historico].sort((a, b) => new Date(a.criado_em).getTime() - new Date(b.criado_em).getTime())
+    const historicoOrdenado: HistoricoInteracao[] = historicoDaSessao
+      ? [...historicoDaSessao].sort((a, b) => new Date(a.criado_em).getTime() - new Date(b.criado_em).getTime())
       : [];
 
     // =============================
