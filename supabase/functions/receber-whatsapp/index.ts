@@ -75,7 +75,52 @@ function ehSomenteSaudacao(texto?: string | null): boolean {
     .replace(/\s+/g, " ")
     .trim();
 
-  return /^(oi|ola|bom dia|boa tarde|boa noite|oi bom dia|oi boa tarde|oi boa noite|ola bom dia|ola boa tarde|ola boa noite|tudo bem|oi tudo bem|ola tudo bem)$/.test(normalizado);
+  const palavras = normalizado.split(" ").filter(Boolean);
+  if (palavras.length === 0 || palavras.length > 5) return false;
+
+  const saudacoesPermitidas = new Set(["oi", "ola", "bom", "boa", "dia", "tarde", "noite", "tudo", "bem"]);
+  return palavras.every((palavra) => saudacoesPermitidas.has(palavra));
+}
+
+function extrairNomeAutodeclarado(texto?: string | null): string | null {
+  const original = (texto || "").trim();
+  const match = original.match(/\b(?:meu nome (?:e|é)|me chamo|pode me chamar de|eu sou)\s+([A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ'’-]{1,39})\b/i);
+  return match?.[1]?.trim() || null;
+}
+
+function nomeConfirmadoNaSessao(historico: HistoricoInteracao[], mensagemAtual: string): string | null {
+  const agora = Date.now();
+  const inicioSessao = agora - 12 * 60 * 60 * 1000;
+  const mensagensRecentes = historico
+    .filter((item) => new Date(item.criado_em || 0).getTime() >= inicioSessao)
+    .map((item) => item.mensagem_usuario || "");
+
+  for (const texto of [...mensagensRecentes, mensagemAtual].reverse()) {
+    const nome = extrairNomeAutodeclarado(texto);
+    if (nome) return nome;
+  }
+  return null;
+}
+
+function nomesAntigosDoHistorico(historico: HistoricoInteracao[]): string[] {
+  const inicioSessao = Date.now() - 12 * 60 * 60 * 1000;
+  return Array.from(new Set(historico
+    .filter((item) => new Date(item.criado_em || 0).getTime() < inicioSessao)
+    .map((item) => extrairNomeAutodeclarado(item.mensagem_usuario))
+    .filter((nome): nome is string => Boolean(nome))));
+}
+
+function removerNomeNaoConfirmado(resposta: string, nomesBloqueados: string[]): string {
+  let limpa = resposta;
+  for (const nome of nomesBloqueados) {
+    const primeiroNome = nome.trim().split(/\s+/)[0];
+    if (!primeiroNome || primeiroNome.length < 2) continue;
+    const escapado = primeiroNome.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    limpa = limpa
+      .replace(new RegExp(`([,!;:]\\s*)${escapado}(?=[!,.?:;]|\\s|$)`, "giu"), "$1")
+      .replace(new RegExp(`^${escapado}([,!;:]\\s*)`, "iu"), "");
+  }
+  return limpa.replace(/,\s*([!?.])/g, "$1").replace(/\s{2,}/g, " ").trim();
 }
 
 function ehRespostaRepetidaOuIntroducao(resposta: string, historico: HistoricoInteracao[]): boolean {
@@ -2922,6 +2967,19 @@ IMPORTANTE: O paciente já existe no sistema. Pode seguir com o agendamento usan
       }
     }
 
+    const historicoDaSessao = (historico || []).filter(
+      (item) => new Date(item.criado_em || 0).getTime() >= Date.now() - 12 * 60 * 60 * 1000,
+    );
+    const nomeConfirmadoAtual = nomeConfirmadoNaSessao(historicoDaSessao, mensagem);
+
+    // O cadastro ajuda nas operações internas, mas seu nome não entra no prompt
+    // enquanto a própria pessoa não se identificar na conversa atual.
+    if (pacienteEncontrado && !nomeConfirmadoAtual) {
+      contextPaciente = `\n\n## CADASTRO LOCALIZADO
+- Há um cadastro associado a este telefone.
+- Use-o apenas para operações internas. Não presuma nem mencione o nome cadastrado.`;
+    }
+
     // Detectar profissional mencionado pelo NOME na mensagem atual
     const profMencionado = detectarProfissionalPorNome(mensagem, profResult.raw);
     
@@ -2983,8 +3041,8 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     contextExtra += contextPaciente;
     contextExtra += contextProfissionais;
     contextExtra += contextAgenda;
-    if (pacienteEncontrado?.nome) {
-      contextExtra += `\n\nNOME NO CADASTRO (NÃO CONFIRMADO NA CONVERSA): ${pacienteEncontrado.nome}. NÃO use este nome para chamar a pessoa até que ela mesma o informe explicitamente nesta conversa.`;
+    if (nomeConfirmadoAtual) {
+      contextExtra += `\n\nNOME INFORMADO PELA PRÓPRIA PESSOA NESTA CONVERSA: ${nomeConfirmadoAtual}.`;
     }
     contextExtra += `\nTELEFONE DO PACIENTE: ${numero}`;
     if (pacienteEncontrado?.id) {
@@ -3031,8 +3089,8 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     }
 
     // Montar mensagens para IA (suporte multimodal com vision)
-    const historicoOrdenado: HistoricoInteracao[] = historico
-      ? [...historico].sort((a, b) => new Date(a.criado_em).getTime() - new Date(b.criado_em).getTime())
+    const historicoOrdenado: HistoricoInteracao[] = historicoDaSessao
+      ? [...historicoDaSessao].sort((a, b) => new Date(a.criado_em).getTime() - new Date(b.criado_em).getTime())
       : [];
 
     // =============================
@@ -3117,12 +3175,6 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     // =============================
     let respostaFinal = await gerarRespostaOpenAI(messages, Boolean(imagemBase64ParaIA));
 
-    // Saudação simples é tratada de forma determinística: evita retomar cobrança,
-    // usar nome incorreto do cadastro/perfil ou errar o período do dia.
-    if (ehSomenteSaudacao(mensagem)) {
-      respostaFinal = `${getSaudacao()}! Como você está? Em que posso ajudar hoje? 😊`;
-    }
-
     if (ehRespostaRepetidaOuIntroducao(respostaFinal, historicoOrdenado)) {
       console.warn(`[whatsapp] ⚠️ Resposta repetida detectada para ${numero}; tentando regenerar`);
       const retryMessages = [
@@ -3138,6 +3190,20 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     if (ehRespostaRepetidaOuIntroducao(respostaFinal, historicoOrdenado)) {
       console.warn(`[whatsapp] ⚠️ Resposta inválida persistente para ${numero}; usando fallback seguro`);
       respostaFinal = "";
+    }
+
+    // Proteção determinística final: o modelo não pode reaproveitar um nome antigo
+    // do histórico/cadastro quando a pessoa ainda não o confirmou na sessão atual.
+    const nomeConfirmado = nomeConfirmadoNaSessao(historicoOrdenado, mensagem);
+    const nomesNaoConfirmados = nomeConfirmado
+      ? []
+      : [pacienteEncontrado?.nome || "", ...nomesAntigosDoHistorico(historicoOrdenado)];
+    respostaFinal = removerNomeNaoConfirmado(respostaFinal, nomesNaoConfirmados);
+
+    // Deve ser a última transformação de conteúdo para impedir que uma regeneração
+    // volte a inserir nome, cobrança ou saudação incorreta em mensagens como "oi oi".
+    if (ehSomenteSaudacao(mensagem)) {
+      respostaFinal = `${getSaudacao()}! Como você está? Em que posso ajudar hoje? 😊`;
     }
 
     // Fallback: só usar saudação se NÃO houver histórico (primeira interação)
