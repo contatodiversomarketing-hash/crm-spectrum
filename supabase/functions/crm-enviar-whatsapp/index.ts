@@ -1,6 +1,6 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { megaConfig } from "../_shared/mega.ts";
+import { megaConfig, enviarTextoMega } from "../_shared/mega.ts";
 
 type Body = {
   numero?: string;
@@ -43,14 +43,19 @@ Deno.serve(async (req) => {
     if (tipo === "text" && !body.texto?.trim()) return json({ error: "Mensagem vazia" }, 400);
     if (tipo !== "text" && !body.base64) return json({ error: "Arquivo não enviado" }, 400);
 
-    const { origin, token, instanceKey, configurado } = megaConfig();
-    if (!configurado) return json({ error: "MEGA_API não configurada" }, 400);
+    // Texto: sempre pela camada única (API oficial Meta/Datafy com fallback MegaAPI)
+    if (tipo === "text") {
+      const r = await enviarTextoMega(numero, body.texto!);
+      if (!r.ok) {
+        console.error("[crm-enviar-whatsapp] falha", r.status, r.body.slice(0, 400));
+        return json({ error: "Falha ao enviar pelo WhatsApp", status: r.status, details: r.body.slice(0, 400) }, 502);
+      }
+    } else {
+      const { origin, token, instanceKey, configurado } = megaConfig();
+      if (!configurado) return json({ error: "Envio de mídia não configurado" }, 400);
 
-    const to = `${numero}@s.whatsapp.net`;
-    const endpoint = tipo === "text" ? "text" : "mediaBase64";
-    const messageData = tipo === "text"
-      ? { to, text: body.texto }
-      : {
+      const to = `${numero}@s.whatsapp.net`;
+      const messageData = {
         to,
         base64: String(body.base64).replace(/^data:[^;]+;base64,/, ""),
         fileName: body.fileName || (tipo === "audio" ? "audio.ogg" : "arquivo"),
@@ -59,20 +64,21 @@ Deno.serve(async (req) => {
         caption: body.texto || "",
       };
 
-    const resp = await fetch(`${origin}/rest/sendMessage/${instanceKey}/${endpoint}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-        apikey: token,
-      },
-      body: JSON.stringify({ messageData }),
-    });
+      const resp = await fetch(`${origin}/rest/sendMessage/${instanceKey}/mediaBase64`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          apikey: token,
+        },
+        body: JSON.stringify({ messageData }),
+      });
 
-    const respBody = await resp.text();
-    if (!resp.ok) {
-      console.error("[crm-enviar-whatsapp] falha", resp.status, respBody.slice(0, 400));
-      return json({ error: "Falha ao enviar pelo WhatsApp", status: resp.status, details: respBody.slice(0, 400) }, 502);
+      const respBody = await resp.text();
+      if (!resp.ok) {
+        console.error("[crm-enviar-whatsapp] falha", resp.status, respBody.slice(0, 400));
+        return json({ error: "Falha ao enviar pelo WhatsApp", status: resp.status, details: respBody.slice(0, 400) }, 502);
+      }
     }
 
     const registro = tipo === "text"
