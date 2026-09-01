@@ -171,8 +171,16 @@ export default function Conversas({ modo }: { modo: "ia" | "atendente" }) {
       .channel(`conversas-${modo}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "interacoes_ia" }, () => carregar())
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    const intervalo = setInterval(() => carregar(), 5000);
+    const onFocus = () => carregar();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(intervalo);
+      window.removeEventListener("focus", onFocus);
+    };
   }, [carregar, carregarConfig, modo]);
+
 
   const conversas = useMemo<Conversa[]>(() => {
     const filtroModo = (i: Interacao) =>
