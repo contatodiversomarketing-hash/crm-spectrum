@@ -37,8 +37,8 @@ const App = () => (
             <Route path="/crm" element={<ProtectedRoute><AppLayout><CRM /></AppLayout></ProtectedRoute>} />
             <Route path="/agenda" element={<ProtectedRoute><AppLayout><Agenda /></AppLayout></ProtectedRoute>} />
             <Route path="/pacientes" element={<ProtectedRoute><AppLayout><Pacientes /></AppLayout></ProtectedRoute>} />
-            <Route path="/conversas-ia" element={<ProtectedRoute requiredRoles={["admin", "supervisao", "analista"]}><AppLayout><Conversas modo="ia" /></AppLayout></ProtectedRoute>} />
-            <Route path="/conversas-atendente" element={<ProtectedRoute requiredRoles={["admin", "supervisao", "analista"]}><AppLayout><Conversas modo="atendente" /></AppLayout></ProtectedRoute>} />
+            <Route path="/conversas-ia" element={<ProtectedRoute requiredRoles={["admin", "supervisao", "analista"]}><AppLayout><Conversas /></AppLayout></ProtectedRoute>} />
+            <Route path="/conversas" element={<ProtectedRoute requiredRoles={["admin", "supervisao", "analista"]}><AppLayout><Conversas /></AppLayout></ProtectedRoute>} />
 
 
             <Route path="*" element={<NotFound />} />

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Bot, User, Search, RefreshCw, MessageSquare, Send, Power } from "lucide-react";
+import { Search, RefreshCw, MessageSquare, MessagesSquare, Send, Power } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -44,7 +44,7 @@ function hora(iso: string) {
   return new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
-export default function Conversas({ modo }: { modo: "ia" | "atendente" }) {
+export default function Conversas() {
   const [interacoes, setInteracoes] = useState<Interacao[]>([]);
   const [nomes, setNomes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -168,7 +168,7 @@ export default function Conversas({ modo }: { modo: "ia" | "atendente" }) {
     carregar();
     carregarConfig();
     const channel = supabase
-      .channel(`conversas-${modo}`)
+      .channel("conversas-unificadas")
       .on("postgres_changes", { event: "*", schema: "public", table: "interacoes_ia" }, () => carregar())
       .subscribe();
     const intervalo = setInterval(() => carregar(), 5000);
@@ -179,7 +179,7 @@ export default function Conversas({ modo }: { modo: "ia" | "atendente" }) {
       clearInterval(intervalo);
       window.removeEventListener("focus", onFocus);
     };
-  }, [carregar, carregarConfig, modo]);
+  }, [carregar, carregarConfig]);
 
 
   const conversas = useMemo<Conversa[]>(() => {
@@ -220,7 +220,7 @@ export default function Conversas({ modo }: { modo: "ia" | "atendente" }) {
         <div className="px-6 py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center">
-              {modo === "ia" ? <Bot className="h-5 w-5 text-primary-foreground" /> : <User className="h-5 w-5 text-primary-foreground" />}
+              <MessagesSquare className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
               <h1 className="text-lg font-bold tracking-tight">{titulo}</h1>
