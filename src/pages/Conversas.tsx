@@ -183,14 +183,8 @@ export default function Conversas({ modo }: { modo: "ia" | "atendente" }) {
 
 
   const conversas = useMemo<Conversa[]>(() => {
-    const filtroModo = (i: Interacao) =>
-      modo === "ia"
-        ? !i.supervisionado
-        : i.supervisionado && (i.intencao_detectada === "resposta_humana" || !!i.atendente_humano);
-
     const grupos: Record<string, Interacao[]> = {};
     for (const i of interacoes) {
-      if (!filtroModo(i)) continue;
       const tel = i.paciente_externo_id.replace("tel:", "");
       if (!grupos[tel]) grupos[tel] = [];
       grupos[tel].push(i);
@@ -212,14 +206,13 @@ export default function Conversas({ modo }: { modo: "ia" | "atendente" }) {
         soDigitos(c.telefone).includes(soDigitos(busca))
       )
       .sort((a, b) => b.ultima.localeCompare(a.ultima));
-  }, [interacoes, nomes, busca, modo]);
+  }, [interacoes, nomes, busca]);
 
   const ativa = conversas.find((c) => c.telefone === selecionada) || conversas[0];
 
-  const titulo = modo === "ia" ? "Conversas da IA (Ana)" : "Conversas da Atendente";
-  const subtitulo = modo === "ia"
-    ? "Acompanhe em tempo real como a Ana está conversando"
-    : "Acompanhe os atendimentos feitos pela equipe humana";
+  const titulo = "Conversas";
+  const subtitulo = "Espelho do WhatsApp — pacientes, Ana e atendentes no mesmo chat";
+
 
   return (
     <div className="min-h-screen bg-background">
