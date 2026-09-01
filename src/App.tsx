@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
@@ -37,8 +37,9 @@ const App = () => (
             <Route path="/crm" element={<ProtectedRoute><AppLayout><CRM /></AppLayout></ProtectedRoute>} />
             <Route path="/agenda" element={<ProtectedRoute><AppLayout><Agenda /></AppLayout></ProtectedRoute>} />
             <Route path="/pacientes" element={<ProtectedRoute><AppLayout><Pacientes /></AppLayout></ProtectedRoute>} />
-            <Route path="/conversas-ia" element={<ProtectedRoute requiredRoles={["admin", "supervisao", "analista"]}><AppLayout><Conversas modo="ia" /></AppLayout></ProtectedRoute>} />
-            <Route path="/conversas-atendente" element={<ProtectedRoute requiredRoles={["admin", "supervisao", "analista"]}><AppLayout><Conversas modo="atendente" /></AppLayout></ProtectedRoute>} />
+            <Route path="/conversas-ia" element={<Navigate to="/conversas" replace />} />
+            <Route path="/conversas-atendente" element={<Navigate to="/conversas" replace />} />
+            <Route path="/conversas" element={<ProtectedRoute requiredRoles={["admin", "supervisao", "analista"]}><AppLayout><Conversas /></AppLayout></ProtectedRoute>} />
 
 
             <Route path="*" element={<NotFound />} />

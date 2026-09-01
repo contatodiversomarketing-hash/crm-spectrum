@@ -2893,6 +2893,32 @@ serve(async (req) => {
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
+    if (numero.includes("-") || numero.length < 10) {
+      console.log("[whatsapp] Ignorando: número inválido");
+      return new Response("ok");
+    }
+
+    const numeroCanonicoLog = telCanonico(numero) || numero;
+
+    // Espelho do WhatsApp: registrar SEMPRE a mensagem (mesmo com a IA desligada)
+    if (isFromMe) {
+      // Mensagem enviada pelo número da clínica (atendente respondendo pelo celular)
+      if (mensagem && mensagem.trim()) {
+        await supabase.from("interacoes_ia").insert({
+          paciente_externo_id: numeroCanonicoLog,
+          canal: "whatsapp",
+          sistema_origem: "megaapi",
+          mensagem_usuario: null,
+          resposta_final: mensagem.slice(0, 5000),
+          atendente_humano: "Atendente (WhatsApp)",
+          estado_conversa: "em_andamento",
+          supervisionado: true,
+        });
+      }
+      console.log(`[whatsapp] 📤 fromMe registrado para ${numero}`);
+      return new Response("ok");
+    }
+
     // Verificar se o canal WhatsApp está ativo
     const { data: configCanal, error: configCanalError } = await supabase
       .from("configuracoes_sistema")
@@ -2902,23 +2928,33 @@ serve(async (req) => {
       .maybeSingle();
 
     // Segurança: a Ana só responde com uma configuração explicitamente ativa.
-    // Se a leitura falhar ou não existir configuração, permanece pausada.
+    // Se a leitura falhar ou não existir configuração, permanece pausada —
+    // mas a mensagem do paciente continua sendo gravada para acompanhamento.
     if (configCanalError || configCanal?.whatsapp_ativo !== true) {
-      console.log("[whatsapp] Canal WhatsApp PAUSADO - ignorando mensagem", configCanalError?.message || "");
-      return new Response(JSON.stringify({ status: "canal_desativado" }), {
+      console.log("[whatsapp] Canal PAUSADO - registrando mensagem sem responder", configCanalError?.message || "");
+      if (mensagem && mensagem.trim()) {
+        await supabase.from("interacoes_ia").insert({
+          paciente_externo_id: numeroCanonicoLog,
+          canal: "whatsapp",
+          sistema_origem: "megaapi",
+          mensagem_usuario: mensagem.slice(0, 5000),
+          estado_conversa: "aguardando_atendente",
+          supervisionado: true,
+        });
+        fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/ana-atualizar-crm`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          },
+          body: JSON.stringify({ numero }),
+        }).catch(() => {});
+      }
+      return new Response(JSON.stringify({ status: "canal_desativado_mensagem_registrada" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    if (numero.includes("-") || numero.length < 10) {
-      console.log("[whatsapp] Ignorando: número inválido");
-      return new Response("ok");
-    }
-
-    if (isFromMe) {
-      console.log(`[whatsapp] 📤 fromMe detectado para ${numero} — ignorando (sem bloqueio humano)`);
-      return new Response("ok");
-    }
 
     // =============================
     // TRAVA DE CONCORRÊNCIA - evitar processar mesmo número em paralelo
