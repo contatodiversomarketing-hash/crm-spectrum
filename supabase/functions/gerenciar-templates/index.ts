@@ -38,6 +38,15 @@ Deno.serve(async (req) => {
 
   try {
     if (req.method === "POST") {
+      let payload: Record<string, unknown> = {};
+      try { payload = await req.json(); } catch { /* sem corpo */ }
+
+      // Envio de teste usando o template aprovado
+      if (payload?.acao === "enviar" && payload?.numero) {
+        const r = await enviarTemplateMega(String(payload.numero), [String(payload.nome || "tudo bem")]);
+        return json({ acao: "enviar", status: r.status, ok: r.ok, body: r.body.slice(0, 600) }, 200);
+      }
+
       const resp = await fetch(url, { method: "POST", headers, body: JSON.stringify(TEMPLATE) });
       const body = await resp.text();
       return json({ acao: "criar", status: resp.status, body }, 200);
