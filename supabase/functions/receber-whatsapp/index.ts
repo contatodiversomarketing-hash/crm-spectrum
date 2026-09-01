@@ -2894,15 +2894,17 @@ serve(async (req) => {
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     // Verificar se o canal WhatsApp está ativo
-    const { data: configCanal } = await supabase
+    const { data: configCanal, error: configCanalError } = await supabase
       .from("configuracoes_sistema")
       .select("whatsapp_ativo")
       .order("criado_em", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (configCanal && configCanal.whatsapp_ativo === false) {
-      console.log("[whatsapp] Canal WhatsApp DESATIVADO - ignorando mensagem");
+    // Segurança: a Ana só responde com uma configuração explicitamente ativa.
+    // Se a leitura falhar ou não existir configuração, permanece pausada.
+    if (configCanalError || configCanal?.whatsapp_ativo !== true) {
+      console.log("[whatsapp] Canal WhatsApp PAUSADO - ignorando mensagem", configCanalError?.message || "");
       return new Response(JSON.stringify({ status: "canal_desativado" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
