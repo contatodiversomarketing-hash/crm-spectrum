@@ -3534,38 +3534,12 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     respostaFinal = respostaFinal.replace(/##ENVIAR_QRCODE_PIX##/gi, "").trim();
 
     // =============================
-    // ENVIAR RESPOSTA (com verificação FRESCA de duplicação no banco)
+    // ENVIAR RESPOSTA
     // =============================
     console.log(`[whatsapp] 📤 Resposta: "${respostaFinal.slice(0, 100)}..."`);
 
-    // Verificação FRESCA no banco — recarrega a última resposta AGORA (não do cache do início)
-    const { data: ultimaFresca } = await supabase
-      .from("interacoes_ia")
-      .select("resposta_final, criado_em")
-      .in("paciente_externo_id", numerosBusca)
-      .eq("canal", "whatsapp")
-      .not("resposta_final", "is", null)
-      .order("criado_em", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const ultimaRespostaFresca = ultimaFresca?.resposta_final;
-    if (normalizarTextoComparacao(ultimaRespostaFresca) === normalizarTextoComparacao(respostaFinal)) {
-      console.warn(`[whatsapp] ⚠️ Bloqueando reenvio duplicado (check fresco) para ${numero}`);
-      await liberarLockDB(supabase, numero);
-      return new Response(JSON.stringify({ status: "resposta_duplicada_bloqueada" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Verificar também se é saudação repetida quando já tem histórico
-    if (ultimaFresca && ehSaudacaoPadraoAna(respostaFinal)) {
-      console.warn(`[whatsapp] ⚠️ Bloqueando saudação repetida (já existe histórico) para ${numero}`);
-      await liberarLockDB(supabase, numero);
-      return new Response(JSON.stringify({ status: "saudacao_repetida_bloqueada" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // O lock por número acima já elimina webhooks concorrentes. Não compare o texto
+    // com respostas antigas: saudações legítimas podem ser iguais em dias diferentes.
 
     const delayMs = 3000 + Math.random() * 1500;
     await new Promise(resolve => setTimeout(resolve, delayMs));
