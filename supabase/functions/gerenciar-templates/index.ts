@@ -1,5 +1,5 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { datafyConfig } from "../_shared/mega.ts";
+import { datafyConfig, enviarTemplateMega } from "../_shared/mega.ts";
 
 // Gerencia templates de WhatsApp (API oficial Meta via proxy Datafy).
 // GET  -> lista templates da WABA
