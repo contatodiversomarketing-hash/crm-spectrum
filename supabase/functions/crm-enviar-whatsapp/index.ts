@@ -1,6 +1,6 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { megaConfig } from "../_shared/mega.ts";
+import { megaConfig, enviarTextoMega } from "../_shared/mega.ts";
 
 type Body = {
   numero?: string;
