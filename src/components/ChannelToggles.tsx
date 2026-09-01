@@ -33,7 +33,7 @@ export function ChannelToggles() {
     const setter = channel === "whatsapp_ativo" ? setWhatsappAtivo : setTelefoneAtivo;
     setter(value);
 
-    const { data: config } = await supabase
+    let { data: config } = await supabase
       .from("configuracoes_sistema")
       .select("id")
       .order("criado_em", { ascending: false })
@@ -41,9 +41,18 @@ export function ChannelToggles() {
       .maybeSingle();
 
     if (!config) {
-      toast({ title: "Erro", description: "Configuração não encontrada", variant: "destructive" });
-      setter(!value);
-      return;
+      const { data: created, error: createError } = await supabase
+        .from("configuracoes_sistema")
+        .insert({ whatsapp_ativo: true, telefone_ativo: true })
+        .select("id")
+        .single();
+
+      if (createError || !created) {
+        toast({ title: "Erro", description: "Falha ao criar configuração", variant: "destructive" });
+        setter(!value);
+        return;
+      }
+      config = created;
     }
 
     const { error } = await supabase
