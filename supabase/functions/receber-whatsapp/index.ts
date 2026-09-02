@@ -2713,12 +2713,33 @@ async function normalizarPayloadCloud(raw: any): Promise<any | null> {
   const value = change?.value;
   if (!value) return null;
 
-  // Ecos das nossas próprias mensagens (smb_message_echoes) não devem gerar resposta.
-  if (String(change?.field || "").includes("echo")) return { __ignorar: true };
-  if (Array.isArray(value.message_echoes)) return { __ignorar: true };
+  // Ecos: mensagens enviadas pelo próprio número da clínica (celular da Dra./atendente
+  // ou qualquer outra ferramenta). Espelhamos no chat como mensagem de saída.
+  const ehEcho = String(change?.field || "").includes("echo") || Array.isArray(value.message_echoes);
+  if (ehEcho) {
+    const e = (value.message_echoes || value.messages || [])[0];
+    if (!e) return { __ignorar: true };
+    const destino = String(e.to || e.recipient_id || e.from || "").replace(/\D/g, "");
+    const tipo = e.type || "text";
+    const texto =
+      e.text?.body ||
+      e.interactive?.button_reply?.title ||
+      e.interactive?.list_reply?.title ||
+      e[tipo]?.caption ||
+      (tipo !== "text" ? `[${tipo}]` : "");
+    if (!destino || !texto) return { __ignorar: true };
+    return {
+      key: { remoteJid: `${destino}@s.whatsapp.net`, fromMe: true, senderPn: destino },
+      jid: destino,
+      isGroup: false,
+      message: { conversation: texto },
+      messageType: "conversation",
+    };
+  }
 
   const m = value.messages?.[0];
   if (!m) return { __ignorar: true }; // eventos de status (sent/delivered/read)
+
 
 
 
@@ -2902,22 +2923,37 @@ serve(async (req) => {
 
     // Espelho do WhatsApp: registrar SEMPRE a mensagem (mesmo com a IA desligada)
     if (isFromMe) {
-      // Mensagem enviada pelo número da clínica (atendente respondendo pelo celular)
+      // Mensagem enviada pelo número da clínica (atendente pelo celular, Ana ou CRM).
       if (mensagem && mensagem.trim()) {
-        await supabase.from("interacoes_ia").insert({
-          paciente_externo_id: numeroCanonicoLog,
-          canal: "whatsapp",
-          sistema_origem: "megaapi",
-          mensagem_usuario: null,
-          resposta_final: mensagem.slice(0, 5000),
-          atendente_humano: "Atendente (WhatsApp)",
-          estado_conversa: "em_andamento",
-          supervisionado: true,
-        });
+        const texto = mensagem.slice(0, 5000);
+        const desde = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+        const { data: jaExiste } = await supabase
+          .from("interacoes_ia")
+          .select("id")
+          .in("paciente_externo_id", [numeroCanonicoLog, numero, `tel:${numero}`])
+          .eq("resposta_final", texto)
+          .gte("criado_em", desde)
+          .limit(1);
+
+        if (!jaExiste?.length) {
+          await supabase.from("interacoes_ia").insert({
+            paciente_externo_id: numeroCanonicoLog,
+            canal: "whatsapp",
+            sistema_origem: "whatsapp_echo",
+            mensagem_usuario: null,
+            resposta_final: texto,
+            atendente_humano: "Atendente (WhatsApp)",
+            estado_conversa: "em_andamento",
+            supervisionado: true,
+          });
+        } else {
+          console.log("[whatsapp] eco duplicado ignorado");
+        }
       }
       console.log(`[whatsapp] 📤 fromMe registrado para ${numero}`);
       return new Response("ok");
     }
+
 
     // Verificar se o canal WhatsApp está ativo
     const { data: configCanal, error: configCanalError } = await supabase

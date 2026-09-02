@@ -31,6 +31,15 @@ function soDigitos(v: string) {
   return (v || "").replace(/\D/g, "");
 }
 
+// Chave única por contato: 55 + DDD + número (ignora DDI/zeros/variações)
+function chaveTelefone(v: string) {
+  let d = soDigitos(v);
+  if (d.startsWith("55") && d.length > 11) d = d.slice(2);
+  d = d.replace(/^0+/, "");
+  return d ? `55${d}` : "";
+}
+
+
 function formatarTelefone(v: string) {
   const d = soDigitos(v);
   const semDDI = d.startsWith("55") ? d.slice(2) : d;
@@ -185,10 +194,12 @@ export default function Conversas() {
   const conversas = useMemo<Conversa[]>(() => {
     const grupos: Record<string, Interacao[]> = {};
     for (const i of interacoes) {
-      const tel = i.paciente_externo_id.replace("tel:", "");
+      const tel = chaveTelefone(i.paciente_externo_id.replace("tel:", ""));
+      if (!tel) continue;
       if (!grupos[tel]) grupos[tel] = [];
       grupos[tel].push(i);
     }
+
 
     return Object.entries(grupos)
       .map(([telefone, itens]) => {
