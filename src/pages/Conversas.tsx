@@ -194,10 +194,12 @@ export default function Conversas() {
   const conversas = useMemo<Conversa[]>(() => {
     const grupos: Record<string, Interacao[]> = {};
     for (const i of interacoes) {
-      const tel = i.paciente_externo_id.replace("tel:", "");
+      const tel = chaveTelefone(i.paciente_externo_id.replace("tel:", ""));
+      if (!tel) continue;
       if (!grupos[tel]) grupos[tel] = [];
       grupos[tel].push(i);
     }
+
 
     return Object.entries(grupos)
       .map(([telefone, itens]) => {
