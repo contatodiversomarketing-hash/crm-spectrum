@@ -62,7 +62,8 @@ export default function Conversas() {
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<"todas" | "pendentes" | "recebidas">("pendentes");
-  const [busca2Unused] = useState(false);
+  const [selecionada, setSelecionada] = useState<string | null>(null);
+
 
   const [iaAtiva, setIaAtiva] = useState(true);
   const [configId, setConfigId] = useState<string | null>(null);
