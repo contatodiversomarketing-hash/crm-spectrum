@@ -1,6 +1,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { megaConfig, enviarTextoMega } from "../_shared/mega.ts";
+import { telCanonico } from "../_shared/dedup.ts";
 
 type Body = {
   numero?: string;
@@ -86,7 +87,7 @@ Deno.serve(async (req) => {
       : `[${tipo === "audio" ? "áudio" : tipo === "image" ? "imagem" : "arquivo"}: ${body.fileName || ""}] ${body.texto || ""}`.trim();
 
     const { error: insertErr } = await supabase.from("interacoes_ia").insert({
-      paciente_externo_id: numero,
+      paciente_externo_id: telCanonico(numero) || numero,
       canal: "whatsapp",
       sistema_origem: "crm_manual",
       mensagem_usuario: null,
