@@ -282,10 +282,27 @@ export default function Conversas() {
       <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] h-[calc(100vh-73px)]">
         {/* Lista de conversas */}
         <aside className="border-r bg-card/40 flex flex-col min-h-0">
-          <div className="p-3 border-b">
+          <div className="p-3 border-b space-y-2">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar contato..." className="pl-8 h-9 text-sm" />
+            </div>
+            <div className="flex gap-1">
+              {([
+                ["pendentes", `Sem resposta${totalPendentes ? ` (${totalPendentes})` : ""}`],
+                ["recebidas", "Recebidas"],
+                ["todas", "Todas"],
+              ] as const).map(([chave, rotulo]) => (
+                <button
+                  key={chave}
+                  onClick={() => setFiltro(chave)}
+                  className={`flex-1 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors ${
+                    filtro === chave ? "bg-primary text-primary-foreground border-primary" : "hover:bg-secondary"
+                  }`}
+                >
+                  {rotulo}
+                </button>
+              ))}
             </div>
           </div>
           <ScrollArea className="flex-1">
@@ -307,14 +324,22 @@ export default function Conversas() {
                       <span className="text-sm font-medium truncate">{c.nome}</span>
                       <span className="text-[10px] text-muted-foreground shrink-0">{hora(c.ultima)}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">
-                      {ultimaMsg.resposta_final || ultimaMsg.mensagem_usuario || "—"}
-                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-xs text-muted-foreground truncate flex-1">
+                        {ultimaMsg.mensagem_usuario || ultimaMsg.resposta_final || "—"}
+                      </p>
+                      {c.pendente && (
+                        <span className="shrink-0 rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-semibold text-secondary-foreground">
+                          sem resposta
+                        </span>
+                      )}
+                    </div>
                   </button>
                 );
               })
             )}
           </ScrollArea>
+
         </aside>
 
         {/* Thread */}
