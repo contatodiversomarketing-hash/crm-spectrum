@@ -2923,22 +2923,37 @@ serve(async (req) => {
 
     // Espelho do WhatsApp: registrar SEMPRE a mensagem (mesmo com a IA desligada)
     if (isFromMe) {
-      // Mensagem enviada pelo número da clínica (atendente respondendo pelo celular)
+      // Mensagem enviada pelo número da clínica (atendente pelo celular, Ana ou CRM).
       if (mensagem && mensagem.trim()) {
-        await supabase.from("interacoes_ia").insert({
-          paciente_externo_id: numeroCanonicoLog,
-          canal: "whatsapp",
-          sistema_origem: "megaapi",
-          mensagem_usuario: null,
-          resposta_final: mensagem.slice(0, 5000),
-          atendente_humano: "Atendente (WhatsApp)",
-          estado_conversa: "em_andamento",
-          supervisionado: true,
-        });
+        const texto = mensagem.slice(0, 5000);
+        const desde = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+        const { data: jaExiste } = await supabase
+          .from("interacoes_ia")
+          .select("id")
+          .in("paciente_externo_id", [numeroCanonicoLog, numero, `tel:${numero}`])
+          .eq("resposta_final", texto)
+          .gte("criado_em", desde)
+          .limit(1);
+
+        if (!jaExiste?.length) {
+          await supabase.from("interacoes_ia").insert({
+            paciente_externo_id: numeroCanonicoLog,
+            canal: "whatsapp",
+            sistema_origem: "whatsapp_echo",
+            mensagem_usuario: null,
+            resposta_final: texto,
+            atendente_humano: "Atendente (WhatsApp)",
+            estado_conversa: "em_andamento",
+            supervisionado: true,
+          });
+        } else {
+          console.log("[whatsapp] eco duplicado ignorado");
+        }
       }
       console.log(`[whatsapp] 📤 fromMe registrado para ${numero}`);
       return new Response("ok");
     }
+
 
     // Verificar se o canal WhatsApp está ativo
     const { data: configCanal, error: configCanalError } = await supabase
