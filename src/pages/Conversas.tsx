@@ -25,7 +25,10 @@ interface Conversa {
   nome: string;
   itens: Interacao[];
   ultima: string;
+  pendente: boolean;
+  ultimaEntrada: string | null;
 }
+
 
 function soDigitos(v: string) {
   return (v || "").replace(/\D/g, "");
