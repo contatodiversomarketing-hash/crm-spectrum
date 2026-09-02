@@ -2713,12 +2713,33 @@ async function normalizarPayloadCloud(raw: any): Promise<any | null> {
   const value = change?.value;
   if (!value) return null;
 
-  // Ecos das nossas próprias mensagens (smb_message_echoes) não devem gerar resposta.
-  if (String(change?.field || "").includes("echo")) return { __ignorar: true };
-  if (Array.isArray(value.message_echoes)) return { __ignorar: true };
+  // Ecos: mensagens enviadas pelo próprio número da clínica (celular da Dra./atendente
+  // ou qualquer outra ferramenta). Espelhamos no chat como mensagem de saída.
+  const ehEcho = String(change?.field || "").includes("echo") || Array.isArray(value.message_echoes);
+  if (ehEcho) {
+    const e = (value.message_echoes || value.messages || [])[0];
+    if (!e) return { __ignorar: true };
+    const destino = String(e.to || e.recipient_id || e.from || "").replace(/\D/g, "");
+    const tipo = e.type || "text";
+    const texto =
+      e.text?.body ||
+      e.interactive?.button_reply?.title ||
+      e.interactive?.list_reply?.title ||
+      e[tipo]?.caption ||
+      (tipo !== "text" ? `[${tipo}]` : "");
+    if (!destino || !texto) return { __ignorar: true };
+    return {
+      key: { remoteJid: `${destino}@s.whatsapp.net`, fromMe: true, senderPn: destino },
+      jid: destino,
+      isGroup: false,
+      message: { conversation: texto },
+      messageType: "conversation",
+    };
+  }
 
   const m = value.messages?.[0];
   if (!m) return { __ignorar: true }; // eventos de status (sent/delivered/read)
+
 
 
 
