@@ -31,6 +31,15 @@ function soDigitos(v: string) {
   return (v || "").replace(/\D/g, "");
 }
 
+// Chave única por contato: 55 + DDD + número (ignora DDI/zeros/variações)
+function chaveTelefone(v: string) {
+  let d = soDigitos(v);
+  if (d.startsWith("55") && d.length > 11) d = d.slice(2);
+  d = d.replace(/^0+/, "");
+  return d ? `55${d}` : "";
+}
+
+
 function formatarTelefone(v: string) {
   const d = soDigitos(v);
   const semDDI = d.startsWith("55") ? d.slice(2) : d;
