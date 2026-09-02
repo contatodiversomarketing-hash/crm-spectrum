@@ -2715,18 +2715,27 @@ async function normalizarPayloadCloud(raw: any): Promise<any | null> {
 
   // Ecos: mensagens enviadas pelo próprio número da clínica (celular da Dra./atendente
   // ou qualquer outra ferramenta). Espelhamos no chat como mensagem de saída.
-  const ehEcho = String(change?.field || "").includes("echo") || Array.isArray(value.message_echoes);
+  const numeroClinica = String(value?.metadata?.display_phone_number || "").replace(/\D/g, "");
+  const primeira = (value.message_echoes || value.messages || [])[0];
+  const remetente = String(primeira?.from || "").replace(/\D/g, "");
+  const ehEcho =
+    String(change?.field || "").includes("echo") ||
+    Array.isArray(value.message_echoes) ||
+    Boolean(primeira?.echo) ||
+    (!!numeroClinica && !!remetente && (remetente === numeroClinica || remetente.endsWith(numeroClinica.slice(-8))));
   if (ehEcho) {
-    const e = (value.message_echoes || value.messages || [])[0];
+    const e = primeira;
     if (!e) return { __ignorar: true };
-    const destino = String(e.to || e.recipient_id || e.from || "").replace(/\D/g, "");
+    const destino = String(e.to || e.recipient_id || (remetente === numeroClinica ? "" : e.from) || "").replace(/\D/g, "");
     const tipo = e.type || "text";
     const texto =
       e.text?.body ||
       e.interactive?.button_reply?.title ||
       e.interactive?.list_reply?.title ||
       e[tipo]?.caption ||
-      (tipo !== "text" ? `[${tipo}]` : "");
+      (tipo !== "text"
+        ? `[${tipo === "audio" || tipo === "voice" ? "áudio" : tipo === "image" ? "imagem" : tipo === "document" ? "documento" : tipo} enviado pelo WhatsApp]`
+        : "");
     if (!destino || !texto) return { __ignorar: true };
     return {
       key: { remoteJid: `${destino}@s.whatsapp.net`, fromMe: true, senderPn: destino },
@@ -2739,6 +2748,7 @@ async function normalizarPayloadCloud(raw: any): Promise<any | null> {
 
   const m = value.messages?.[0];
   if (!m) return { __ignorar: true }; // eventos de status (sent/delivered/read)
+
 
 
 
