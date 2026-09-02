@@ -212,15 +212,37 @@ export default function Conversas() {
           nomes[digits] ||
           nomes[digits.startsWith("55") ? digits.slice(2) : "55" + digits] ||
           formatarTelefone(telefone);
-        return { telefone, nome, itens: ordenados, ultima: ordenados[ordenados.length - 1].criado_em };
+        const ultimaEntrada =
+          [...ordenados].reverse().find((i) => i.mensagem_usuario)?.criado_em || null;
+        const ultimaSaida =
+          [...ordenados].reverse().find((i) => i.resposta_final)?.criado_em || null;
+        const pendente = !!ultimaEntrada && (!ultimaSaida || ultimaSaida < ultimaEntrada);
+        return {
+          telefone,
+          nome,
+          itens: ordenados,
+          ultima: ordenados[ordenados.length - 1].criado_em,
+          pendente,
+          ultimaEntrada,
+        };
       })
       .filter((c) =>
         !busca.trim() ||
         c.nome.toLowerCase().includes(busca.toLowerCase()) ||
         soDigitos(c.telefone).includes(soDigitos(busca))
       )
-      .sort((a, b) => b.ultima.localeCompare(a.ultima));
-  }, [interacoes, nomes, busca]);
+      .filter((c) => (filtro === "pendentes" ? c.pendente : filtro === "recebidas" ? !!c.ultimaEntrada : true))
+      .sort((a, b) => {
+        const chave = (c: Conversa) => (filtro === "todas" ? c.ultima : c.ultimaEntrada || c.ultima);
+        return chave(b).localeCompare(chave(a));
+      });
+  }, [interacoes, nomes, busca, filtro]);
+
+  const totalPendentes = useMemo(
+    () => conversas.filter((c) => c.pendente).length,
+    [conversas],
+  );
+
 
   const ativa = conversas.find((c) => c.telefone === selecionada) || conversas[0];
 
