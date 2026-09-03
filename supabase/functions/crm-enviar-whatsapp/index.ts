@@ -82,9 +82,37 @@ Deno.serve(async (req) => {
       }
     }
 
-    const registro = tipo === "text"
+    let urlMidia: string | null = null;
+    if (tipo !== "text" && body.base64) {
+      try {
+        const limpo = String(body.base64).replace(/^data:[^;]+;base64,/, "").replace(/\s/g, "");
+        const bin = atob(limpo);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const mime = (body.mimeType || "application/octet-stream").split(";")[0].trim();
+        const ext = (body.fileName?.split(".").pop() || mime.split("/")[1] || "bin").toLowerCase();
+        const nome = `enviados/${tipo}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+        const up = await fetch(`${Deno.env.get("SUPABASE_URL")}/storage/v1/object/audio/${nome}`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            "Content-Type": mime,
+            "x-upsert": "true",
+          },
+          body: bytes,
+        });
+        if (up.ok) urlMidia = `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/public/audio/${nome}`;
+        else console.error("[crm-enviar-whatsapp] upload storage falhou", up.status);
+      } catch (e) {
+        console.error("[crm-enviar-whatsapp] erro upload storage", e);
+      }
+    }
+
+    const registroBase = tipo === "text"
       ? body.texto!.slice(0, 5000)
       : `[${tipo === "audio" ? "áudio" : tipo === "image" ? "imagem" : "arquivo"}: ${body.fileName || ""}] ${body.texto || ""}`.trim();
+
+    const registro = urlMidia ? `${registroBase}\n[midia:${tipo}:${urlMidia}]` : registroBase;
 
     const { error: insertErr } = await supabase.from("interacoes_ia").insert({
       paciente_externo_id: telCanonico(numero) || numero,
