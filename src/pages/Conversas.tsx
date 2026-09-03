@@ -295,6 +295,36 @@ export default function Conversas() {
     carregar();
   }
 
+  async function enviarParaCRM(conversa: Conversa) {
+    const digits = soDigitos(conversa.telefone);
+    const variacoes = Array.from(new Set([digits, digits.startsWith("55") ? digits.slice(2) : "55" + digits]));
+    const { data: existente } = await supabase
+      .from("leads")
+      .select("id")
+      .in("telefone", variacoes)
+      .limit(1)
+      .maybeSingle();
+
+    if (!existente) {
+      const { data: pipes } = await supabase.from("pipelines").select("id, nome");
+      const pipelineId = pipes?.find((p) => p.nome === "Pacientes")?.id || pipes?.[0]?.id || null;
+      const { error } = await supabase.from("leads").insert({
+        telefone: digits,
+        nome: conversa.nome,
+        origem: "cadastro",
+        status: "novo",
+        status_pipeline: "novo",
+        pipeline_id: pipelineId,
+      });
+      if (error) {
+        toast({ title: "Erro ao enviar para o CRM", description: error.message, variant: "destructive" });
+        return;
+      }
+    }
+    toast({ title: "Card disponível no CRM", description: conversa.nome });
+    navigate("/crm");
+  }
+
   async function enviar(numero: string) {
     const msg = texto.trim();
     if (!msg || enviando) return;
