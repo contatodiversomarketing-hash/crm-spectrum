@@ -432,31 +432,60 @@ export default function Conversas() {
     }
 
 
-    return Object.entries(grupos)
-      .map(([telefone, itens]) => {
-        const ordenados = [...itens].sort((a, b) => a.criado_em.localeCompare(b.criado_em));
-        const digits = soDigitos(telefone);
-        const nome =
-          nomes[digits] ||
-          nomes[digits.startsWith("55") ? digits.slice(2) : "55" + digits] ||
-          formatarTelefone(telefone);
-        const ultimaEntrada =
-          [...ordenados].reverse().find((i) => i.mensagem_usuario)?.criado_em || null;
-        const ultimaSaida =
-          [...ordenados].reverse().find((i) => i.resposta_final)?.criado_em || null;
-        const pendente = !!ultimaEntrada && (!ultimaSaida || ultimaSaida < ultimaEntrada);
-        return {
-          telefone,
-          nome,
-          itens: ordenados,
-          ultima: ordenados[ordenados.length - 1].criado_em,
-          pendente,
-          ultimaEntrada,
-        };
+    const mapaPacientes: Record<string, PacienteResumo> = {};
+    for (const p of pacientes) {
+      const k = chaveTelefone(p.telefone || "");
+      if (k) mapaPacientes[k] = p;
+    }
+
+    const base: Conversa[] = Object.entries(grupos).map(([telefone, itens]) => {
+      const ordenados = [...itens].sort((a, b) => a.criado_em.localeCompare(b.criado_em));
+      const digits = soDigitos(telefone);
+      const nome =
+        nomes[digits] ||
+        nomes[digits.startsWith("55") ? digits.slice(2) : "55" + digits] ||
+        formatarTelefone(telefone);
+      const ultimaEntrada =
+        [...ordenados].reverse().find((i) => i.mensagem_usuario)?.criado_em || null;
+      const ultimaSaida =
+        [...ordenados].reverse().find((i) => i.resposta_final)?.criado_em || null;
+      const pendente = !!ultimaEntrada && (!ultimaSaida || ultimaSaida < ultimaEntrada);
+      return {
+        telefone,
+        nome,
+        itens: ordenados,
+        ultima: ordenados[ordenados.length - 1].criado_em,
+        pendente,
+        ultimaEntrada,
+        pacienteId: mapaPacientes[telefone]?.id ?? null,
+      };
+    });
+
+    const comConversa = new Set(base.map((c) => c.telefone));
+    const termo = busca.trim().toLowerCase();
+    const novos: Conversa[] = pacientes
+      .map((p) => ({ p, tel: chaveTelefone(p.telefone || "") }))
+      .filter(({ p, tel }) => {
+        if (!tel || comConversa.has(tel)) return false;
+        if (selecionada === tel) return true;
+        if (!termo) return false;
+        return (p.nome || "").toLowerCase().includes(termo) || soDigitos(tel).includes(soDigitos(termo));
       })
+      .map(({ p, tel }) => ({
+        telefone: tel,
+        nome: p.nome || formatarTelefone(tel),
+        itens: [],
+        ultima: "",
+        pendente: false,
+        ultimaEntrada: null,
+        pacienteId: p.id,
+        novo: true,
+      }));
+
+    const filtradas = base
       .filter((c) =>
-        !busca.trim() ||
-        c.nome.toLowerCase().includes(busca.toLowerCase()) ||
+        !termo ||
+        c.nome.toLowerCase().includes(termo) ||
         soDigitos(c.telefone).includes(soDigitos(busca))
       )
       .filter((c) => (filtro === "pendentes" ? c.pendente : filtro === "recebidas" ? !!c.ultimaEntrada : true))
@@ -464,7 +493,9 @@ export default function Conversas() {
         const chave = (c: Conversa) => (filtro === "todas" ? c.ultima : c.ultimaEntrada || c.ultima);
         return chave(b).localeCompare(chave(a));
       });
-  }, [interacoes, nomes, busca, filtro]);
+
+    return [...filtradas, ...novos];
+  }, [interacoes, nomes, busca, filtro, pacientes, selecionada]);
 
   const totalPendentes = useMemo(
     () => conversas.filter((c) => c.pendente).length,
