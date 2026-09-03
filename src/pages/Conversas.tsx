@@ -584,7 +584,7 @@ export default function Conversas() {
           <div className="p-3 border-b space-y-2">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar contato..." className="pl-8 h-9 text-sm" />
+              <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar contato ou paciente..." className="pl-8 h-9 text-sm" />
             </div>
             <div className="flex gap-1">
               {([
