@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ const CAMPOS =
 
 export default function Pacientes() {
   const { profile } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [itens, setItens] = useState<Paciente[]>([]);
   const [busca, setBusca] = useState("");
   const [loading, setLoading] = useState(true);
@@ -39,6 +41,18 @@ export default function Pacientes() {
   }, [itens, busca]);
 
   const abrir = (p: Paciente | null) => { setSel(p); setOpen(true); };
+
+  const telefonePre = searchParams.get("telefone") || "";
+  const nomePre = searchParams.get("nome") || "";
+
+  useEffect(() => {
+    if (telefonePre) { setSel(null); setOpen(true); }
+  }, [telefonePre]);
+
+  const fecharDialog = (v: boolean) => {
+    setOpen(v);
+    if (!v && (telefonePre || nomePre)) setSearchParams({}, { replace: true });
+  };
 
   return (
     <div className="bg-background min-h-full">
@@ -97,7 +111,8 @@ export default function Pacientes() {
         </div>
       </div>
 
-      <PacienteDialog open={open} onOpenChange={setOpen} paciente={sel}
+      <PacienteDialog open={open} onOpenChange={fecharDialog} paciente={sel}
+        valoresIniciais={sel ? undefined : { telefone: telefonePre, nome: nomePre }}
         autorNome={profile?.nome || profile?.email || "Equipe"} onSaved={carregar} />
     </div>
   );

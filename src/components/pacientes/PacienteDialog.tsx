@@ -63,9 +63,10 @@ interface Props {
   paciente: Paciente | null;
   autorNome: string;
   onSaved: () => void;
+  valoresIniciais?: Partial<Form>;
 }
 
-export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSaved }: Props) {
+export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSaved, valoresIniciais }: Props) {
   const [form, setForm] = useState<Form>(vazio);
   const [salvando, setSalvando] = useState(false);
   const [aba, setAba] = useState("dados");
@@ -81,8 +82,9 @@ export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSave
       });
       setForm(f);
     } else {
-      setForm(vazio);
+      setForm({ ...vazio, ...(valoresIniciais ?? {}) });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, paciente]);
 
   const set = (k: keyof Form, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }));

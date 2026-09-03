@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, RefreshCw, MessageSquare, MessagesSquare, Send, Power } from "lucide-react";
+import { Search, RefreshCw, MessageSquare, MessagesSquare, Send, Power, UserPlus, Bell, BellOff } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -70,7 +71,32 @@ export default function Conversas() {
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const sincronizados = useRef<Set<string>>(new Set());
+  const [somAtivo, setSomAtivo] = useState(() => localStorage.getItem("conversas_som") !== "off");
+  const ultimoRecebido = useRef<string | null>(null);
+  const navigate = useNavigate();
   const { toast } = useToast();
+
+  const tocarAlerta = useCallback(() => {
+    try {
+      const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new Ctx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.setValueAtTime(1245, ctx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.36);
+      osc.onended = () => ctx.close();
+    } catch {
+      /* som indisponível */
+    }
+  }, []);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -197,6 +223,20 @@ export default function Conversas() {
   }, [carregar, carregarConfig]);
 
 
+  useEffect(() => {
+    const recebidas = interacoes.filter((i) => i.mensagem_usuario);
+    if (!recebidas.length) return;
+    const maisRecente = recebidas.reduce((a, b) => (a.criado_em > b.criado_em ? a : b));
+    if (ultimoRecebido.current === null) {
+      ultimoRecebido.current = maisRecente.criado_em;
+      return;
+    }
+    if (maisRecente.criado_em > ultimoRecebido.current) {
+      ultimoRecebido.current = maisRecente.criado_em;
+      if (somAtivo) tocarAlerta();
+    }
+  }, [interacoes, somAtivo, tocarAlerta]);
+
   const conversas = useMemo<Conversa[]>(() => {
     const grupos: Record<string, Interacao[]> = {};
     for (const i of interacoes) {
@@ -272,6 +312,19 @@ export default function Conversas() {
               <span className="text-xs font-medium">{iaAtiva ? "Atendimento ativo" : "Atendimento pausado"}</span>
               <Switch checked={iaAtiva} onCheckedChange={alternarIa} />
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              title={somAtivo ? "Som de alerta ativo" : "Som de alerta desligado"}
+              onClick={() => {
+                const novo = !somAtivo;
+                setSomAtivo(novo);
+                localStorage.setItem("conversas_som", novo ? "on" : "off");
+                if (novo) tocarAlerta();
+              }}
+            >
+              {somAtivo ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+            </Button>
             <Button variant="outline" size="sm" onClick={carregar} disabled={loading}>
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             </Button>
@@ -356,7 +409,21 @@ export default function Conversas() {
                   <p className="text-sm font-semibold">{ativa.nome}</p>
                   <p className="text-xs text-muted-foreground">{formatarTelefone(ativa.telefone)}</p>
                 </div>
-                <span className="text-xs text-muted-foreground">{ativa.itens.length} mensagens</span>
+                <div className="flex items-center gap-3">
+                  {ativa.nome === formatarTelefone(ativa.telefone) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        navigate(`/pacientes?telefone=${encodeURIComponent(formatarTelefone(ativa.telefone))}`)
+                      }
+                    >
+                      <UserPlus className="h-4 w-4 mr-1.5" />
+                      Cadastrar paciente
+                    </Button>
+                  )}
+                  <span className="text-xs text-muted-foreground">{ativa.itens.length} mensagens</span>
+                </div>
               </div>
               <ScrollArea className="flex-1 px-5 py-4">
                 <div className="space-y-3 max-w-3xl mx-auto">
