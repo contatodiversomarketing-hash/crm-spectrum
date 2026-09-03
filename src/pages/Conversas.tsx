@@ -657,19 +657,24 @@ export default function Conversas() {
                   <p className="text-sm font-semibold">{ativa.nome}</p>
                   <p className="text-xs text-muted-foreground">{formatarTelefone(ativa.telefone)}</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  {ativa.nome === formatarTelefone(ativa.telefone) && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        navigate(`/pacientes?telefone=${encodeURIComponent(formatarTelefone(ativa.telefone))}`)
-                      }
-                    >
-                      <UserPlus className="h-4 w-4 mr-1.5" />
-                      Cadastrar paciente
-                    </Button>
-                  )}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      navigate(
+                        `/pacientes?telefone=${encodeURIComponent(formatarTelefone(ativa.telefone))}` +
+                          (ativa.pacienteId ? "" : `&nome=${encodeURIComponent(ativa.nome)}`)
+                      )
+                    }
+                  >
+                    <UserPlus className="h-4 w-4 mr-1.5" />
+                    {ativa.pacienteId ? "Abrir cadastro" : "Cadastrar paciente"}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => enviarParaCRM(ativa)}>
+                    <MessagesSquare className="h-4 w-4 mr-1.5" />
+                    Enviar para o CRM
+                  </Button>
                   <span className="text-xs text-muted-foreground">{ativa.itens.length} mensagens</span>
                 </div>
               </div>
