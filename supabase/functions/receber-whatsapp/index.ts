@@ -2418,6 +2418,39 @@ async function downloadMidiaBase64(media: MediaInfo, webhookBody: any): Promise<
   return null;
 }
 
+async function salvarMidiaStorage(base64: string, mimetype: string, tipo: string, fileName?: string): Promise<string | null> {
+  try {
+    const limpo = base64.replace(/^data:[^;]+;base64,/, "").replace(/\s/g, "");
+    const bin = atob(limpo);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const mimeClean = (mimetype || "").split(";")[0].trim() || "application/octet-stream";
+    const extMap: Record<string, string> = {
+      "audio/ogg": "ogg", "audio/mpeg": "mp3", "audio/mp4": "m4a", "audio/webm": "webm",
+      "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf",
+    };
+    const ext = extMap[mimeClean] || (fileName?.split(".").pop() || "bin");
+    const nome = `recebidos/${tipo}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+    const resp = await fetch(`${Deno.env.get("SUPABASE_URL")}/storage/v1/object/audio/${nome}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        "Content-Type": mimeClean,
+        "x-upsert": "true",
+      },
+      body: bytes,
+    });
+    if (!resp.ok) {
+      console.error(`[whatsapp] Upload mídia falhou: ${resp.status}`);
+      return null;
+    }
+    return `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/public/audio/${nome}`;
+  } catch (err) {
+    console.error("[whatsapp] Erro ao salvar mídia:", err);
+    return null;
+  }
+}
+
 async function transcreverAudio(base64Audio: string, mimetype: string): Promise<string> {
   try {
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
@@ -2896,7 +2929,9 @@ serve(async (req) => {
       console.log(`[whatsapp] 📎 Mídia recebida: ${midia.type} (${midia.mimetype})`);
       const base64 = await downloadMidiaBase64(midia, body);
 
+      let urlMidia: string | null = null;
       if (base64) {
+        urlMidia = await salvarMidiaStorage(base64, midia.mimetype, midia.type, midia.fileName);
         if (midia.type === "audio") {
           // Transcrever áudio e usar como mensagem
           const transcricao = await transcreverAudio(base64, midia.mimetype);
@@ -2914,6 +2949,7 @@ serve(async (req) => {
           mensagem = midia.caption || mensagemTexto || "[Paciente enviou " + (midia.type === "image" ? "uma imagem" : `um documento: ${midia.fileName || "arquivo"}`) + "]";
           console.log(`[whatsapp] 🖼️ ${midia.type} salva para análise visual`);
         }
+        if (urlMidia) mensagem = `${mensagem}\n[midia:${midia.type}:${urlMidia}]`;
       } else {
         console.warn(`[whatsapp] ⚠️ Não foi possível baixar a mídia ${midia.type}`);
         if (!temTexto) {
