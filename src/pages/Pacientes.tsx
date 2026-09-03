@@ -40,6 +40,18 @@ export default function Pacientes() {
 
   const abrir = (p: Paciente | null) => { setSel(p); setOpen(true); };
 
+  const telefonePre = searchParams.get("telefone") || "";
+  const nomePre = searchParams.get("nome") || "";
+
+  useEffect(() => {
+    if (telefonePre) { setSel(null); setOpen(true); }
+  }, [telefonePre]);
+
+  const fecharDialog = (v: boolean) => {
+    setOpen(v);
+    if (!v && (telefonePre || nomePre)) setSearchParams({}, { replace: true });
+  };
+
   return (
     <div className="bg-background min-h-full">
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 border-b bg-card/50">
