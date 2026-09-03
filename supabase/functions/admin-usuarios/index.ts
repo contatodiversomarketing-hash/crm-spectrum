@@ -70,7 +70,14 @@ Deno.serve(async (req) => {
         email_confirm: true,
         user_metadata: { nome },
       });
-      if (createErr) return json({ error: createErr.message }, 400);
+      if (createErr) {
+        const msg = /weak|easy to guess|pwned/i.test(createErr.message)
+          ? "Essa senha é muito fraca ou comum. Use uma senha com letras, números e símbolos (ex.: Amelia@2026!)."
+          : /already registered|already been registered|exists/i.test(createErr.message)
+            ? "Já existe um usuário com esse email."
+            : createErr.message;
+        return json({ error: msg }, 400);
+      }
 
       const novoId = created.user!.id;
       await admin.from("profiles").upsert(
@@ -103,7 +110,12 @@ Deno.serve(async (req) => {
       const { user_id, senha } = body as { user_id: string; senha: string };
       if (!user_id || !senha || senha.length < 6) return json({ error: "Senha inválida" }, 400);
       const { error } = await admin.auth.admin.updateUserById(user_id, { password: senha });
-      if (error) return json({ error: error.message }, 400);
+      if (error) {
+        const msg = /weak|easy to guess|pwned/i.test(error.message)
+          ? "Essa senha é muito fraca ou comum. Use uma senha com letras, números e símbolos (ex.: Amelia@2026!)."
+          : error.message;
+        return json({ error: msg }, 400);
+      }
       return json({ ok: true });
     }
 
