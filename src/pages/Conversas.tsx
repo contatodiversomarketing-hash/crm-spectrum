@@ -663,8 +663,9 @@ export default function Conversas() {
                     size="sm"
                     onClick={() =>
                       navigate(
-                        `/pacientes?telefone=${encodeURIComponent(formatarTelefone(ativa.telefone))}` +
-                          (ativa.pacienteId ? "" : `&nome=${encodeURIComponent(ativa.nome)}`)
+                        ativa.pacienteId
+                          ? `/pacientes?paciente=${ativa.pacienteId}`
+                          : `/pacientes?telefone=${encodeURIComponent(formatarTelefone(ativa.telefone))}`
                       )
                     }
                   >
