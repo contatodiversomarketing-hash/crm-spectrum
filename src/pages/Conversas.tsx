@@ -621,11 +621,13 @@ export default function Conversas() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-medium truncate">{c.nome}</span>
-                      <span className="text-[10px] text-muted-foreground shrink-0">{hora(c.ultima)}</span>
+                      <span className="text-[10px] text-muted-foreground shrink-0">{c.ultima ? hora(c.ultima) : "novo"}</span>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
                       <p className="text-xs text-muted-foreground truncate flex-1">
-                        {(ultimaMsg.mensagem_usuario || ultimaMsg.resposta_final || "—").replace(/\[midia:\w+:\S+?\]/g, "📎 mídia")}
+                        {ultimaMsg
+                          ? (ultimaMsg.mensagem_usuario || ultimaMsg.resposta_final || "—").replace(/\[midia:\w+:\S+?\]/g, "📎 mídia")
+                          : "Paciente cadastrado — iniciar conversa"}
                       </p>
                       {c.pendente && (
                         <span className="shrink-0 rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-semibold text-secondary-foreground">
