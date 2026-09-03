@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, RefreshCw, MessageSquare, MessagesSquare, Send, Power, UserPlus, Bell, BellOff, Smile, Mic, Square, FileText, Loader2, AudioLines, Paperclip } from "lucide-react";
+import { Search, RefreshCw, MessageSquare, MessagesSquare, Send, Power, UserPlus, Bell, BellOff, Smile, Mic, Square, FileText, Loader2, AudioLines, Paperclip, Pencil, Trash2, Check, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -117,6 +117,8 @@ export default function Conversas() {
   const [iaAtiva, setIaAtiva] = useState(true);
   const [configId, setConfigId] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
+  const [editando, setEditando] = useState<string | null>(null);
+  const [editTexto, setEditTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const sincronizados = useRef<Set<string>>(new Set());
   const [somAtivo, setSomAtivo] = useState(() => localStorage.getItem("conversas_som") !== "off");
@@ -246,6 +248,33 @@ export default function Conversas() {
       title: valor ? "Atendimento da Ana ativado" : "Atendimento da Ana pausado",
       description: valor ? "Ela volta a responder automaticamente." : "Nenhuma resposta automática será enviada.",
     });
+  }
+
+  async function salvarEdicao(id: string, campo: "mensagem_usuario" | "resposta_final") {
+    const novo = editTexto.trim();
+    if (!novo) return;
+    const { error } = await supabase.from("interacoes_ia").update({ [campo]: novo }).eq("id", id);
+    if (error) {
+      toast({ title: "Erro ao editar", description: error.message, variant: "destructive" });
+      return;
+    }
+    setEditando(null);
+    setEditTexto("");
+    carregar();
+  }
+
+  async function apagarMensagem(item: Interacao, campo: "mensagem_usuario" | "resposta_final") {
+    const outro = campo === "mensagem_usuario" ? item.resposta_final : item.mensagem_usuario;
+    const query = outro
+      ? supabase.from("interacoes_ia").update({ [campo]: null }).eq("id", item.id)
+      : supabase.from("interacoes_ia").delete().eq("id", item.id);
+    const { error } = await query;
+    if (error) {
+      toast({ title: "Erro ao apagar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Mensagem apagada", description: "Removida apenas aqui na plataforma." });
+    carregar();
   }
 
   async function enviar(numero: string) {
@@ -568,21 +597,65 @@ export default function Conversas() {
                   {ativa.itens.map((i) => (
                     <div key={i.id} className="space-y-2">
                       {i.mensagem_usuario && (
-                        <div className="flex justify-start">
+                        <div className="flex justify-start items-center gap-1 group">
                           <div className="max-w-[75%] rounded-2xl rounded-tl-sm bg-card border px-3.5 py-2 shadow-sm">
-                            <ConteudoMensagem texto={i.mensagem_usuario} />
-                            <p className="text-[10px] text-muted-foreground mt-1">{hora(i.criado_em)}</p>
+                            {editando === `${i.id}:in` ? (
+                              <div className="flex items-center gap-1">
+                                <Input value={editTexto} onChange={(e) => setEditTexto(e.target.value)} className="h-8 text-sm" />
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => salvarEdicao(i.id, "mensagem_usuario")}>
+                                  <Check className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditando(null)}>
+                                  <X className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                <ConteudoMensagem texto={i.mensagem_usuario} />
+                                <p className="text-[10px] text-muted-foreground mt-1">{hora(i.criado_em)}</p>
+                              </>
+                            )}
+                          </div>
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
+                            <Button size="icon" variant="ghost" className="h-7 w-7" title="Editar" onClick={() => { setEditando(`${i.id}:in`); setEditTexto(i.mensagem_usuario || ""); }}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" title="Apagar" onClick={() => apagarMensagem(i, "mensagem_usuario")}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
                         </div>
                       )}
                       {i.resposta_final && (
-                        <div className="flex justify-end">
+                        <div className="flex justify-end items-center gap-1 group">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
+                            <Button size="icon" variant="ghost" className="h-7 w-7" title="Editar" onClick={() => { setEditando(`${i.id}:out`); setEditTexto(i.resposta_final || ""); }}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" title="Apagar" onClick={() => apagarMensagem(i, "resposta_final")}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                           <div className="max-w-[75%] rounded-2xl rounded-tr-sm bg-primary text-primary-foreground px-3.5 py-2 shadow-sm">
                             <p className="text-[10px] opacity-80 mb-0.5 font-medium">
                               {i.supervisionado ? i.atendente_humano || "Atendente" : "Ana"}
                             </p>
-                            <ConteudoMensagem texto={i.resposta_final} escuro />
-                            <p className="text-[10px] opacity-70 mt-1">{hora(i.criado_em)}</p>
+                            {editando === `${i.id}:out` ? (
+                              <div className="flex items-center gap-1">
+                                <Input value={editTexto} onChange={(e) => setEditTexto(e.target.value)} className="h-8 text-sm text-foreground" />
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => salvarEdicao(i.id, "resposta_final")}>
+                                  <Check className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditando(null)}>
+                                  <X className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                <ConteudoMensagem texto={i.resposta_final} escuro />
+                                <p className="text-[10px] opacity-70 mt-1">{hora(i.criado_em)}</p>
+                              </>
+                            )}
                           </div>
                         </div>
                       )}
