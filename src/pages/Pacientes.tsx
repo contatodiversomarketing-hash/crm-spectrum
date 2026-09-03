@@ -44,14 +44,20 @@ export default function Pacientes() {
 
   const telefonePre = searchParams.get("telefone") || "";
   const nomePre = searchParams.get("nome") || "";
+  const pacienteIdPre = searchParams.get("paciente") || "";
 
   useEffect(() => {
+    if (pacienteIdPre) {
+      const existente = itens.find((p) => p.id === pacienteIdPre);
+      if (existente) { setSel(existente); setOpen(true); }
+      return;
+    }
     if (telefonePre) { setSel(null); setOpen(true); }
-  }, [telefonePre]);
+  }, [telefonePre, pacienteIdPre, itens]);
 
   const fecharDialog = (v: boolean) => {
     setOpen(v);
-    if (!v && (telefonePre || nomePre)) setSearchParams({}, { replace: true });
+    if (!v && (telefonePre || nomePre || pacienteIdPre)) setSearchParams({}, { replace: true });
   };
 
   return (
