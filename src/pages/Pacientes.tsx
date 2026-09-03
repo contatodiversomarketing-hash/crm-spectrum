@@ -97,7 +97,8 @@ export default function Pacientes() {
         </div>
       </div>
 
-      <PacienteDialog open={open} onOpenChange={setOpen} paciente={sel}
+      <PacienteDialog open={open} onOpenChange={fecharDialog} paciente={sel}
+        valoresIniciais={sel ? undefined : { telefone: telefonePre, nome: nomePre }}
         autorNome={profile?.nome || profile?.email || "Equipe"} onSaved={carregar} />
     </div>
   );
