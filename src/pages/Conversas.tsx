@@ -29,6 +29,14 @@ interface Conversa {
   ultima: string;
   pendente: boolean;
   ultimaEntrada: string | null;
+  pacienteId?: string | null;
+  novo?: boolean;
+}
+
+interface PacienteResumo {
+  id: string;
+  nome: string | null;
+  telefone: string | null;
 }
 
 
@@ -108,6 +116,7 @@ function ConteudoMensagem({ texto, escuro }: { texto: string; escuro?: boolean }
 export default function Conversas() {
   const [interacoes, setInteracoes] = useState<Interacao[]>([]);
   const [nomes, setNomes] = useState<Record<string, string>>({});
+  const [pacientes, setPacientes] = useState<PacienteResumo[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<"todas" | "pendentes" | "recebidas">("pendentes");
@@ -166,13 +175,14 @@ export default function Conversas() {
   const carregar = useCallback(async () => {
     setLoading(true);
     try {
-      const [intRes, leadsRes] = await Promise.all([
+      const [intRes, leadsRes, pacRes] = await Promise.all([
         supabase
           .from("interacoes_ia")
           .select("id, paciente_externo_id, mensagem_usuario, resposta_final, supervisionado, intencao_detectada, atendente_humano, criado_em, canal")
           .order("criado_em", { ascending: false })
           .limit(2000),
         supabase.from("leads").select("nome, telefone").limit(2000),
+        supabase.from("pacientes").select("id, nome, telefone").limit(2000),
       ]);
 
       const lista = (intRes.data as Interacao[]) || [];
@@ -187,6 +197,14 @@ export default function Conversas() {
           if (l.nome) mapa[d] = l.nome;
         }
       }
+      const listaPac = ((pacRes.data as PacienteResumo[]) || []).filter((p) => soDigitos(p.telefone || "").length >= 10);
+      for (const p of listaPac) {
+        if (!p.nome) continue;
+        const d = soDigitos(p.telefone || "");
+        mapa[d] = p.nome;
+        mapa[d.startsWith("55") ? d.slice(2) : "55" + d] = p.nome;
+      }
+      setPacientes(listaPac);
       setNomes(mapa);
 
       // Toda conversa também vira card no CRM
@@ -275,6 +293,36 @@ export default function Conversas() {
     }
     toast({ title: "Mensagem apagada", description: "Removida apenas aqui na plataforma." });
     carregar();
+  }
+
+  async function enviarParaCRM(conversa: Conversa) {
+    const digits = soDigitos(conversa.telefone);
+    const variacoes = Array.from(new Set([digits, digits.startsWith("55") ? digits.slice(2) : "55" + digits]));
+    const { data: existente } = await supabase
+      .from("leads")
+      .select("id")
+      .in("telefone", variacoes)
+      .limit(1)
+      .maybeSingle();
+
+    if (!existente) {
+      const { data: pipes } = await supabase.from("pipelines").select("id, nome");
+      const pipelineId = pipes?.find((p) => p.nome === "Pacientes")?.id || pipes?.[0]?.id || null;
+      const { error } = await supabase.from("leads").insert({
+        telefone: digits,
+        nome: conversa.nome,
+        origem: "cadastro",
+        status: "novo",
+        status_pipeline: "novo",
+        pipeline_id: pipelineId,
+      });
+      if (error) {
+        toast({ title: "Erro ao enviar para o CRM", description: error.message, variant: "destructive" });
+        return;
+      }
+    }
+    toast({ title: "Card disponível no CRM", description: conversa.nome });
+    navigate("/crm");
   }
 
   async function enviar(numero: string) {
@@ -414,31 +462,60 @@ export default function Conversas() {
     }
 
 
-    return Object.entries(grupos)
-      .map(([telefone, itens]) => {
-        const ordenados = [...itens].sort((a, b) => a.criado_em.localeCompare(b.criado_em));
-        const digits = soDigitos(telefone);
-        const nome =
-          nomes[digits] ||
-          nomes[digits.startsWith("55") ? digits.slice(2) : "55" + digits] ||
-          formatarTelefone(telefone);
-        const ultimaEntrada =
-          [...ordenados].reverse().find((i) => i.mensagem_usuario)?.criado_em || null;
-        const ultimaSaida =
-          [...ordenados].reverse().find((i) => i.resposta_final)?.criado_em || null;
-        const pendente = !!ultimaEntrada && (!ultimaSaida || ultimaSaida < ultimaEntrada);
-        return {
-          telefone,
-          nome,
-          itens: ordenados,
-          ultima: ordenados[ordenados.length - 1].criado_em,
-          pendente,
-          ultimaEntrada,
-        };
+    const mapaPacientes: Record<string, PacienteResumo> = {};
+    for (const p of pacientes) {
+      const k = chaveTelefone(p.telefone || "");
+      if (k) mapaPacientes[k] = p;
+    }
+
+    const base: Conversa[] = Object.entries(grupos).map(([telefone, itens]) => {
+      const ordenados = [...itens].sort((a, b) => a.criado_em.localeCompare(b.criado_em));
+      const digits = soDigitos(telefone);
+      const nome =
+        nomes[digits] ||
+        nomes[digits.startsWith("55") ? digits.slice(2) : "55" + digits] ||
+        formatarTelefone(telefone);
+      const ultimaEntrada =
+        [...ordenados].reverse().find((i) => i.mensagem_usuario)?.criado_em || null;
+      const ultimaSaida =
+        [...ordenados].reverse().find((i) => i.resposta_final)?.criado_em || null;
+      const pendente = !!ultimaEntrada && (!ultimaSaida || ultimaSaida < ultimaEntrada);
+      return {
+        telefone,
+        nome,
+        itens: ordenados,
+        ultima: ordenados[ordenados.length - 1].criado_em,
+        pendente,
+        ultimaEntrada,
+        pacienteId: mapaPacientes[telefone]?.id ?? null,
+      };
+    });
+
+    const comConversa = new Set(base.map((c) => c.telefone));
+    const termo = busca.trim().toLowerCase();
+    const novos: Conversa[] = pacientes
+      .map((p) => ({ p, tel: chaveTelefone(p.telefone || "") }))
+      .filter(({ p, tel }) => {
+        if (!tel || comConversa.has(tel)) return false;
+        if (selecionada === tel) return true;
+        if (!termo) return false;
+        return (p.nome || "").toLowerCase().includes(termo) || soDigitos(tel).includes(soDigitos(termo));
       })
+      .map(({ p, tel }) => ({
+        telefone: tel,
+        nome: p.nome || formatarTelefone(tel),
+        itens: [],
+        ultima: "",
+        pendente: false,
+        ultimaEntrada: null,
+        pacienteId: p.id,
+        novo: true,
+      }));
+
+    const filtradas = base
       .filter((c) =>
-        !busca.trim() ||
-        c.nome.toLowerCase().includes(busca.toLowerCase()) ||
+        !termo ||
+        c.nome.toLowerCase().includes(termo) ||
         soDigitos(c.telefone).includes(soDigitos(busca))
       )
       .filter((c) => (filtro === "pendentes" ? c.pendente : filtro === "recebidas" ? !!c.ultimaEntrada : true))
@@ -446,7 +523,9 @@ export default function Conversas() {
         const chave = (c: Conversa) => (filtro === "todas" ? c.ultima : c.ultimaEntrada || c.ultima);
         return chave(b).localeCompare(chave(a));
       });
-  }, [interacoes, nomes, busca, filtro]);
+
+    return [...filtradas, ...novos];
+  }, [interacoes, nomes, busca, filtro, pacientes, selecionada]);
 
   const totalPendentes = useMemo(
     () => conversas.filter((c) => c.pendente).length,
@@ -505,7 +584,7 @@ export default function Conversas() {
           <div className="p-3 border-b space-y-2">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar contato..." className="pl-8 h-9 text-sm" />
+              <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar contato ou paciente..." className="pl-8 h-9 text-sm" />
             </div>
             <div className="flex gap-1">
               {([
@@ -542,11 +621,13 @@ export default function Conversas() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-medium truncate">{c.nome}</span>
-                      <span className="text-[10px] text-muted-foreground shrink-0">{hora(c.ultima)}</span>
+                      <span className="text-[10px] text-muted-foreground shrink-0">{c.ultima ? hora(c.ultima) : "novo"}</span>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
                       <p className="text-xs text-muted-foreground truncate flex-1">
-                        {(ultimaMsg.mensagem_usuario || ultimaMsg.resposta_final || "—").replace(/\[midia:\w+:\S+?\]/g, "📎 mídia")}
+                        {ultimaMsg
+                          ? (ultimaMsg.mensagem_usuario || ultimaMsg.resposta_final || "—").replace(/\[midia:\w+:\S+?\]/g, "📎 mídia")
+                          : "Paciente cadastrado — iniciar conversa"}
                       </p>
                       {c.pendente && (
                         <span className="shrink-0 rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-semibold text-secondary-foreground">
@@ -576,19 +657,25 @@ export default function Conversas() {
                   <p className="text-sm font-semibold">{ativa.nome}</p>
                   <p className="text-xs text-muted-foreground">{formatarTelefone(ativa.telefone)}</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  {ativa.nome === formatarTelefone(ativa.telefone) && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        navigate(`/pacientes?telefone=${encodeURIComponent(formatarTelefone(ativa.telefone))}`)
-                      }
-                    >
-                      <UserPlus className="h-4 w-4 mr-1.5" />
-                      Cadastrar paciente
-                    </Button>
-                  )}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      navigate(
+                        ativa.pacienteId
+                          ? `/pacientes?paciente=${ativa.pacienteId}`
+                          : `/pacientes?telefone=${encodeURIComponent(formatarTelefone(ativa.telefone))}`
+                      )
+                    }
+                  >
+                    <UserPlus className="h-4 w-4 mr-1.5" />
+                    {ativa.pacienteId ? "Abrir cadastro" : "Cadastrar paciente"}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => enviarParaCRM(ativa)}>
+                    <MessagesSquare className="h-4 w-4 mr-1.5" />
+                    Enviar para o CRM
+                  </Button>
                   <span className="text-xs text-muted-foreground">{ativa.itens.length} mensagens</span>
                 </div>
               </div>
