@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ const CAMPOS =
 
 export default function Pacientes() {
   const { profile } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [itens, setItens] = useState<Paciente[]>([]);
   const [busca, setBusca] = useState("");
   const [loading, setLoading] = useState(true);
