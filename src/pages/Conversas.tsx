@@ -175,13 +175,14 @@ export default function Conversas() {
   const carregar = useCallback(async () => {
     setLoading(true);
     try {
-      const [intRes, leadsRes] = await Promise.all([
+      const [intRes, leadsRes, pacRes] = await Promise.all([
         supabase
           .from("interacoes_ia")
           .select("id, paciente_externo_id, mensagem_usuario, resposta_final, supervisionado, intencao_detectada, atendente_humano, criado_em, canal")
           .order("criado_em", { ascending: false })
           .limit(2000),
         supabase.from("leads").select("nome, telefone").limit(2000),
+        supabase.from("pacientes").select("id, nome, telefone").limit(2000),
       ]);
 
       const lista = (intRes.data as Interacao[]) || [];
@@ -196,6 +197,14 @@ export default function Conversas() {
           if (l.nome) mapa[d] = l.nome;
         }
       }
+      const listaPac = ((pacRes.data as PacienteResumo[]) || []).filter((p) => soDigitos(p.telefone || "").length >= 10);
+      for (const p of listaPac) {
+        if (!p.nome) continue;
+        const d = soDigitos(p.telefone || "");
+        mapa[d] = p.nome;
+        mapa[d.startsWith("55") ? d.slice(2) : "55" + d] = p.nome;
+      }
+      setPacientes(listaPac);
       setNomes(mapa);
 
       // Toda conversa também vira card no CRM
