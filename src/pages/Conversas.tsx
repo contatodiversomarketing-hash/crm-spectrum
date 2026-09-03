@@ -116,6 +116,7 @@ function ConteudoMensagem({ texto, escuro }: { texto: string; escuro?: boolean }
 export default function Conversas() {
   const [interacoes, setInteracoes] = useState<Interacao[]>([]);
   const [nomes, setNomes] = useState<Record<string, string>>({});
+  const [pacientes, setPacientes] = useState<PacienteResumo[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<"todas" | "pendentes" | "recebidas">("pendentes");
