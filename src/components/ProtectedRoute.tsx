@@ -25,7 +25,7 @@ export function ProtectedRoute({ children, requiredRoles }: ProtectedRouteProps)
   }
 
   if (requiredRoles && requiredRoles.length > 0 && !hasAnyRole(...requiredRoles)) {
-    // Auxiliares só acessam Agenda, Pacientes e CRM — mandamos para a Agenda
+    // Auxiliares acessam Agenda, Pacientes, CRM e Conversas — mandamos para a Agenda
     if (hasAnyRole("auxiliar")) {
       return <Navigate to="/agenda" replace />;
     }

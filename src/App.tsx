@@ -39,7 +39,7 @@ const App = () => (
             <Route path="/pacientes" element={<ProtectedRoute><AppLayout><Pacientes /></AppLayout></ProtectedRoute>} />
             <Route path="/conversas-ia" element={<Navigate to="/conversas" replace />} />
             <Route path="/conversas-atendente" element={<Navigate to="/conversas" replace />} />
-            <Route path="/conversas" element={<ProtectedRoute requiredRoles={["admin", "supervisao", "analista"]}><AppLayout><Conversas /></AppLayout></ProtectedRoute>} />
+            <Route path="/conversas" element={<ProtectedRoute requiredRoles={["admin", "supervisao", "analista", "auxiliar"]}><AppLayout><Conversas /></AppLayout></ProtectedRoute>} />
 
 
             <Route path="*" element={<NotFound />} />

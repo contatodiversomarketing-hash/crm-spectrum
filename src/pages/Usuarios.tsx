@@ -32,7 +32,7 @@ const ROLES: { value: AppRole; label: string; descricao: string }[] = [
   { value: "admin", label: "Administrador", descricao: "Acesso total à plataforma" },
   { value: "supervisao", label: "Supervisão", descricao: "Acompanha e aprova as respostas da Ana" },
   { value: "analista", label: "Analista", descricao: "Painel e dashboards de inteligência" },
-  { value: "auxiliar", label: "Auxiliar", descricao: "Somente Agenda, Pacientes e CRM" },
+  { value: "auxiliar", label: "Auxiliar", descricao: "Agenda, Pacientes, CRM / Leads e Conversas" },
 ];
 
 const roleLabel = (r: AppRole) => ROLES.find((x) => x.value === r)?.label ?? r;
