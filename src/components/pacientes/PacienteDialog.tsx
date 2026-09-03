@@ -63,9 +63,10 @@ interface Props {
   paciente: Paciente | null;
   autorNome: string;
   onSaved: () => void;
+  valoresIniciais?: Partial<Form>;
 }
 
-export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSaved }: Props) {
+export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSaved, valoresIniciais }: Props) {
   const [form, setForm] = useState<Form>(vazio);
   const [salvando, setSalvando] = useState(false);
   const [aba, setAba] = useState("dados");
