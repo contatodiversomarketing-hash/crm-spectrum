@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, RefreshCw, MessageSquare, MessagesSquare, Send, Power, UserPlus, Bell, BellOff } from "lucide-react";
+import { Search, RefreshCw, MessageSquare, MessagesSquare, Send, Power, UserPlus, Bell, BellOff, Smile, Mic, Square, FileText, Loader2, AudioLines, Paperclip } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,11 @@ interface Conversa {
   ultimaEntrada: string | null;
 }
 
+
+const EMOJIS = [
+  "😀","😄","😊","🙂","😉","😍","🥰","😘","🤗","🤔","😅","😂","🥲","😌","😴","🙏","👍","👏","💪","🙌",
+  "❤️","💚","💙","✨","🌟","🎉","✅","❌","⏰","📅","📍","📞","💬","📎","💊","🧠","👶","👩‍⚕️","🩺","💛",
+];
 
 function soDigitos(v: string) {
   return (v || "").replace(/\D/g, "");
@@ -97,6 +103,21 @@ export default function Conversas() {
       /* som indisponível */
     }
   }, []);
+
+  const [gravando, setGravando] = useState(false);
+  const [transcrevendo, setTranscrevendo] = useState(false);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<BlobPart[]>([]);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  const blobParaBase64 = (blob: Blob) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -204,6 +225,81 @@ export default function Conversas() {
       setEnviando(false);
     }
   }
+
+  const enviarMidia = async (numero: string, payload: Record<string, unknown>) => {
+    setEnviando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("crm-enviar-whatsapp", {
+        body: { numero: soDigitos(numero), ...payload },
+      });
+      if (error || (data as { error?: string })?.error) {
+        throw new Error((data as { error?: string })?.error || error?.message);
+      }
+      carregar();
+    } catch (e) {
+      toast({ title: "Falha ao enviar", description: String(e), variant: "destructive" });
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const iniciarGravacao = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream);
+      chunksRef.current = [];
+      rec.ondataavailable = (e) => e.data.size > 0 && chunksRef.current.push(e.data);
+      rec.onstop = () => {
+        setAudioBlob(new Blob(chunksRef.current, { type: "audio/webm" }));
+        stream.getTracks().forEach((t) => t.stop());
+      };
+      rec.start();
+      recorderRef.current = rec;
+      setGravando(true);
+    } catch {
+      toast({ title: "Microfone indisponível", description: "Permita o acesso ao microfone.", variant: "destructive" });
+    }
+  };
+
+  const pararGravacao = () => {
+    recorderRef.current?.stop();
+    setGravando(false);
+  };
+
+  const enviarAudio = async (numero: string) => {
+    if (!audioBlob) return;
+    const base64 = await blobParaBase64(audioBlob);
+    await enviarMidia(numero, { tipo: "audio", base64, fileName: "audio.webm", mimeType: "audio/webm" });
+    setAudioBlob(null);
+  };
+
+  const enviarArquivo = async (numero: string, file: File) => {
+    const base64 = await blobParaBase64(file);
+    const tipo = file.type.startsWith("image/") ? "image" : "document";
+    await enviarMidia(numero, { tipo, base64, fileName: file.name, mimeType: file.type, texto: texto || "" });
+    setTexto("");
+  };
+
+  const transcreverAudio = async () => {
+    if (!audioBlob) return;
+    setTranscrevendo(true);
+    try {
+      const base64 = await blobParaBase64(audioBlob);
+      const { data, error } = await supabase.functions.invoke("transcrever-audio", {
+        body: { audio: base64, format: "webm" },
+      });
+      if (error || (data as { error?: string })?.error) {
+        throw new Error((data as { error?: string })?.error || error?.message);
+      }
+      const t = (data as { texto?: string })?.texto || "";
+      setTexto((p) => (p ? `${p} ${t}` : t));
+      toast({ title: "Áudio transcrito" });
+    } catch (e) {
+      toast({ title: "Erro ao transcrever", description: String(e), variant: "destructive" });
+    } finally {
+      setTranscrevendo(false);
+    }
+  };
 
   useEffect(() => {
     carregar();
@@ -453,7 +549,64 @@ export default function Conversas() {
                 </div>
               </ScrollArea>
               <div className="border-t bg-card p-3">
-                <div className="max-w-3xl mx-auto flex items-end gap-2">
+                <div className="max-w-3xl mx-auto space-y-2">
+                  {audioBlob && (
+                    <div className="flex items-center gap-2 rounded-md border p-2">
+                      <AudioLines className="h-4 w-4 text-primary shrink-0" />
+                      <audio controls src={URL.createObjectURL(audioBlob)} className="h-8 flex-1" />
+                      <Button size="sm" variant="outline" onClick={transcreverAudio} disabled={transcrevendo} title="Transcrever">
+                        {transcrevendo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+                      </Button>
+                      <Button size="sm" onClick={() => enviarAudio(ativa.telefone)} disabled={enviando} title="Enviar áudio">
+                        <Send className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setAudioBlob(null)}>×</Button>
+                    </div>
+                  )}
+                <div className="flex items-end gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0" title="Emojis">
+                        <Smile className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-2" align="start">
+                      <div className="grid grid-cols-8 gap-1">
+                        {EMOJIS.map((e) => (
+                          <button
+                            key={e}
+                            type="button"
+                            className="text-lg hover:bg-secondary rounded"
+                            onClick={() => setTexto((p) => p + e)}
+                          >
+                            {e}
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) enviarArquivo(ativa.telefone, f);
+                      e.target.value = "";
+                    }}
+                  />
+                  <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0" title="Anexar" onClick={() => fileRef.current?.click()}>
+                    <Paperclip className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={gravando ? "destructive" : "ghost"}
+                    size="icon"
+                    className="h-10 w-10 shrink-0"
+                    title={gravando ? "Parar gravação" : "Gravar áudio"}
+                    onClick={() => (gravando ? pararGravacao() : iniciarGravacao())}
+                  >
+                    {gravando ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  </Button>
                   <Textarea
                     value={texto}
                     onChange={(e) => setTexto(e.target.value)}
@@ -470,6 +623,7 @@ export default function Conversas() {
                   <Button size="icon" onClick={() => enviar(ativa.telefone)} disabled={enviando || !texto.trim()}>
                     <Send className="h-4 w-4" />
                   </Button>
+                </div>
                 </div>
               </div>
             </>
