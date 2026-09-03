@@ -29,6 +29,14 @@ interface Conversa {
   ultima: string;
   pendente: boolean;
   ultimaEntrada: string | null;
+  pacienteId?: string | null;
+  novo?: boolean;
+}
+
+interface PacienteResumo {
+  id: string;
+  nome: string | null;
+  telefone: string | null;
 }
 
 
