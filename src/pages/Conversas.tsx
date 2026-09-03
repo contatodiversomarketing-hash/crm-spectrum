@@ -63,6 +63,48 @@ function hora(iso: string) {
   return new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
+
+const RE_MIDIA = /\[midia:(image|audio|document|video):(\S+?)\]/g;
+
+function ConteudoMensagem({ texto, escuro }: { texto: string; escuro?: boolean }) {
+  const midias: { tipo: string; url: string }[] = [];
+  const limpo = texto.replace(RE_MIDIA, (_m, tipo: string, url: string) => {
+    midias.push({ tipo, url });
+    return "";
+  }).trim();
+  return (
+    <div className="space-y-2">
+      {limpo && <p className="text-sm whitespace-pre-wrap break-words">{limpo}</p>}
+      {midias.map((m, idx) => {
+        if (m.tipo === "image") {
+          return (
+            <a key={idx} href={m.url} target="_blank" rel="noreferrer">
+              <img src={m.url} alt="Imagem enviada na conversa" className="max-h-64 rounded-lg border" loading="lazy" />
+            </a>
+          );
+        }
+        if (m.tipo === "audio") {
+          return <audio key={idx} controls src={m.url} className="h-9 w-56 max-w-full" />;
+        }
+        if (m.tipo === "video") {
+          return <video key={idx} controls src={m.url} className="max-h-64 rounded-lg border" />;
+        }
+        return (
+          <a
+            key={idx}
+            href={m.url}
+            target="_blank"
+            rel="noreferrer"
+            className={`flex items-center gap-2 text-xs underline ${escuro ? "opacity-90" : "text-primary"}`}
+          >
+            <FileText className="h-3.5 w-3.5" /> Abrir arquivo
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function Conversas() {
   const [interacoes, setInteracoes] = useState<Interacao[]>([]);
   const [nomes, setNomes] = useState<Record<string, string>>({});
@@ -528,7 +570,7 @@ export default function Conversas() {
                       {i.mensagem_usuario && (
                         <div className="flex justify-start">
                           <div className="max-w-[75%] rounded-2xl rounded-tl-sm bg-card border px-3.5 py-2 shadow-sm">
-                            <p className="text-sm whitespace-pre-wrap break-words">{i.mensagem_usuario}</p>
+                            <ConteudoMensagem texto={i.mensagem_usuario} />
                             <p className="text-[10px] text-muted-foreground mt-1">{hora(i.criado_em)}</p>
                           </div>
                         </div>
@@ -539,7 +581,7 @@ export default function Conversas() {
                             <p className="text-[10px] opacity-80 mb-0.5 font-medium">
                               {i.supervisionado ? i.atendente_humano || "Atendente" : "Ana"}
                             </p>
-                            <p className="text-sm whitespace-pre-wrap break-words">{i.resposta_final}</p>
+                            <ConteudoMensagem texto={i.resposta_final} escuro />
                             <p className="text-[10px] opacity-70 mt-1">{hora(i.criado_em)}</p>
                           </div>
                         </div>
@@ -588,6 +630,7 @@ export default function Conversas() {
                   <input
                     ref={fileRef}
                     type="file"
+                    accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,audio/*"
                     className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
