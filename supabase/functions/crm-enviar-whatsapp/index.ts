@@ -90,19 +90,19 @@ Deno.serve(async (req) => {
         const bytes = new Uint8Array(bin.length);
         for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
         const mime = (body.mimeType || "application/octet-stream").split(";")[0].trim();
-        const ext = (body.fileName?.split(".").pop() || mime.split("/")[1] || "bin").toLowerCase();
+        const extBruta = (body.fileName?.split(".").pop() || mime.split("/")[1] || "bin").toLowerCase();
+        const ext = extBruta.replace(/[^a-z0-9]/g, "").slice(0, 8) || "bin";
         const nome = `enviados/${tipo}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
-        const up = await fetch(`${Deno.env.get("SUPABASE_URL")}/storage/v1/object/audio/${nome}`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-            "Content-Type": mime,
-            "x-upsert": "true",
-          },
-          body: bytes,
-        });
-        if (up.ok) urlMidia = `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/public/audio/${nome}`;
-        else console.error("[crm-enviar-whatsapp] upload storage falhou", up.status);
+        const { error: upErr } = await supabase.storage
+          .from("audio")
+          .upload(nome, bytes, { contentType: mime, upsert: true });
+        if (upErr) {
+          console.error("[crm-enviar-whatsapp] upload storage falhou", upErr.message);
+        } else {
+          const { data: pub } = supabase.storage.from("audio").getPublicUrl(nome);
+          urlMidia = pub?.publicUrl || null;
+          console.log("[crm-enviar-whatsapp] mídia salva:", urlMidia);
+        }
       } catch (e) {
         console.error("[crm-enviar-whatsapp] erro upload storage", e);
       }
