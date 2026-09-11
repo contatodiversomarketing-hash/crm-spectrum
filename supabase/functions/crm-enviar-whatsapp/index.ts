@@ -1,6 +1,6 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { megaConfig, enviarTextoMega } from "../_shared/mega.ts";
+import { megaConfig, enviarTextoMega, enviarTemplateMega, dentroDaJanela24h } from "../_shared/mega.ts";
 import { telCanonico } from "../_shared/dedup.ts";
 
 type Body = {
@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
     const registro = urlMidia ? `${registroBase}\n[midia:${tipo}:${urlMidia}]` : registroBase;
 
     const { error: insertErr } = await supabase.from("interacoes_ia").insert({
-      paciente_externo_id: telCanonico(numero) || numero,
+      paciente_externo_id: canonico,
       canal: "whatsapp",
       sistema_origem: "crm_manual",
       mensagem_usuario: null,
@@ -169,7 +169,7 @@ Deno.serve(async (req) => {
     });
     if (insertErr) console.error("[crm-enviar-whatsapp] erro ao salvar histórico", insertErr);
 
-    return json({ ok: true });
+    return json({ ok: true, aviso: avisoTemplate });
   } catch (e) {
     console.error(e);
     return json({ error: String(e) }, 500);
