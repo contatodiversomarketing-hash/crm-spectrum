@@ -149,7 +149,9 @@ Deno.serve(async (req) => {
     }
 
     const registroBase = tipo === "text"
-      ? body.texto!.slice(0, 5000)
+      ? (avisoTemplate
+        ? `[Mensagem de reabordagem aprovada enviada — a mensagem digitada não pôde ser enviada fora da janela de 24h]\n${body.texto!.slice(0, 2000)}`
+        : body.texto!.slice(0, 5000))
       : `[${tipo === "audio" ? "áudio" : tipo === "image" ? "imagem" : "arquivo"}: ${body.fileName || ""}] ${body.texto || ""}`.trim();
 
     const registro = urlMidia ? `${registroBase}\n[midia:${tipo}:${urlMidia}]` : registroBase;
