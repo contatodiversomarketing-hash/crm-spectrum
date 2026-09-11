@@ -236,7 +236,8 @@ Deno.serve(async (req) => {
         let viaTemplate = false;
 
         if (oficial && !janelaAberta) {
-          const primeiro = (lead.nome || "").split(" ")[0] || "tudo bem";
+          const nomeLimpo = /\d/.test(lead.nome || "") ? "" : (lead.nome || "").trim();
+          const primeiro = nomeLimpo.split(" ")[0] || "tudo bem";
           const tpl = await enviarTemplateMega(telefone, [primeiro]);
           if (tpl.usouTemplate) {
             megaRes = tpl;
