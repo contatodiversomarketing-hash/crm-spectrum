@@ -499,7 +499,8 @@ export default function Conversas() {
         if (!tel || comConversa.has(tel)) return false;
         if (selecionada === tel) return true;
         if (!termo) return false;
-        return (p.nome || "").toLowerCase().includes(termo) || soDigitos(tel).includes(soDigitos(termo));
+        const d = soDigitos(termo);
+        return (p.nome || "").toLowerCase().includes(termo) || (!!d && soDigitos(tel).includes(d));
       })
       .map(({ p, tel }) => ({
         telefone: tel,
