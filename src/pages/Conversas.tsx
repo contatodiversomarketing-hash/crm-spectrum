@@ -512,11 +512,12 @@ export default function Conversas() {
         novo: true,
       }));
 
+    const termoDigitos = soDigitos(busca);
     const filtradas = base
       .filter((c) =>
         !termo ||
         c.nome.toLowerCase().includes(termo) ||
-        soDigitos(c.telefone).includes(soDigitos(busca))
+        (!!termoDigitos && soDigitos(c.telefone).includes(termoDigitos))
       )
       .filter((c) => (filtro === "pendentes" ? c.pendente : filtro === "recebidas" ? !!c.ultimaEntrada : true))
       .sort((a, b) => {
