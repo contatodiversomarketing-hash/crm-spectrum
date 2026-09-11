@@ -71,7 +71,8 @@ Deno.serve(async (req) => {
           .select("nome")
           .eq("telefone", canonico)
           .maybeSingle();
-        const primeiro = (lead?.nome || "").trim().split(/\s+/)[0] || "tudo bem";
+        const nomeLimpo = /\d/.test(lead?.nome || "") ? "" : (lead?.nome || "").trim();
+        const primeiro = nomeLimpo.split(/\s+/)[0] || "tudo bem";
         const t = await enviarTemplateMega(numero, [primeiro]);
         if (!t.ok) {
           console.error("[crm-enviar-whatsapp] template falhou", t.status, t.body.slice(0, 400));
