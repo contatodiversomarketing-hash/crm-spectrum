@@ -241,7 +241,9 @@ Deno.serve(async (req) => {
           if (tpl.usouTemplate) {
             megaRes = tpl;
             viaTemplate = true;
-            mensagem = `[template de reabordagem enviado para ${primeiro}]`;
+            mensagem =
+              `Olá, ${primeiro}! Aqui é a Ana, consultora comercial. Trabalho com a Dra. Amélia Carvalho, especialista em neurodesenvolvimento (TEA, TDAH e cannabis medicinal).\n\n` +
+              `Vi que você buscou informações com a gente e queria entender como posso te ajudar hoje. Podemos conversar?`;
           } else {
             megaRes = await enviarTextoMega(telefone, mensagem);
           }
