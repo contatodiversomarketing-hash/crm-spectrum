@@ -25,6 +25,31 @@ function onlyDigits(v: string) {
   return (v || "").replace(/\D/g, "");
 }
 
+/** Base sem DDI 55 e sem zeros à esquerda */
+function telBase(v: string) {
+  let d = onlyDigits(v);
+  if (d.startsWith("55") && d.length > 11) d = d.slice(2);
+  return d.replace(/^0+/, "");
+}
+
+/** Todas as formas em que o histórico pode ter sido gravado */
+function telVariacoes(v: string): string[] {
+  const base = telBase(v);
+  if (!base) return [];
+  const semNove = base.length === 11 && base[2] === "9" ? base.slice(0, 2) + base.slice(3) : "";
+  const comNove = base.length === 10 ? base.slice(0, 2) + "9" + base.slice(2) : "";
+  const raizes = [base, semNove, comNove].filter(Boolean);
+  const out = new Set<string>();
+  for (const r of raizes) {
+    out.add(r);
+    out.add(`55${r}`);
+    out.add(`+55${r}`);
+    out.add(`tel:55${r}`);
+    out.add(`tel:${r}`);
+  }
+  return Array.from(out);
+}
+
 export function LeadChatDialog({
   open,
   onOpenChange,
@@ -58,7 +83,7 @@ export function LeadChatDialog({
     const { data, error } = await supabase
       .from("interacoes_ia")
       .select("id, mensagem_usuario, resposta_final, resposta_sugerida, atendente_humano, criado_em")
-      .eq("paciente_externo_id", numero)
+      .in("paciente_externo_id", telVariacoes(numero))
       .order("criado_em", { ascending: true })
       .limit(300);
     if (!error && data) setMessages(data as Msg[]);

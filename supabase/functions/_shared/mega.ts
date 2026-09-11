@@ -233,18 +233,43 @@ export async function enviarDocumentoMega(
 
 // Baixa uma mídia recebida pela Cloud API (media id) e devolve em base64.
 export async function baixarMidiaDatafy(mediaId: string): Promise<{ base64: string; mimetype: string } | null> {
-  const { base, token, configurado } = datafyConfig();
+  const { base, token, phoneNumberId, configurado } = datafyConfig();
   if (!configurado || !mediaId) return null;
   try {
-    const metaResp = await fetch(`${base}/${mediaId}`, { headers: { Authorization: `Bearer ${token}` } });
-    if (!metaResp.ok) {
-      console.error(`[datafy] metadados de mídia falharam [${metaResp.status}]`);
+    const auth = { Authorization: `Bearer ${token}` };
+    const tentativas = [
+      `${base}/${mediaId}?phone_number_id=${phoneNumberId}`,
+      `${base}/${mediaId}`,
+      `${base}/${phoneNumberId}/media/${mediaId}`,
+      `${base}/media/${mediaId}`,
+    ];
+
+    let meta: any = null;
+    for (const url of tentativas) {
+      const r = await fetch(url, { headers: auth });
+      if (!r.ok) {
+        console.error(`[datafy] metadados de mídia falharam [${r.status}] em ${url}`);
+        continue;
+      }
+      const j = await r.json().catch(() => null);
+      if (j?.url || j?.data?.url) {
+        meta = j.url ? j : j.data;
+        break;
+      }
+      if (typeof j?.base64 === "string" && j.base64.length > 100) {
+        return { base64: j.base64, mimetype: j.mime_type || "application/octet-stream" };
+      }
+    }
+    if (!meta?.url) {
+      console.error("[datafy] nenhum endpoint retornou URL da mídia");
       return null;
     }
-    const meta = await metaResp.json();
-    if (!meta?.url) return null;
 
-    const binResp = await fetch(meta.url, { headers: { Authorization: `Bearer ${token}` } });
+    let binResp = await fetch(meta.url, { headers: auth });
+    if (!binResp.ok) {
+      // Alguns proxies devolvem URL pré-assinada que rejeita o header de auth
+      binResp = await fetch(meta.url);
+    }
     if (!binResp.ok) {
       console.error(`[datafy] download de mídia falhou [${binResp.status}]`);
       return null;
