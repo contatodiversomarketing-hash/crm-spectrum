@@ -1,6 +1,6 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { megaConfig, enviarTextoMega } from "../_shared/mega.ts";
+import { megaConfig, enviarTextoMega, enviarTemplateMega, dentroDaJanela24h } from "../_shared/mega.ts";
 import { telCanonico } from "../_shared/dedup.ts";
 
 type Body = {
@@ -44,12 +44,52 @@ Deno.serve(async (req) => {
     if (tipo === "text" && !body.texto?.trim()) return json({ error: "Mensagem vazia" }, 400);
     if (tipo !== "text" && !body.base64) return json({ error: "Arquivo não enviado" }, 400);
 
+    const canonico = telCanonico(numero) || numero;
+
+    // Janela de 24h do Meta: sem mensagem recente do paciente, texto livre é
+    // aceito pela API mas nunca entregue. Nesse caso enviamos o template aprovado.
+    let janelaAberta = true;
+    if (tipo === "text") {
+      const { data: ultima } = await supabase
+        .from("interacoes_ia")
+        .select("criado_em")
+        .eq("paciente_externo_id", canonico)
+        .not("mensagem_usuario", "is", null)
+        .order("criado_em", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      janelaAberta = dentroDaJanela24h(ultima?.criado_em ?? null);
+    }
+
+    let avisoTemplate: string | null = null;
+
     // Texto: sempre pela camada única (API oficial Meta/Datafy com fallback MegaAPI)
     if (tipo === "text") {
-      const r = await enviarTextoMega(numero, body.texto!);
-      if (!r.ok) {
-        console.error("[crm-enviar-whatsapp] falha", r.status, r.body.slice(0, 400));
-        return json({ error: "Falha ao enviar pelo WhatsApp", status: r.status, details: r.body.slice(0, 400) }, 502);
+      if (!janelaAberta) {
+        const { data: lead } = await supabase
+          .from("leads")
+          .select("nome")
+          .eq("telefone", canonico)
+          .maybeSingle();
+        const primeiro = (lead?.nome || "").trim().split(/\s+/)[0] || "tudo bem";
+        const t = await enviarTemplateMega(numero, [primeiro]);
+        if (!t.ok) {
+          console.error("[crm-enviar-whatsapp] template falhou", t.status, t.body.slice(0, 400));
+          return json({
+            error:
+              "Este contato não fala com a gente há mais de 24 horas. O WhatsApp só permite reabrir a conversa com a mensagem aprovada, e o envio dela falhou.",
+            status: t.status,
+            details: t.body.slice(0, 400),
+          }, 502);
+        }
+        avisoTemplate =
+          "Como o contato não responde há mais de 24 horas, o WhatsApp só permite enviar a mensagem de reabordagem aprovada. Ela foi enviada; assim que a pessoa responder, você pode escrever livremente.";
+      } else {
+        const r = await enviarTextoMega(numero, body.texto!);
+        if (!r.ok) {
+          console.error("[crm-enviar-whatsapp] falha", r.status, r.body.slice(0, 400));
+          return json({ error: "Falha ao enviar pelo WhatsApp", status: r.status, details: r.body.slice(0, 400) }, 502);
+        }
       }
     } else {
       const { origin, token, instanceKey, configurado } = megaConfig();
@@ -109,13 +149,15 @@ Deno.serve(async (req) => {
     }
 
     const registroBase = tipo === "text"
-      ? body.texto!.slice(0, 5000)
+      ? (avisoTemplate
+        ? `[Mensagem de reabordagem aprovada enviada — a mensagem digitada não pôde ser enviada fora da janela de 24h]\n${body.texto!.slice(0, 2000)}`
+        : body.texto!.slice(0, 5000))
       : `[${tipo === "audio" ? "áudio" : tipo === "image" ? "imagem" : "arquivo"}: ${body.fileName || ""}] ${body.texto || ""}`.trim();
 
     const registro = urlMidia ? `${registroBase}\n[midia:${tipo}:${urlMidia}]` : registroBase;
 
     const { error: insertErr } = await supabase.from("interacoes_ia").insert({
-      paciente_externo_id: telCanonico(numero) || numero,
+      paciente_externo_id: canonico,
       canal: "whatsapp",
       sistema_origem: "crm_manual",
       mensagem_usuario: null,
@@ -127,7 +169,7 @@ Deno.serve(async (req) => {
     });
     if (insertErr) console.error("[crm-enviar-whatsapp] erro ao salvar histórico", insertErr);
 
-    return json({ ok: true });
+    return json({ ok: true, aviso: avisoTemplate });
   } catch (e) {
     console.error(e);
     return json({ error: String(e) }, 500);

@@ -336,6 +336,8 @@ export default function Conversas() {
       if (error || (data as { error?: string })?.error) {
         throw new Error((data as { error?: string })?.error || error?.message);
       }
+      const aviso = (data as { aviso?: string | null })?.aviso;
+      if (aviso) toast({ title: "Conversa fora da janela de 24h", description: aviso });
       setTexto("");
       carregar();
     } catch (e) {
