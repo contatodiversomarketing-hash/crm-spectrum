@@ -83,7 +83,7 @@ export function LeadChatDialog({
     const { data, error } = await supabase
       .from("interacoes_ia")
       .select("id, mensagem_usuario, resposta_final, resposta_sugerida, atendente_humano, criado_em")
-      .eq("paciente_externo_id", numero)
+      .in("paciente_externo_id", telVariacoes(numero))
       .order("criado_em", { ascending: true })
       .limit(300);
     if (!error && data) setMessages(data as Msg[]);
