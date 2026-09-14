@@ -338,10 +338,27 @@ export default function Conversas() {
       if (error || (data as { error?: string })?.error) {
         throw new Error((data as { error?: string })?.error || error?.message);
       }
-      const aviso = (data as { aviso?: string | null })?.aviso;
+      const retorno = data as { aviso?: string | null; messageId?: string | null };
+      const aviso = retorno?.aviso;
       if (aviso) toast({ title: "Conversa fora da janela de 24h", description: aviso });
       setTexto("");
       carregar();
+      if (retorno?.messageId) {
+        await new Promise((resolve) => window.setTimeout(resolve, 2500));
+        const { data: confirmacao } = await supabase
+          .from("interacoes_ia")
+          .select("whatsapp_status, whatsapp_erro")
+          .eq("whatsapp_message_id", retorno.messageId)
+          .maybeSingle();
+        if (confirmacao?.whatsapp_status === "failed") {
+          toast({
+            title: "Mensagem não entregue no WhatsApp",
+            description: confirmacao.whatsapp_erro || "O WhatsApp recusou o envio.",
+            variant: "destructive",
+          });
+          carregar();
+        }
+      }
     } catch (e) {
       toast({ title: "Falha ao enviar", description: String(e), variant: "destructive" });
     } finally {
