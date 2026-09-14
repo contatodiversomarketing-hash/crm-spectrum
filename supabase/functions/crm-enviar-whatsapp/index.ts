@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
         }
         whatsappMessageId = t.messageId;
         avisoTemplate =
-          "Como o contato não responde há mais de 24 horas, o WhatsApp só permite enviar a mensagem de reabordagem aprovada. Ela foi enviada; assim que a pessoa responder, você pode escrever livremente.";
+          "Como o contato não responde há mais de 24 horas, o WhatsApp só permite tentar a mensagem de reabordagem aprovada. Aguarde a confirmação de entrega exibida na conversa.";
       } else {
         const r = await enviarTextoMega(numero, body.texto!);
         if (!r.ok) {
