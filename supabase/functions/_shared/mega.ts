@@ -53,7 +53,7 @@ export function numeroE164(numero: string): string {
   return n;
 }
 
-type Resultado = { ok: boolean; status: number; body: string };
+type Resultado = { ok: boolean; status: number; body: string; messageId?: string };
 
 async function datafyPost(payload: Record<string, unknown>): Promise<Resultado> {
   const { base, token, phoneNumberId } = datafyConfig();
@@ -64,12 +64,15 @@ async function datafyPost(payload: Record<string, unknown>): Promise<Resultado> 
   });
   const body = await resp.text();
   let erroLogico = false;
+  let messageId: string | undefined;
   try {
-    erroLogico = Boolean(JSON.parse(body)?.error);
+    const parsed = JSON.parse(body);
+    erroLogico = Boolean(parsed?.error);
+    messageId = parsed?.messages?.[0]?.id || parsed?.data?.messages?.[0]?.id || parsed?.message_id || parsed?.id;
   } catch { /* corpo não-JSON */ }
   const ok = resp.ok && !erroLogico;
   if (!ok) console.error(`[datafy] envio falhou [${resp.status}]: ${body.slice(0, 400)}`);
-  return { ok, status: resp.status, body };
+  return { ok, status: resp.status, body, messageId };
 }
 
 // Na API oficial não existe "sessão" que cai: se o token e o número estiverem

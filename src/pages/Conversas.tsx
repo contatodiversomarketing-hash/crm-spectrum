@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, RefreshCw, MessageSquare, MessagesSquare, Send, Power, UserPlus, Bell, BellOff, Smile, Mic, Square, FileText, Loader2, AudioLines, Paperclip, Pencil, Trash2, Check, X } from "lucide-react";
+import { Search, RefreshCw, MessageSquare, MessagesSquare, Send, Power, UserPlus, Bell, BellOff, Smile, Mic, Square, FileText, Loader2, AudioLines, Paperclip, Pencil, Trash2, Check, X, CheckCheck, AlertCircle } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,8 @@ interface Interacao {
   atendente_humano: string | null;
   criado_em: string;
   canal: string;
+  whatsapp_status: string | null;
+  whatsapp_erro: string | null;
 }
 
 interface Conversa {
@@ -178,7 +180,7 @@ export default function Conversas() {
       const [intRes, leadsRes, pacRes] = await Promise.all([
         supabase
           .from("interacoes_ia")
-          .select("id, paciente_externo_id, mensagem_usuario, resposta_final, supervisionado, intencao_detectada, atendente_humano, criado_em, canal")
+          .select("id, paciente_externo_id, mensagem_usuario, resposta_final, supervisionado, intencao_detectada, atendente_humano, criado_em, canal, whatsapp_status, whatsapp_erro")
           .order("criado_em", { ascending: false })
           .limit(2000),
         supabase.from("leads").select("nome, telefone").limit(2000),
@@ -744,7 +746,20 @@ export default function Conversas() {
                             ) : (
                               <>
                                 <ConteudoMensagem texto={i.resposta_final} escuro />
-                                <p className="text-[10px] opacity-70 mt-1">{hora(i.criado_em)}</p>
+                                <div className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-80">
+                                  <span>{hora(i.criado_em)}</span>
+                                  {i.whatsapp_status === "failed" ? (
+                                    <span className="flex items-center gap-1 font-medium" title={i.whatsapp_erro || "Falha no envio pelo WhatsApp"}>
+                                      <AlertCircle className="h-3 w-3" /> Não entregue
+                                    </span>
+                                  ) : i.whatsapp_status === "read" ? (
+                                    <CheckCheck className="h-3.5 w-3.5" aria-label="Lida" />
+                                  ) : i.whatsapp_status === "delivered" ? (
+                                    <CheckCheck className="h-3.5 w-3.5" aria-label="Entregue" />
+                                  ) : i.whatsapp_status ? (
+                                    <Check className="h-3.5 w-3.5" aria-label="Enviada" />
+                                  ) : null}
+                                </div>
                               </>
                             )}
                           </div>

@@ -2635,22 +2635,22 @@ function megaResponseIndicaSucesso(status: number, parsedBody: unknown): boolean
 // =============================
 // ENVIAR MENSAGEM VIA MEGAAPI
 // =============================
-async function enviarTexto(numero: string, texto: string, instanceKey = Deno.env.get("MEGA_INSTANCE_KEY") || ""): Promise<boolean> {
+async function enviarTexto(numero: string, texto: string, instanceKey = Deno.env.get("MEGA_INSTANCE_KEY") || ""): Promise<{ ok: boolean; messageId?: string }> {
   // Provedor padrão: API OFICIAL do Meta via Datafy. Só cai para a MegaAPI
   // (legado, não oficial) quando a Datafy não estiver configurada.
   if (datafyConfig().configurado) {
     const r = await enviarTextoMega(numero, texto);
     console.log(`[whatsapp] Envio texto (datafy/meta): ${r.status} ok=${r.ok} | ${r.body.slice(0, 160)}`);
-    if (r.ok) return true;
+    if (r.ok) return { ok: true, messageId: r.messageId };
     console.error("[whatsapp] Datafy recusou o envio — não usando fallback MegaAPI");
-    return false;
+    return { ok: false };
   }
 
   const MEGA_API_URL = Deno.env.get("MEGA_API_URL");
   const MEGA_API_TOKEN = Deno.env.get("MEGA_API_TOKEN");
   if (!MEGA_API_URL || !MEGA_API_TOKEN) {
     console.error("[whatsapp] Nenhum provedor de WhatsApp configurado");
-    return false;
+    return { ok: false };
   }
 
   const candidates = buildMegaTextCandidates(MEGA_API_URL, MEGA_API_TOKEN, numero, texto, instanceKey);
@@ -2672,7 +2672,7 @@ async function enviarTexto(numero: string, texto: string, instanceKey = Deno.env
 
       if (sucesso) {
         console.log(`[whatsapp] ✅ MegaAPI aceitou envio por ${candidate.label}`);
-        return true;
+        return { ok: true };
       }
 
       lastFailurePreview = `${candidate.label}: ${preview}`;
@@ -2684,7 +2684,7 @@ async function enviarTexto(numero: string, texto: string, instanceKey = Deno.env
   }
 
   console.error(`[whatsapp] Nenhum endpoint da MegaAPI aceitou o envio do texto${lastFailurePreview ? ` | último erro: ${lastFailurePreview}` : ""}`);
-  return false;
+  return { ok: false };
 }
 
 async function enviarAudio(numero: string, audioUrl: string): Promise<void> {
@@ -2729,6 +2729,13 @@ async function registrarStatusCloud(raw: any): Promise<boolean> {
       })),
     );
     for (const s of statuses) {
+      const erro = Array.isArray(s.errors) && s.errors.length
+        ? String(s.errors[0]?.error_data?.details || s.errors[0]?.message || s.errors[0]?.title || "Falha no WhatsApp").slice(0, 500)
+        : null;
+      await supabase
+        .from("interacoes_ia")
+        .update({ whatsapp_status: s.status || "desconhecido", whatsapp_erro: erro })
+        .eq("whatsapp_message_id", s.id);
       console.log(
         `[whatsapp][status] ${s.recipient_id} -> ${s.status}${
           s.errors ? " ERRO: " + JSON.stringify(s.errors).slice(0, 300) : ""
@@ -3710,7 +3717,18 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       console.error("[whatsapp] Erro ao pré-salvar interação antes do envio:", preSaveError);
     }
 
-    const envioOk = await enviarTexto(numero, respostaFinal, instanceKey);
+    const envio = await enviarTexto(numero, respostaFinal, instanceKey);
+
+    if (interacaoSalva?.id) {
+      await supabase
+        .from("interacoes_ia")
+        .update({
+          whatsapp_message_id: envio.messageId ?? null,
+          whatsapp_status: envio.ok ? (envio.messageId ? "accepted" : "sent") : "failed",
+          whatsapp_erro: envio.ok ? null : "O WhatsApp recusou o envio",
+        })
+        .eq("id", interacaoSalva.id);
+    }
 
     if (enviarPdfNeuroacesso) {
       enviarDocumentoMega(
@@ -3730,7 +3748,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       ).catch((e) => console.error("[whatsapp] falha ao enviar QR Code Pix:", e));
     }
 
-    if (!envioOk) {
+    if (!envio.ok) {
       if (interacaoSalva?.id) {
         await supabase
           .from("interacoes_ia")
@@ -3755,8 +3773,8 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       (async () => {
         for (const extra of mensagensExtras) {
           await new Promise((r) => setTimeout(r, 2500 + Math.random() * 1000));
-          const ok = await enviarTexto(numero, extra, instanceKey);
-          if (ok) {
+          const envioExtra = await enviarTexto(numero, extra, instanceKey);
+          if (envioExtra.ok) {
             await supabase.from("interacoes_ia").insert({
               paciente_externo_id: numeroCanonico,
               canal: "whatsapp",
@@ -3766,6 +3784,8 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
               intencao_detectada: "pos_agendamento_automatico",
               estado_conversa: "finalizado",
               supervisionado: false,
+              whatsapp_message_id: envioExtra.messageId ?? null,
+              whatsapp_status: envioExtra.messageId ? "accepted" : "sent",
             });
           }
         }
