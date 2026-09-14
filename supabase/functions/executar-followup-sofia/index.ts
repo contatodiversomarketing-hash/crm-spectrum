@@ -232,7 +232,7 @@ Deno.serve(async (req) => {
 
         // API oficial: fora da janela de 24h só sai template aprovado.
         const janelaAberta = dentroDaJanela24h(lead.ultima_interacao);
-        let megaRes: { ok: boolean; status: number; body: string };
+        let megaRes: { ok: boolean; status: number; body: string; messageId?: string };
         let viaTemplate = false;
 
         if (oficial && !janelaAberta) {
@@ -272,6 +272,9 @@ Deno.serve(async (req) => {
             intencao_detectada: viaTemplate ? "followup_template" : "followup_automatico",
             estado_conversa: `followup_etapa_${etapa + 1}`,
             supervisionado: false,
+            whatsapp_message_id: megaRes.messageId ?? null,
+            whatsapp_status: megaRes.messageId ? "accepted" : "sent",
+            whatsapp_erro: null,
           });
 
           relatorio.enviados++;

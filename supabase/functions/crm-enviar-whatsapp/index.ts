@@ -62,6 +62,7 @@ Deno.serve(async (req) => {
     }
 
     let avisoTemplate: string | null = null;
+    let whatsappMessageId: string | undefined;
 
     // Texto: sempre pela camada única (API oficial Meta/Datafy com fallback MegaAPI)
     if (tipo === "text") {
@@ -83,6 +84,7 @@ Deno.serve(async (req) => {
             details: t.body.slice(0, 400),
           }, 502);
         }
+        whatsappMessageId = t.messageId;
         avisoTemplate =
           "Como o contato não responde há mais de 24 horas, o WhatsApp só permite enviar a mensagem de reabordagem aprovada. Ela foi enviada; assim que a pessoa responder, você pode escrever livremente.";
       } else {
@@ -91,6 +93,7 @@ Deno.serve(async (req) => {
           console.error("[crm-enviar-whatsapp] falha", r.status, r.body.slice(0, 400));
           return json({ error: "Falha ao enviar pelo WhatsApp", status: r.status, details: r.body.slice(0, 400) }, 502);
         }
+        whatsappMessageId = r.messageId;
       }
     } else {
       const { origin, token, instanceKey, configurado } = megaConfig();
@@ -167,10 +170,13 @@ Deno.serve(async (req) => {
       estado_conversa: "atendimento_humano",
       supervisionado: true,
       atendente_humano: userData.user.email ?? userData.user.id,
+      whatsapp_message_id: whatsappMessageId ?? null,
+      whatsapp_status: whatsappMessageId ? "accepted" : "sent",
+      whatsapp_erro: null,
     });
     if (insertErr) console.error("[crm-enviar-whatsapp] erro ao salvar histórico", insertErr);
 
-    return json({ ok: true, aviso: avisoTemplate });
+    return json({ ok: true, aviso: avisoTemplate, messageId: whatsappMessageId ?? null });
   } catch (e) {
     console.error(e);
     return json({ error: String(e) }, 500);

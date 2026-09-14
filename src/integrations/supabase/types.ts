@@ -589,6 +589,9 @@ export type Database = {
           resposta_sugerida: string | null
           sistema_origem: string
           supervisionado: boolean
+          whatsapp_erro: string | null
+          whatsapp_message_id: string | null
+          whatsapp_status: string | null
         }
         Insert: {
           atendente_humano?: string | null
@@ -604,6 +607,9 @@ export type Database = {
           resposta_sugerida?: string | null
           sistema_origem: string
           supervisionado?: boolean
+          whatsapp_erro?: string | null
+          whatsapp_message_id?: string | null
+          whatsapp_status?: string | null
         }
         Update: {
           atendente_humano?: string | null
@@ -619,6 +625,9 @@ export type Database = {
           resposta_sugerida?: string | null
           sistema_origem?: string
           supervisionado?: boolean
+          whatsapp_erro?: string | null
+          whatsapp_message_id?: string | null
+          whatsapp_status?: string | null
         }
         Relationships: [
           {
