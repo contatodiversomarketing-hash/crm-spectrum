@@ -2732,10 +2732,34 @@ async function registrarStatusCloud(raw: any): Promise<boolean> {
       const erro = Array.isArray(s.errors) && s.errors.length
         ? String(s.errors[0]?.error_data?.details || s.errors[0]?.message || s.errors[0]?.title || "Falha no WhatsApp").slice(0, 500)
         : null;
-      await supabase
+      const { data: vinculadas } = await supabase
         .from("interacoes_ia")
         .update({ whatsapp_status: s.status || "desconhecido", whatsapp_erro: erro })
-        .eq("whatsapp_message_id", s.id);
+        .eq("whatsapp_message_id", s.id)
+        .select("id");
+      if (!vinculadas?.length && s.recipient_id) {
+        const numeroStatus = telCanonico(String(s.recipient_id)) || String(s.recipient_id).replace(/\D/g, "");
+        const desde = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+        const { data: candidata } = await supabase
+          .from("interacoes_ia")
+          .select("id")
+          .eq("paciente_externo_id", numeroStatus)
+          .not("resposta_final", "is", null)
+          .gte("criado_em", desde)
+          .order("criado_em", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (candidata?.id) {
+          await supabase
+            .from("interacoes_ia")
+            .update({
+              whatsapp_message_id: s.id,
+              whatsapp_status: s.status || "desconhecido",
+              whatsapp_erro: erro,
+            })
+            .eq("id", candidata.id);
+        }
+      }
       console.log(
         `[whatsapp][status] ${s.recipient_id} -> ${s.status}${
           s.errors ? " ERRO: " + JSON.stringify(s.errors).slice(0, 300) : ""
