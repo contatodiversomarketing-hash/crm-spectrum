@@ -1,6 +1,6 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { megaConfig, enviarTextoMega, enviarTemplateMega, dentroDaJanela24h } from "../_shared/mega.ts";
+import { enviarTextoMega, enviarTemplateMega, enviarMidiaMega, dentroDaJanela24h } from "../_shared/mega.ts";
 import { telCanonico } from "../_shared/dedup.ts";
 
 type Body = {
@@ -63,6 +63,27 @@ Deno.serve(async (req) => {
 
     let avisoTemplate: string | null = null;
     let whatsappMessageId: string | undefined;
+    let urlMidia: string | null = null;
+
+    if (tipo !== "text" && body.base64) {
+      try {
+        const limpo = String(body.base64).replace(/^data:[^;]+;base64,/, "").replace(/\s/g, "");
+        const bin = atob(limpo);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const mime = (body.mimeType || "application/octet-stream").split(";")[0].trim();
+        const extBruta = (body.fileName?.split(".").pop() || mime.split("/")[1] || "bin").toLowerCase();
+        const ext = extBruta.replace(/[^a-z0-9]/g, "").slice(0, 8) || "bin";
+        const nome = `enviados/${tipo}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+        const { error: upErr } = await supabase.storage.from("audio").upload(nome, bytes, { contentType: mime, upsert: true });
+        if (upErr) throw upErr;
+        const { data: pub } = supabase.storage.from("audio").getPublicUrl(nome);
+        urlMidia = pub?.publicUrl || null;
+      } catch (e) {
+        console.error("[crm-enviar-whatsapp] erro upload storage", e);
+        return json({ error: "Não foi possível preparar o arquivo para envio" }, 500);
+      }
+    }
 
     // Texto: sempre pela camada única (API oficial Meta/Datafy com fallback MegaAPI)
     if (tipo === "text") {
@@ -96,60 +117,20 @@ Deno.serve(async (req) => {
         whatsappMessageId = r.messageId;
       }
     } else {
-      const { origin, token, instanceKey, configurado } = megaConfig();
-      if (!configurado) return json({ error: "Envio de mídia não configurado" }, 400);
-
-      const to = `${numero}@s.whatsapp.net`;
-      const messageData = {
-        to,
-        base64: String(body.base64).replace(/^data:[^;]+;base64,/, ""),
-        fileName: body.fileName || (tipo === "audio" ? "audio.ogg" : "arquivo"),
-        type: tipo,
-        mimeType: body.mimeType || "application/octet-stream",
-        caption: body.texto || "",
-      };
-
-      const resp = await fetch(`${origin}/rest/sendMessage/${instanceKey}/mediaBase64`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          apikey: token,
-        },
-        body: JSON.stringify({ messageData }),
-      });
-
-      const respBody = await resp.text();
-      if (!resp.ok) {
-        console.error("[crm-enviar-whatsapp] falha", resp.status, respBody.slice(0, 400));
-        return json({ error: "Falha ao enviar pelo WhatsApp", status: resp.status, details: respBody.slice(0, 400) }, 502);
+      const r = await enviarMidiaMega(
+        numero,
+        tipo,
+        urlMidia || "",
+        String(body.base64).replace(/^data:[^;]+;base64,/, ""),
+        body.fileName || (tipo === "audio" ? "audio.webm" : "arquivo"),
+        body.mimeType || "application/octet-stream",
+        body.texto || "",
+      );
+      if (!r.ok) {
+        console.error("[crm-enviar-whatsapp] mídia falhou", r.status, r.body.slice(0, 400));
+        return json({ error: "Falha ao enviar arquivo pelo WhatsApp", status: r.status, details: r.body.slice(0, 400) }, 502);
       }
-    }
-
-    let urlMidia: string | null = null;
-    if (tipo !== "text" && body.base64) {
-      try {
-        const limpo = String(body.base64).replace(/^data:[^;]+;base64,/, "").replace(/\s/g, "");
-        const bin = atob(limpo);
-        const bytes = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-        const mime = (body.mimeType || "application/octet-stream").split(";")[0].trim();
-        const extBruta = (body.fileName?.split(".").pop() || mime.split("/")[1] || "bin").toLowerCase();
-        const ext = extBruta.replace(/[^a-z0-9]/g, "").slice(0, 8) || "bin";
-        const nome = `enviados/${tipo}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from("audio")
-          .upload(nome, bytes, { contentType: mime, upsert: true });
-        if (upErr) {
-          console.error("[crm-enviar-whatsapp] upload storage falhou", upErr.message);
-        } else {
-          const { data: pub } = supabase.storage.from("audio").getPublicUrl(nome);
-          urlMidia = pub?.publicUrl || null;
-          console.log("[crm-enviar-whatsapp] mídia salva:", urlMidia);
-        }
-      } catch (e) {
-        console.error("[crm-enviar-whatsapp] erro upload storage", e);
-      }
+      whatsappMessageId = r.messageId;
     }
 
     const registroBase = tipo === "text"
