@@ -56,6 +56,9 @@ function chaveTelefone(v: string) {
   let d = soDigitos(v);
   if (d.startsWith("55") && d.length > 11) d = d.slice(2);
   d = d.replace(/^0+/, "");
+  // Mantém a mesma identidade usada no recebimento: números brasileiros
+  // antigos sem o nono dígito e atuais com o nono dígito ficam no mesmo chat.
+  if (d.length === 11 && d[2] === "9") d = d.slice(0, 2) + d.slice(3);
   return d ? `55${d}` : "";
 }
 

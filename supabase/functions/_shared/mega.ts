@@ -143,6 +143,45 @@ export async function enviarTextoMega(numero: string, texto: string): Promise<Re
   return { ok, status: resp.status, body };
 }
 
+export async function enviarMidiaMega(
+  numero: string,
+  tipo: "image" | "document" | "audio",
+  url: string,
+  base64: string,
+  fileName: string,
+  mimeType: string,
+  caption = "",
+): Promise<Resultado> {
+  const destino = numeroE164(numero);
+  if (datafyConfig().configurado) {
+    const conteudo = tipo === "image"
+      ? { link: url, caption }
+      : tipo === "document"
+      ? { link: url, filename: fileName, caption }
+      : { link: url };
+    return await datafyPost({ to: destino, type: tipo, [tipo]: conteudo });
+  }
+
+  const { origin, token, instanceKey, configurado } = megaConfig();
+  if (!configurado) return { ok: false, status: 0, body: "WhatsApp não configurado" };
+  const resp = await fetch(`${origin}/rest/sendMessage/${instanceKey}/mediaBase64`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, apikey: token },
+    body: JSON.stringify({
+      messageData: {
+        to: `${destino}@s.whatsapp.net`,
+        base64,
+        fileName,
+        type: tipo,
+        mimeType,
+        caption,
+      },
+    }),
+  });
+  const body = await resp.text();
+  return { ok: resp.ok, status: resp.status, body };
+}
+
 // Envio de TEMPLATE aprovado (obrigatório na API oficial para reabordar quem
 // não fala com a gente há mais de 24h). Se não houver template configurado ou
 // o provedor for a MegaAPI (não oficial), cai para texto livre.

@@ -2782,11 +2782,13 @@ async function normalizarPayloadCloud(raw: any): Promise<any | null> {
   const numeroClinica = String(value?.metadata?.display_phone_number || "").replace(/\D/g, "");
   const primeira = (value.message_echoes || value.messages || [])[0];
   const remetente = String(primeira?.from || "").replace(/\D/g, "");
+  const remetenteCanonico = telCanonico(remetente);
+  const clinicaCanonica = telCanonico(numeroClinica);
   const ehEcho =
     String(change?.field || "").includes("echo") ||
     Array.isArray(value.message_echoes) ||
     Boolean(primeira?.echo) ||
-    (!!numeroClinica && !!remetente && (remetente === numeroClinica || remetente.endsWith(numeroClinica.slice(-8))));
+    (!!clinicaCanonica && !!remetenteCanonico && remetenteCanonico === clinicaCanonica);
   if (ehEcho) {
     const e = primeira;
     if (!e) return { __ignorar: true };
@@ -2800,9 +2802,12 @@ async function normalizarPayloadCloud(raw: any): Promise<any | null> {
       (tipo !== "text"
         ? `[${tipo === "audio" || tipo === "voice" ? "áudio" : tipo === "image" ? "imagem" : tipo === "document" ? "documento" : tipo} enviado pelo WhatsApp]`
         : "");
-    if (!destino || !texto) return { __ignorar: true };
+    if (!destino || !texto) {
+      console.warn("[whatsapp] eco ignorado por falta de destino ou conteúdo", { destino: Boolean(destino), tipo });
+      return { __ignorar: true };
+    }
     return {
-      key: { remoteJid: `${destino}@s.whatsapp.net`, fromMe: true, senderPn: destino },
+      key: { remoteJid: `${destino}@s.whatsapp.net`, fromMe: true, senderPn: destino, id: e.id || null },
       jid: destino,
       isGroup: false,
       message: { conversation: texto },
@@ -2820,7 +2825,7 @@ async function normalizarPayloadCloud(raw: any): Promise<any | null> {
   const numero = m.from || value.contacts?.[0]?.wa_id || "";
   const nomeContato = value.contacts?.[0]?.profile?.name || "";
   const out: any = {
-    key: { remoteJid: `${numero}@s.whatsapp.net`, fromMe: false, senderPn: numero },
+    key: { remoteJid: `${numero}@s.whatsapp.net`, fromMe: false, senderPn: numero, id: m.id || null },
     jid: numero,
     isGroup: false,
     sender: { phone: numero, name: nomeContato },
@@ -2997,6 +3002,7 @@ serve(async (req) => {
     }
 
     const numeroCanonicoLog = telCanonico(numero) || numero;
+    const whatsappInboundId = String(body.key?.id || body.data?.key?.id || "").trim() || null;
 
     // Espelho do WhatsApp: registrar SEMPRE a mensagem (mesmo com a IA desligada)
     if (isFromMe) {
@@ -3007,7 +3013,12 @@ serve(async (req) => {
         const { data: jaExiste } = await supabase
           .from("interacoes_ia")
           .select("id")
-          .in("paciente_externo_id", [numeroCanonicoLog, numero, `tel:${numero}`])
+          .in("paciente_externo_id", Array.from(new Set([
+            ...telVariacoes(numero),
+            numeroCanonicoLog,
+            numero,
+            `tel:${numero}`,
+          ])))
           .eq("resposta_final", texto)
           .gte("criado_em", desde)
           .limit(1);
@@ -3031,6 +3042,40 @@ serve(async (req) => {
       return new Response("ok");
     }
 
+    // Grave a entrada antes de consultar configurações, gerar IA ou obter lock.
+    // Assim nenhuma mensagem some do painel quando duas chegam rapidamente ou
+    // quando uma etapa posterior falha. O id do WhatsApp evita duplicatas de retry.
+    let interacaoEntradaId: string | null = null;
+    if (whatsappInboundId) {
+      const { data: existente } = await supabase
+        .from("interacoes_ia")
+        .select("id")
+        .eq("whatsapp_message_id", whatsappInboundId)
+        .limit(1)
+        .maybeSingle();
+      interacaoEntradaId = existente?.id ?? null;
+    }
+    if (!interacaoEntradaId && mensagem.trim()) {
+      const { data: entrada, error: entradaError } = await supabase
+        .from("interacoes_ia")
+        .insert({
+          paciente_externo_id: numeroCanonicoLog,
+          canal: "whatsapp",
+          sistema_origem: "whatsapp_recebido",
+          mensagem_usuario: mensagem.slice(0, 5000),
+          resposta_final: null,
+          estado_conversa: "aguardando_atendente",
+          supervisionado: true,
+          whatsapp_message_id: whatsappInboundId,
+          whatsapp_status: "received",
+          whatsapp_erro: null,
+        })
+        .select("id")
+        .maybeSingle();
+      if (entradaError) console.error("[whatsapp] falha ao gravar entrada imediatamente:", entradaError);
+      interacaoEntradaId = entrada?.id ?? null;
+    }
+
 
     // Verificar se o canal WhatsApp está ativo
     const { data: configCanal, error: configCanalError } = await supabase
@@ -3046,14 +3091,6 @@ serve(async (req) => {
     if (configCanalError || configCanal?.whatsapp_ativo !== true) {
       console.log("[whatsapp] Canal PAUSADO - registrando mensagem sem responder", configCanalError?.message || "");
       if (mensagem && mensagem.trim()) {
-        await supabase.from("interacoes_ia").insert({
-          paciente_externo_id: numeroCanonicoLog,
-          canal: "whatsapp",
-          sistema_origem: "megaapi",
-          mensagem_usuario: mensagem.slice(0, 5000),
-          estado_conversa: "aguardando_atendente",
-          supervisionado: true,
-        });
         fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/ana-atualizar-crm`, {
           method: "POST",
           headers: {
@@ -3715,12 +3752,11 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     const delayMs = 3000 + Math.random() * 1500;
     await new Promise(resolve => setTimeout(resolve, delayMs));
 
-    const mensagemPersistida = (midia ? `[${midia.type}] ` : "") + mensagem.slice(0, 5000);
     const payloadInteracao = {
       paciente_externo_id: numeroCanonico,
       canal: "whatsapp",
-      sistema_origem: "megaapi",
-      mensagem_usuario: mensagemPersistida,
+      sistema_origem: "ana_whatsapp",
+      mensagem_usuario: null,
       resposta_final: respostaFinal.slice(0, 5000),
       intencao_detectada: agendamentos.length > 0
         ? (agendamentosConfirmados > 0 ? "agendamento" : "agendamento_pendente")
