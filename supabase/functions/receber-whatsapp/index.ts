@@ -3752,12 +3752,11 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     const delayMs = 3000 + Math.random() * 1500;
     await new Promise(resolve => setTimeout(resolve, delayMs));
 
-    const mensagemPersistida = (midia ? `[${midia.type}] ` : "") + mensagem.slice(0, 5000);
     const payloadInteracao = {
       paciente_externo_id: numeroCanonico,
       canal: "whatsapp",
-      sistema_origem: "whatsapp_recebido",
-      mensagem_usuario: mensagemPersistida,
+      sistema_origem: "ana_whatsapp",
+      mensagem_usuario: null,
       resposta_final: respostaFinal.slice(0, 5000),
       intencao_detectada: agendamentos.length > 0
         ? (agendamentosConfirmados > 0 ? "agendamento" : "agendamento_pendente")
@@ -3768,10 +3767,11 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       supervisionado: false,
     };
 
-    const salvarInteracao = interacaoEntradaId
-      ? supabase.from("interacoes_ia").update(payloadInteracao).eq("id", interacaoEntradaId).select("id").maybeSingle()
-      : supabase.from("interacoes_ia").insert(payloadInteracao).select("id").maybeSingle();
-    const { data: interacaoSalva, error: preSaveError } = await salvarInteracao;
+    const { data: interacaoSalva, error: preSaveError } = await supabase
+      .from("interacoes_ia")
+      .insert(payloadInteracao)
+      .select("id")
+      .maybeSingle();
 
     if (preSaveError) {
       console.error("[whatsapp] Erro ao pré-salvar interação antes do envio:", preSaveError);
