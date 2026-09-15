@@ -2802,7 +2802,7 @@ async function normalizarPayloadCloud(raw: any): Promise<any | null> {
         : "");
     if (!destino || !texto) return { __ignorar: true };
     return {
-      key: { remoteJid: `${destino}@s.whatsapp.net`, fromMe: true, senderPn: destino },
+      key: { remoteJid: `${destino}@s.whatsapp.net`, fromMe: true, senderPn: destino, id: e.id || null },
       jid: destino,
       isGroup: false,
       message: { conversation: texto },
@@ -2820,7 +2820,7 @@ async function normalizarPayloadCloud(raw: any): Promise<any | null> {
   const numero = m.from || value.contacts?.[0]?.wa_id || "";
   const nomeContato = value.contacts?.[0]?.profile?.name || "";
   const out: any = {
-    key: { remoteJid: `${numero}@s.whatsapp.net`, fromMe: false, senderPn: numero },
+    key: { remoteJid: `${numero}@s.whatsapp.net`, fromMe: false, senderPn: numero, id: m.id || null },
     jid: numero,
     isGroup: false,
     sender: { phone: numero, name: nomeContato },
@@ -2997,6 +2997,7 @@ serve(async (req) => {
     }
 
     const numeroCanonicoLog = telCanonico(numero) || numero;
+    const whatsappInboundId = String(body.key?.id || body.data?.key?.id || "").trim() || null;
 
     // Espelho do WhatsApp: registrar SEMPRE a mensagem (mesmo com a IA desligada)
     if (isFromMe) {
@@ -3031,6 +3032,40 @@ serve(async (req) => {
       return new Response("ok");
     }
 
+    // Grave a entrada antes de consultar configurações, gerar IA ou obter lock.
+    // Assim nenhuma mensagem some do painel quando duas chegam rapidamente ou
+    // quando uma etapa posterior falha. O id do WhatsApp evita duplicatas de retry.
+    let interacaoEntradaId: string | null = null;
+    if (whatsappInboundId) {
+      const { data: existente } = await supabase
+        .from("interacoes_ia")
+        .select("id")
+        .eq("whatsapp_message_id", whatsappInboundId)
+        .limit(1)
+        .maybeSingle();
+      interacaoEntradaId = existente?.id ?? null;
+    }
+    if (!interacaoEntradaId && mensagem.trim()) {
+      const { data: entrada, error: entradaError } = await supabase
+        .from("interacoes_ia")
+        .insert({
+          paciente_externo_id: numeroCanonicoLog,
+          canal: "whatsapp",
+          sistema_origem: "whatsapp_recebido",
+          mensagem_usuario: mensagem.slice(0, 5000),
+          resposta_final: null,
+          estado_conversa: "aguardando_atendente",
+          supervisionado: true,
+          whatsapp_message_id: whatsappInboundId,
+          whatsapp_status: "received",
+          whatsapp_erro: null,
+        })
+        .select("id")
+        .maybeSingle();
+      if (entradaError) console.error("[whatsapp] falha ao gravar entrada imediatamente:", entradaError);
+      interacaoEntradaId = entrada?.id ?? null;
+    }
+
 
     // Verificar se o canal WhatsApp está ativo
     const { data: configCanal, error: configCanalError } = await supabase
@@ -3046,14 +3081,6 @@ serve(async (req) => {
     if (configCanalError || configCanal?.whatsapp_ativo !== true) {
       console.log("[whatsapp] Canal PAUSADO - registrando mensagem sem responder", configCanalError?.message || "");
       if (mensagem && mensagem.trim()) {
-        await supabase.from("interacoes_ia").insert({
-          paciente_externo_id: numeroCanonicoLog,
-          canal: "whatsapp",
-          sistema_origem: "megaapi",
-          mensagem_usuario: mensagem.slice(0, 5000),
-          estado_conversa: "aguardando_atendente",
-          supervisionado: true,
-        });
         fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/ana-atualizar-crm`, {
           method: "POST",
           headers: {
@@ -3719,7 +3746,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     const payloadInteracao = {
       paciente_externo_id: numeroCanonico,
       canal: "whatsapp",
-      sistema_origem: "megaapi",
+      sistema_origem: "whatsapp_recebido",
       mensagem_usuario: mensagemPersistida,
       resposta_final: respostaFinal.slice(0, 5000),
       intencao_detectada: agendamentos.length > 0
@@ -3731,11 +3758,10 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       supervisionado: false,
     };
 
-    const { data: interacaoSalva, error: preSaveError } = await supabase
-      .from("interacoes_ia")
-      .insert(payloadInteracao)
-      .select("id")
-      .maybeSingle();
+    const salvarInteracao = interacaoEntradaId
+      ? supabase.from("interacoes_ia").update(payloadInteracao).eq("id", interacaoEntradaId).select("id").maybeSingle()
+      : supabase.from("interacoes_ia").insert(payloadInteracao).select("id").maybeSingle();
+    const { data: interacaoSalva, error: preSaveError } = await salvarInteracao;
 
     if (preSaveError) {
       console.error("[whatsapp] Erro ao pré-salvar interação antes do envio:", preSaveError);
