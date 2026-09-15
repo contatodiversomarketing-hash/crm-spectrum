@@ -2782,11 +2782,13 @@ async function normalizarPayloadCloud(raw: any): Promise<any | null> {
   const numeroClinica = String(value?.metadata?.display_phone_number || "").replace(/\D/g, "");
   const primeira = (value.message_echoes || value.messages || [])[0];
   const remetente = String(primeira?.from || "").replace(/\D/g, "");
+  const remetenteCanonico = telCanonico(remetente);
+  const clinicaCanonica = telCanonico(numeroClinica);
   const ehEcho =
     String(change?.field || "").includes("echo") ||
     Array.isArray(value.message_echoes) ||
     Boolean(primeira?.echo) ||
-    (!!numeroClinica && !!remetente && (remetente === numeroClinica || remetente.endsWith(numeroClinica.slice(-8))));
+    (!!clinicaCanonica && !!remetenteCanonico && remetenteCanonico === clinicaCanonica);
   if (ehEcho) {
     const e = primeira;
     if (!e) return { __ignorar: true };
@@ -2800,7 +2802,10 @@ async function normalizarPayloadCloud(raw: any): Promise<any | null> {
       (tipo !== "text"
         ? `[${tipo === "audio" || tipo === "voice" ? "áudio" : tipo === "image" ? "imagem" : tipo === "document" ? "documento" : tipo} enviado pelo WhatsApp]`
         : "");
-    if (!destino || !texto) return { __ignorar: true };
+    if (!destino || !texto) {
+      console.warn("[whatsapp] eco ignorado por falta de destino ou conteúdo", { destino: Boolean(destino), tipo });
+      return { __ignorar: true };
+    }
     return {
       key: { remoteJid: `${destino}@s.whatsapp.net`, fromMe: true, senderPn: destino, id: e.id || null },
       jid: destino,
@@ -3008,7 +3013,12 @@ serve(async (req) => {
         const { data: jaExiste } = await supabase
           .from("interacoes_ia")
           .select("id")
-          .in("paciente_externo_id", [numeroCanonicoLog, numero, `tel:${numero}`])
+          .in("paciente_externo_id", Array.from(new Set([
+            ...telVariacoes(numero),
+            numeroCanonicoLog,
+            numero,
+            `tel:${numero}`,
+          ])))
           .eq("resposta_final", texto)
           .gte("criado_em", desde)
           .limit(1);
