@@ -1,4 +1,4 @@
-import { megaConfig, datafyConfig, provedorAtivo, instanciaConectada, enviarTextoMega } from "../_shared/mega.ts";
+import { megaConfig, datafyConfig, provedorAtivo, instanciaConectada, instanciaMegaConectada, enviarTextoMega } from "../_shared/mega.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,6 +19,7 @@ Deno.serve(async (req) => {
   };
 
   out.conexao = await instanciaConectada();
+  out.conexao_reserva = await instanciaMegaConectada();
 
   let numero: string | undefined;
   try {
