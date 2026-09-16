@@ -814,7 +814,7 @@ export default function Conversas() {
                                           variant="secondary"
                                           className="ml-1 h-6 px-2 text-[10px]"
                                           disabled={enviando}
-                                          onClick={() => enviarReabordagem(selecionada.numero)}
+                                          onClick={() => selecionada && enviarReabordagem(selecionada)}
                                         >
                                           Reabrir conversa
                                         </Button>
