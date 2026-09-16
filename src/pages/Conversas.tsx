@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Search, RefreshCw, MessageSquare, MessagesSquare, Send, Power, UserPlus, Bell, BellOff, Smile, Mic, Square, FileText, Loader2, AudioLines, Paperclip, Pencil, Trash2, Check, X, CheckCheck, AlertCircle } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
