@@ -385,6 +385,24 @@ export default function Conversas() {
     }
   }
 
+  async function enviarReabordagem(numero: string) {
+    if (enviando) return;
+    setEnviando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("crm-enviar-whatsapp", {
+        body: { numero: soDigitos(numero), tipo: "text", texto: "Reabordagem", confirmarTemplate: true },
+      });
+      const payload = data as { error?: string; aviso?: string | null };
+      if (error || payload?.error) throw new Error(payload?.error || error?.message);
+      toast({ title: "Reabordagem enviada", description: "Aguardando a confirmação de entrega do WhatsApp." });
+      carregar();
+    } catch (e) {
+      toast({ title: "Reabordagem não enviada", description: String(e), variant: "destructive" });
+    } finally {
+      setEnviando(false);
+    }
+  }
+
   const enviarMidia = async (numero: string, payload: Record<string, unknown>) => {
     setEnviando(true);
     try {
@@ -790,6 +808,17 @@ export default function Conversas() {
                                   {i.whatsapp_status === "failed" ? (
                                     <span className="flex items-center gap-1 font-medium" title={i.whatsapp_erro || "Falha no envio pelo WhatsApp"}>
                                       <AlertCircle className="h-3 w-3" /> Não entregue
+                                      {/24 hours|24 horas|131047/i.test(i.whatsapp_erro || "") && (
+                                        <Button
+                                          size="sm"
+                                          variant="secondary"
+                                          className="ml-1 h-6 px-2 text-[10px]"
+                                          disabled={enviando}
+                                          onClick={() => selecionada && enviarReabordagem(selecionada)}
+                                        >
+                                          Reabrir conversa
+                                        </Button>
+                                      )}
                                     </span>
                                   ) : i.whatsapp_status === "read" ? (
                                     <CheckCheck className="h-3.5 w-3.5" aria-label="Lida" />
