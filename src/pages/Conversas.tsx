@@ -338,7 +338,13 @@ export default function Conversas() {
       const { data, error } = await supabase.functions.invoke("crm-enviar-whatsapp", {
         body: { numero: soDigitos(numero), tipo: "text", texto: msg, confirmarTemplate },
       });
-      const payload = data as { error?: string; fora_janela?: boolean; aviso?: string | null; messageId?: string | null };
+      let payload = data as { error?: string; fora_janela?: boolean; aviso?: string | null; messageId?: string | null };
+      if (error && (error as { context?: Response }).context) {
+        try {
+          payload = await (error as unknown as { context: Response }).context.clone().json();
+        } catch { /* mantém erro genérico */ }
+      }
+
       if (payload?.fora_janela) {
         const ok = window.confirm(
           "Este contato não responde há mais de 24 horas.\n\nO WhatsApp não entrega o texto que você digitou. Deseja enviar a mensagem de reabordagem aprovada para reabrir a conversa?",
