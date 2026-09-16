@@ -1,6 +1,6 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { enviarTextoMega, enviarTemplateMega, enviarMidiaMega, dentroDaJanela24h } from "../_shared/mega.ts";
+import { enviarTextoMega, enviarTemplateMega, enviarMidiaMega } from "../_shared/mega.ts";
 import { telCanonico } from "../_shared/dedup.ts";
 
 type Body = {
@@ -48,20 +48,9 @@ Deno.serve(async (req) => {
 
     const canonico = telCanonico(numero) || numero;
 
-    // Janela de 24h do Meta: sem mensagem recente do paciente, texto livre é
-    // aceito pela API mas nunca entregue. Nesse caso enviamos o template aprovado.
-    let janelaAberta = true;
-    if (tipo === "text") {
-      const { data: ultima } = await supabase
-        .from("interacoes_ia")
-        .select("criado_em")
-        .eq("paciente_externo_id", canonico)
-        .not("mensagem_usuario", "is", null)
-        .order("criado_em", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      janelaAberta = dentroDaJanela24h(ultima?.criado_em ?? null);
-    }
+    // Envio manual: tenta sempre o texto digitado, sem bloquear pela janela de 24h.
+    // Só cai no template aprovado se o WhatsApp recusar o texto na hora.
+
 
     let avisoTemplate: string | null = null;
     let whatsappMessageId: string | undefined;
@@ -89,13 +78,21 @@ Deno.serve(async (req) => {
 
     // Texto: sempre pela camada única (API oficial Meta/Datafy com fallback MegaAPI)
     if (tipo === "text") {
-      if (!janelaAberta) {
-        // Nunca troca o texto do atendente em silêncio: exige confirmação explícita.
+      const r = await enviarTextoMega(numero, body.texto!);
+      if (r.ok) {
+        whatsappMessageId = r.messageId;
+      } else {
+        console.error("[crm-enviar-whatsapp] texto recusado", r.status, r.body.slice(0, 400));
+        const foraJanela = /131047|24 hour|re-?engagement/i.test(r.body);
+        if (!foraJanela) {
+          return json({ error: "Falha ao enviar pelo WhatsApp", status: r.status, details: r.body.slice(0, 400) }, 502);
+        }
+        // Só aqui cai no template aprovado, e apenas com confirmação do atendente.
         if (!body.confirmarTemplate) {
           return json({
             fora_janela: true,
             error:
-              "Este contato não responde há mais de 24 horas. O WhatsApp não entrega o texto digitado; só a mensagem de reabordagem aprovada pode ser enviada agora.",
+              "O WhatsApp recusou o texto digitado porque o contato não responde há mais de 24 horas. Posso enviar a mensagem de reabordagem aprovada para reabrir a conversa?",
           }, 409);
         }
         const { data: lead } = await supabase
@@ -109,23 +106,16 @@ Deno.serve(async (req) => {
         if (!t.ok) {
           console.error("[crm-enviar-whatsapp] template falhou", t.status, t.body.slice(0, 400));
           return json({
-            error:
-              "O WhatsApp recusou a mensagem de reabordagem aprovada para este contato.",
+            error: "O WhatsApp recusou a mensagem de reabordagem aprovada para este contato.",
             status: t.status,
             details: t.body.slice(0, 400),
           }, 502);
         }
         whatsappMessageId = t.messageId;
         avisoTemplate = "Mensagem de reabordagem aprovada enviada.";
-      } else {
-        const r = await enviarTextoMega(numero, body.texto!);
-        if (!r.ok) {
-          console.error("[crm-enviar-whatsapp] falha", r.status, r.body.slice(0, 400));
-          return json({ error: "Falha ao enviar pelo WhatsApp", status: r.status, details: r.body.slice(0, 400) }, 502);
-        }
-        whatsappMessageId = r.messageId;
       }
     } else {
+
 
       const r = await enviarMidiaMega(
         numero,
