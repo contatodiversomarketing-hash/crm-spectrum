@@ -1,6 +1,6 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { enviarTextoMega, enviarTemplateMega, enviarMidiaMega, dentroDaJanela24h } from "../_shared/mega.ts";
+import { enviarTextoMega, enviarTemplateMega, enviarMidiaMega } from "../_shared/mega.ts";
 import { telCanonico } from "../_shared/dedup.ts";
 
 type Body = {
@@ -50,7 +50,6 @@ Deno.serve(async (req) => {
 
     // Envio manual: tenta sempre o texto digitado, sem bloquear pela janela de 24h.
     // Só cai no template aprovado se o WhatsApp recusar o texto na hora.
-    const janelaAberta = true;
 
 
     let avisoTemplate: string | null = null;
