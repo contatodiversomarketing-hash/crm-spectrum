@@ -111,6 +111,21 @@ Deno.serve(async (req) => {
   }
   const oficial = provedor === "datafy";
 
+  // Respeita o botão de ligar/desligar a Ana: se o WhatsApp estiver pausado, não dispara nada.
+  const { data: cfg } = await supabase
+    .from("configuracoes_sistema")
+    .select("whatsapp_ativo")
+    .order("criado_em", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (cfg?.whatsapp_ativo !== true) {
+    return new Response(JSON.stringify({ status: "ia_desligada", enviados: 0 }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+
+
   // Janela humana de envio: seg-sáb, 09h-19h (horário de Brasília)
   const agoraBR = new Date(Date.now() - 3 * 3600000);
   const horaBR = agoraBR.getUTCHours();
