@@ -72,6 +72,7 @@ export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSave
   const [form, setForm] = useState<Form>(vazio);
   const [salvando, setSalvando] = useState(false);
   const [aba, setAba] = useState("dados");
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!open) return;
