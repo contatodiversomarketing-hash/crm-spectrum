@@ -543,6 +543,7 @@ export default function Conversas() {
       const ordenados = [...itens].sort((a, b) => a.criado_em.localeCompare(b.criado_em));
       const digits = soDigitos(telefone);
       const nome =
+        mapaPacientes[telefone]?.nome ||
         nomes[digits] ||
         nomes[digits.startsWith("55") ? digits.slice(2) : "55" + digits] ||
         formatarTelefone(telefone);
