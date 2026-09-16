@@ -48,20 +48,10 @@ Deno.serve(async (req) => {
 
     const canonico = telCanonico(numero) || numero;
 
-    // Janela de 24h do Meta: sem mensagem recente do paciente, texto livre é
-    // aceito pela API mas nunca entregue. Nesse caso enviamos o template aprovado.
-    let janelaAberta = true;
-    if (tipo === "text") {
-      const { data: ultima } = await supabase
-        .from("interacoes_ia")
-        .select("criado_em")
-        .eq("paciente_externo_id", canonico)
-        .not("mensagem_usuario", "is", null)
-        .order("criado_em", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      janelaAberta = dentroDaJanela24h(ultima?.criado_em ?? null);
-    }
+    // Envio manual: tenta sempre o texto digitado, sem bloquear pela janela de 24h.
+    // Só cai no template aprovado se o WhatsApp recusar o texto na hora.
+    const janelaAberta = true;
+
 
     let avisoTemplate: string | null = null;
     let whatsappMessageId: string | undefined;
