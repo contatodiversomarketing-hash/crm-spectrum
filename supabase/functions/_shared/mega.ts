@@ -108,6 +108,22 @@ export async function instanciaConectada(): Promise<{ conectada: boolean; status
   }
 }
 
+export async function instanciaMegaConectada(): Promise<{ conectada: boolean; status: string }> {
+  const { origin, token, instanceKey, configurado } = megaConfig();
+  if (!configurado) return { conectada: false, status: "nao_configurada" };
+  try {
+    const r = await fetch(`${origin}/rest/instance/${instanceKey}`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: token },
+    });
+    const body = await r.text();
+    if (!r.ok) return { conectada: false, status: `erro_${r.status}:${body.slice(0, 120)}` };
+    const status = JSON.parse(body)?.instance?.status ?? "desconhecido";
+    return { conectada: status === "connected", status };
+  } catch (e) {
+    return { conectada: false, status: `erro:${String(e).slice(0, 60)}` };
+  }
+}
+
 export async function enviarTextoMega(numero: string, texto: string): Promise<Resultado> {
   const destino = numeroE164(numero);
 
