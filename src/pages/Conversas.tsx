@@ -580,7 +580,7 @@ export default function Conversas() {
         c.nome.toLowerCase().includes(termo) ||
         (!!termoDigitos && soDigitos(c.telefone).includes(termoDigitos))
       )
-      .filter((c) => (filtro === "pendentes" ? c.pendente : filtro === "recebidas" ? !!c.ultimaEntrada : true))
+      .filter((c) => (termo ? true : filtro === "pendentes" ? c.pendente : filtro === "recebidas" ? !!c.ultimaEntrada : true))
       .sort((a, b) => {
         const chave = (c: Conversa) => (filtro === "todas" ? c.ultima : c.ultimaEntrada || c.ultima);
         return chave(b).localeCompare(chave(a));
