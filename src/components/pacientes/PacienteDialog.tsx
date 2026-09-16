@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +72,7 @@ export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSave
   const [form, setForm] = useState<Form>(vazio);
   const [salvando, setSalvando] = useState(false);
   const [aba, setAba] = useState("dados");
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!open) return;
@@ -128,9 +131,23 @@ export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSave
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl">
-            {paciente ? paciente.nome || "Paciente" : "Novo paciente"}
-          </DialogTitle>
+          <div className="flex items-center justify-between gap-3 pr-8">
+            <DialogTitle className="font-display text-2xl">
+              {paciente ? paciente.nome || "Paciente" : "Novo paciente"}
+            </DialogTitle>
+            {paciente?.telefone && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  navigate(`/conversas?telefone=${encodeURIComponent(paciente.telefone || "")}`)
+                }
+              >
+                <MessageSquare className="h-4 w-4 mr-1" /> Abrir conversa
+              </Button>
+            )}
+          </div>
         </DialogHeader>
 
         <Tabs value={aba} onValueChange={setAba}>
