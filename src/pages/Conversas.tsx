@@ -330,22 +330,38 @@ export default function Conversas() {
     navigate("/crm");
   }
 
-  async function enviar(numero: string) {
+  async function enviar(numero: string, confirmarTemplate = false) {
     const msg = texto.trim();
     if (!msg || enviando) return;
     setEnviando(true);
     try {
       const { data, error } = await supabase.functions.invoke("crm-enviar-whatsapp", {
-        body: { numero: soDigitos(numero), tipo: "text", texto: msg },
+        body: { numero: soDigitos(numero), tipo: "text", texto: msg, confirmarTemplate },
       });
-      if (error || (data as { error?: string })?.error) {
-        throw new Error((data as { error?: string })?.error || error?.message);
+      let payload = data as { error?: string; fora_janela?: boolean; aviso?: string | null; messageId?: string | null };
+      if (error && (error as { context?: Response }).context) {
+        try {
+          payload = await (error as unknown as { context: Response }).context.clone().json();
+        } catch { /* mantém erro genérico */ }
       }
-      const retorno = data as { aviso?: string | null; messageId?: string | null };
+
+      if (payload?.fora_janela) {
+        const ok = window.confirm(
+          "Este contato não responde há mais de 24 horas.\n\nO WhatsApp não entrega o texto que você digitou. Deseja enviar a mensagem de reabordagem aprovada para reabrir a conversa?",
+        );
+        setEnviando(false);
+        if (ok) await enviar(numero, true);
+        return;
+      }
+      if (error || payload?.error) {
+        throw new Error(payload?.error || error?.message);
+      }
+      const retorno = payload;
       const aviso = retorno?.aviso;
-      if (aviso) toast({ title: "Conversa fora da janela de 24h", description: aviso });
+      if (aviso) toast({ title: "Mensagem de reabordagem", description: aviso });
       setTexto("");
       carregar();
+
       if (retorno?.messageId) {
         await new Promise((resolve) => window.setTimeout(resolve, 2500));
         const { data: confirmacao } = await supabase

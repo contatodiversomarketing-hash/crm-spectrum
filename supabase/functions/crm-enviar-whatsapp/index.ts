@@ -11,7 +11,9 @@ type Body = {
   fileName?: string;
   mimeType?: string;
   leadId?: string;
+  confirmarTemplate?: boolean;
 };
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -88,6 +90,14 @@ Deno.serve(async (req) => {
     // Texto: sempre pela camada única (API oficial Meta/Datafy com fallback MegaAPI)
     if (tipo === "text") {
       if (!janelaAberta) {
+        // Nunca troca o texto do atendente em silêncio: exige confirmação explícita.
+        if (!body.confirmarTemplate) {
+          return json({
+            fora_janela: true,
+            error:
+              "Este contato não responde há mais de 24 horas. O WhatsApp não entrega o texto digitado; só a mensagem de reabordagem aprovada pode ser enviada agora.",
+          }, 409);
+        }
         const { data: lead } = await supabase
           .from("leads")
           .select("nome")
@@ -100,14 +110,13 @@ Deno.serve(async (req) => {
           console.error("[crm-enviar-whatsapp] template falhou", t.status, t.body.slice(0, 400));
           return json({
             error:
-              "Este contato não fala com a gente há mais de 24 horas. O WhatsApp só permite reabrir a conversa com a mensagem aprovada, e o envio dela falhou.",
+              "O WhatsApp recusou a mensagem de reabordagem aprovada para este contato.",
             status: t.status,
             details: t.body.slice(0, 400),
           }, 502);
         }
         whatsappMessageId = t.messageId;
-        avisoTemplate =
-          "Como o contato não responde há mais de 24 horas, o WhatsApp só permite tentar a mensagem de reabordagem aprovada. Aguarde a confirmação de entrega exibida na conversa.";
+        avisoTemplate = "Mensagem de reabordagem aprovada enviada.";
       } else {
         const r = await enviarTextoMega(numero, body.texto!);
         if (!r.ok) {
@@ -117,6 +126,7 @@ Deno.serve(async (req) => {
         whatsappMessageId = r.messageId;
       }
     } else {
+
       const r = await enviarMidiaMega(
         numero,
         tipo,
@@ -135,9 +145,10 @@ Deno.serve(async (req) => {
 
     const registroBase = tipo === "text"
       ? (avisoTemplate
-        ? `[Mensagem de reabordagem aprovada enviada — a mensagem digitada não pôde ser enviada fora da janela de 24h]\n${body.texto!.slice(0, 2000)}`
+        ? "Olá! Aqui é a Ana, consultora comercial. Trabalho com a Dra. Amélia Carvalho, especialista em neurodesenvolvimento (TEA, TDAH e cannabis medicinal). Vi que você buscou informações com a gente e queria entender como posso te ajudar hoje. Podemos conversar?"
         : body.texto!.slice(0, 5000))
       : `[${tipo === "audio" ? "áudio" : tipo === "image" ? "imagem" : "arquivo"}: ${body.fileName || ""}] ${body.texto || ""}`.trim();
+
 
     const registro = urlMidia ? `${registroBase}\n[midia:${tipo}:${urlMidia}]` : registroBase;
 
