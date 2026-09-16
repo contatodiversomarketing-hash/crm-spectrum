@@ -143,9 +143,10 @@ Deno.serve(async (req) => {
 
     const registroBase = tipo === "text"
       ? (avisoTemplate
-        ? `[Mensagem de reabordagem aprovada enviada — a mensagem digitada não pôde ser enviada fora da janela de 24h]\n${body.texto!.slice(0, 2000)}`
+        ? "Olá! Aqui é a Ana, consultora comercial. Trabalho com a Dra. Amélia Carvalho, especialista em neurodesenvolvimento (TEA, TDAH e cannabis medicinal). Vi que você buscou informações com a gente e queria entender como posso te ajudar hoje. Podemos conversar?"
         : body.texto!.slice(0, 5000))
       : `[${tipo === "audio" ? "áudio" : tipo === "image" ? "imagem" : "arquivo"}: ${body.fileName || ""}] ${body.texto || ""}`.trim();
+
 
     const registro = urlMidia ? `${registroBase}\n[midia:${tipo}:${urlMidia}]` : registroBase;
 
