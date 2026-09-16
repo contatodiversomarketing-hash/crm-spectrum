@@ -556,8 +556,7 @@ export default function Conversas() {
       .filter(({ p, tel }) => {
         if (!tel || comConversa.has(tel)) return false;
         if (selecionada === tel) return true;
-        if (filtro !== "todas") return false;
-        if (!termo) return true;
+        if (!termo) return filtro === "todas";
         const d = soDigitos(termo);
         return (p.nome || "").toLowerCase().includes(termo) || (!!d && soDigitos(tel).includes(d));
       })
@@ -581,7 +580,7 @@ export default function Conversas() {
         c.nome.toLowerCase().includes(termo) ||
         (!!termoDigitos && soDigitos(c.telefone).includes(termoDigitos))
       )
-      .filter((c) => (filtro === "pendentes" ? c.pendente : filtro === "recebidas" ? !!c.ultimaEntrada : true))
+      .filter((c) => (termo ? true : filtro === "pendentes" ? c.pendente : filtro === "recebidas" ? !!c.ultimaEntrada : true))
       .sort((a, b) => {
         const chave = (c: Conversa) => (filtro === "todas" ? c.ultima : c.ultimaEntrada || c.ultima);
         return chave(b).localeCompare(chave(a));
