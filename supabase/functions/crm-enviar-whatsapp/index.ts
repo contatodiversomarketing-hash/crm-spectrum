@@ -79,13 +79,21 @@ Deno.serve(async (req) => {
 
     // Texto: sempre pela camada única (API oficial Meta/Datafy com fallback MegaAPI)
     if (tipo === "text") {
-      if (!janelaAberta) {
-        // Nunca troca o texto do atendente em silêncio: exige confirmação explícita.
+      const r = await enviarTextoMega(numero, body.texto!);
+      if (r.ok) {
+        whatsappMessageId = r.messageId;
+      } else {
+        console.error("[crm-enviar-whatsapp] texto recusado", r.status, r.body.slice(0, 400));
+        const foraJanela = /131047|24 hour|re-?engagement/i.test(r.body);
+        if (!foraJanela) {
+          return json({ error: "Falha ao enviar pelo WhatsApp", status: r.status, details: r.body.slice(0, 400) }, 502);
+        }
+        // Só aqui cai no template aprovado, e apenas com confirmação do atendente.
         if (!body.confirmarTemplate) {
           return json({
             fora_janela: true,
             error:
-              "Este contato não responde há mais de 24 horas. O WhatsApp não entrega o texto digitado; só a mensagem de reabordagem aprovada pode ser enviada agora.",
+              "O WhatsApp recusou o texto digitado porque o contato não responde há mais de 24 horas. Posso enviar a mensagem de reabordagem aprovada para reabrir a conversa?",
           }, 409);
         }
         const { data: lead } = await supabase
@@ -99,23 +107,16 @@ Deno.serve(async (req) => {
         if (!t.ok) {
           console.error("[crm-enviar-whatsapp] template falhou", t.status, t.body.slice(0, 400));
           return json({
-            error:
-              "O WhatsApp recusou a mensagem de reabordagem aprovada para este contato.",
+            error: "O WhatsApp recusou a mensagem de reabordagem aprovada para este contato.",
             status: t.status,
             details: t.body.slice(0, 400),
           }, 502);
         }
         whatsappMessageId = t.messageId;
         avisoTemplate = "Mensagem de reabordagem aprovada enviada.";
-      } else {
-        const r = await enviarTextoMega(numero, body.texto!);
-        if (!r.ok) {
-          console.error("[crm-enviar-whatsapp] falha", r.status, r.body.slice(0, 400));
-          return json({ error: "Falha ao enviar pelo WhatsApp", status: r.status, details: r.body.slice(0, 400) }, 502);
-        }
-        whatsappMessageId = r.messageId;
       }
     } else {
+
 
       const r = await enviarMidiaMega(
         numero,
