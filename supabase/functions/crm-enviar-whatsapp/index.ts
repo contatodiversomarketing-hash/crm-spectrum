@@ -76,8 +76,32 @@ Deno.serve(async (req) => {
       }
     }
 
+    const enviarTemplateAprovado = async () => {
+      const { data: lead } = await supabase
+        .from("leads")
+        .select("nome")
+        .eq("telefone", canonico)
+        .maybeSingle();
+      const nomeLimpo = /\d/.test(lead?.nome || "") ? "" : (lead?.nome || "").trim();
+      const primeiro = nomeLimpo.split(/\s+/)[0] || "tudo bem";
+      return await enviarTemplateMega(numero, [primeiro]);
+    };
+
     // Texto: sempre pela camada única (API oficial Meta/Datafy com fallback MegaAPI)
     if (tipo === "text") {
+      if (body.confirmarTemplate) {
+        const t = await enviarTemplateAprovado();
+        if (!t.ok) {
+          console.error("[crm-enviar-whatsapp] template falhou", t.status, t.body.slice(0, 400));
+          return json({
+            error: "O WhatsApp recusou a mensagem de reabordagem aprovada para este contato.",
+            status: t.status,
+            details: t.body.slice(0, 400),
+          }, 502);
+        }
+        whatsappMessageId = t.messageId;
+        avisoTemplate = "Mensagem de reabordagem aprovada enviada.";
+      } else {
       const r = await enviarTextoMega(numero, body.texto!);
       if (r.ok) {
         whatsappMessageId = r.messageId;
@@ -95,14 +119,7 @@ Deno.serve(async (req) => {
               "O WhatsApp recusou o texto digitado porque o contato não responde há mais de 24 horas. Posso enviar a mensagem de reabordagem aprovada para reabrir a conversa?",
           }, 409);
         }
-        const { data: lead } = await supabase
-          .from("leads")
-          .select("nome")
-          .eq("telefone", canonico)
-          .maybeSingle();
-        const nomeLimpo = /\d/.test(lead?.nome || "") ? "" : (lead?.nome || "").trim();
-        const primeiro = nomeLimpo.split(/\s+/)[0] || "tudo bem";
-        const t = await enviarTemplateMega(numero, [primeiro]);
+        const t = await enviarTemplateAprovado();
         if (!t.ok) {
           console.error("[crm-enviar-whatsapp] template falhou", t.status, t.body.slice(0, 400));
           return json({
@@ -113,6 +130,7 @@ Deno.serve(async (req) => {
         }
         whatsappMessageId = t.messageId;
         avisoTemplate = "Mensagem de reabordagem aprovada enviada.";
+      }
       }
     } else {
 
