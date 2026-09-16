@@ -538,7 +538,8 @@ export default function Conversas() {
       .filter(({ p, tel }) => {
         if (!tel || comConversa.has(tel)) return false;
         if (selecionada === tel) return true;
-        if (!termo) return false;
+        if (filtro !== "todas") return false;
+        if (!termo) return true;
         const d = soDigitos(termo);
         return (p.nome || "").toLowerCase().includes(termo) || (!!d && soDigitos(tel).includes(d));
       })
@@ -551,7 +552,9 @@ export default function Conversas() {
         ultimaEntrada: null,
         pacienteId: p.id,
         novo: true,
-      }));
+      }))
+      .sort((a, b) => a.nome.localeCompare(b.nome));
+
 
     const termoDigitos = soDigitos(busca);
     const filtradas = base
