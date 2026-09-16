@@ -126,6 +126,19 @@ export default function Conversas() {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<"todas" | "pendentes" | "recebidas">("pendentes");
   const [selecionada, setSelecionada] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    const tel = searchParams.get("telefone");
+    if (!tel) return;
+    const chave = chaveTelefone(tel);
+    if (chave) {
+      setFiltro("todas");
+      setBusca("");
+      setSelecionada(chave);
+    }
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
 
 
   const [iaAtiva, setIaAtiva] = useState(true);
