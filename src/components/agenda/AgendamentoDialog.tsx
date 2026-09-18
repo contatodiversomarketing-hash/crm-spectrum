@@ -95,8 +95,46 @@ export function AgendamentoDialog({
       setDuracao("30");
       setStatus("agendado");
       setObs("");
+      setTelefone("");
     }
   }, [open, agendamento, defaultTime]);
+
+  // Garante que quem é agendado também apareça na lista de pacientes.
+  const garantirPaciente = async (): Promise<string | null> => {
+    if (agendamento?.paciente_id) return agendamento.paciente_id;
+    const nomeLimpo = nome.trim();
+    const digitos = telefone.replace(/\D/g, "");
+
+    if (digitos.length >= 10) {
+      const variacoes = Array.from(
+        new Set([digitos, digitos.startsWith("55") ? digitos.slice(2) : "55" + digitos]),
+      );
+      const { data } = await supabase
+        .from("pacientes")
+        .select("id")
+        .in("telefone", variacoes)
+        .limit(1);
+      if (data?.[0]) return data[0].id;
+    }
+
+    const { data: porNome } = await supabase
+      .from("pacientes")
+      .select("id")
+      .ilike("nome", nomeLimpo)
+      .limit(1);
+    if (porNome?.[0]) return porNome[0].id;
+
+    const { data: novo, error } = await supabase
+      .from("pacientes")
+      .insert({ nome: nomeLimpo, telefone: digitos || null, tipo: "adulto" })
+      .select("id")
+      .single();
+    if (error) {
+      toast.error("Agendamento salvo, mas não foi possível criar o cadastro do paciente");
+      return null;
+    }
+    return novo?.id ?? null;
+  };
 
   const salvar = async () => {
     if (!nome.trim()) {
