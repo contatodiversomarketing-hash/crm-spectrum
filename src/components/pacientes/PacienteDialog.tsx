@@ -268,6 +268,52 @@ export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSave
               </div>
             )}
 
+            <div className="space-y-2">
+              <p className="text-sm font-medium flex items-center gap-2">
+                <FileText className="h-4 w-4" /> Documentos anexados
+              </p>
+              <input
+                ref={inputArquivo}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const fs = Array.from(e.target.files ?? []);
+                  if (fs.length) setPendentes((p) => [...p, ...fs]);
+                  e.target.value = "";
+                }}
+              />
+              <Button type="button" variant="outline" size="sm" onClick={() => inputArquivo.current?.click()}>
+                <Upload className="h-4 w-4 mr-2" /> Anexar arquivos
+              </Button>
+
+              {(anexos.length > 0 || pendentes.length > 0) && (
+                <ul className="space-y-1.5">
+                  {anexos.map((a) => (
+                    <li key={a.id} className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm">
+                      <span className="truncate">{a.nome}</span>
+                      <span className="flex items-center gap-1">
+                        <Button type="button" variant="ghost" size="icon" onClick={() => abrirAnexo(a)} title="Abrir">
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removerAnexo(a)} title="Remover">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </span>
+                    </li>
+                  ))}
+                  {pendentes.map((f, i) => (
+                    <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-2 rounded-md border border-dashed px-3 py-2 text-sm">
+                      <span className="truncate">{f.name} <span className="text-muted-foreground">(envia ao salvar)</span></span>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => setPendentes((p) => p.filter((_, idx) => idx !== i))} title="Remover">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
             <div className="space-y-1.5">
               <Label>Observações</Label>
               <Textarea rows={3} value={form.observacoes} onChange={(e) => set("observacoes", e.target.value)} />
