@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Upload, FileText, X, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,11 +72,48 @@ export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSave
   const [form, setForm] = useState<Form>(vazio);
   const [salvando, setSalvando] = useState(false);
   const [aba, setAba] = useState("dados");
+  const [pendentes, setPendentes] = useState<File[]>([]);
+  const [anexos, setAnexos] = useState<{ id: string; nome: string; path: string }[]>([]);
+  const inputArquivo = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  const carregarAnexos = useCallback(async (pacienteId: string) => {
+    const { data } = await supabase
+      .from("prontuario_anexos")
+      .select("id, nome, path")
+      .eq("paciente_id", pacienteId)
+      .order("criado_em", { ascending: false });
+    setAnexos(data ?? []);
+  }, []);
+
+  const enviarArquivos = async (pacienteId: string, arquivos: File[]) => {
+    for (const file of arquivos) {
+      const path = `${pacienteId}/${Date.now()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
+      const { error: upErr } = await supabase.storage.from("prontuarios").upload(path, file);
+      if (upErr) { toast.error(`Não foi possível anexar ${file.name}`); continue; }
+      await supabase.from("prontuario_anexos").insert({
+        paciente_id: pacienteId, nome: file.name, path, mime: file.type, tamanho: file.size,
+      });
+    }
+  };
+
+  const abrirAnexo = async (a: { path: string }) => {
+    const { data } = await supabase.storage.from("prontuarios").createSignedUrl(a.path, 3600);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+  };
+
+  const removerAnexo = async (a: { id: string; path: string }) => {
+    await supabase.storage.from("prontuarios").remove([a.path]);
+    await supabase.from("prontuario_anexos").delete().eq("id", a.id);
+    setAnexos((l) => l.filter((x) => x.id !== a.id));
+  };
 
   useEffect(() => {
     if (!open) return;
     setAba("dados");
+    setPendentes([]);
+    setAnexos([]);
+    if (paciente) carregarAnexos(paciente.id);
     if (paciente) {
       const f: Form = { ...vazio };
       (Object.keys(vazio) as (keyof Form)[]).forEach((k) => {
@@ -109,9 +146,18 @@ export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSave
       data_nascimento: form.data_nascimento || null,
       responsavel_data_nascimento: form.responsavel_data_nascimento || null,
     };
-    const { error } = paciente
-      ? await supabase.from("pacientes").update(payload).eq("id", paciente.id)
-      : await supabase.from("pacientes").insert(payload);
+    let pacienteId = paciente?.id ?? null;
+    let error = null as { message: string } | null;
+    if (paciente) {
+      ({ error } = await supabase.from("pacientes").update(payload).eq("id", paciente.id));
+    } else {
+      const res = await supabase.from("pacientes").insert(payload).select("id").single();
+      error = res.error;
+      pacienteId = res.data?.id ?? null;
+    }
+    if (!error && pacienteId && pendentes.length) {
+      await enviarArquivos(pacienteId, pendentes);
+    }
     setSalvando(false);
     if (error) { toast.error("Erro ao salvar: " + error.message); return; }
     toast.success(paciente ? "Cadastro atualizado" : "Paciente cadastrado");
@@ -221,6 +267,52 @@ export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSave
                 )}
               </div>
             )}
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium flex items-center gap-2">
+                <FileText className="h-4 w-4" /> Documentos anexados
+              </p>
+              <input
+                ref={inputArquivo}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const fs = Array.from(e.target.files ?? []);
+                  if (fs.length) setPendentes((p) => [...p, ...fs]);
+                  e.target.value = "";
+                }}
+              />
+              <Button type="button" variant="outline" size="sm" onClick={() => inputArquivo.current?.click()}>
+                <Upload className="h-4 w-4 mr-2" /> Anexar arquivos
+              </Button>
+
+              {(anexos.length > 0 || pendentes.length > 0) && (
+                <ul className="space-y-1.5">
+                  {anexos.map((a) => (
+                    <li key={a.id} className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm">
+                      <span className="truncate">{a.nome}</span>
+                      <span className="flex items-center gap-1">
+                        <Button type="button" variant="ghost" size="icon" onClick={() => abrirAnexo(a)} title="Abrir">
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removerAnexo(a)} title="Remover">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </span>
+                    </li>
+                  ))}
+                  {pendentes.map((f, i) => (
+                    <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-2 rounded-md border border-dashed px-3 py-2 text-sm">
+                      <span className="truncate">{f.name} <span className="text-muted-foreground">(envia ao salvar)</span></span>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => setPendentes((p) => p.filter((_, idx) => idx !== i))} title="Remover">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
 
             <div className="space-y-1.5">
               <Label>Observações</Label>
