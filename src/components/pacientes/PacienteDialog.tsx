@@ -146,9 +146,18 @@ export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSave
       data_nascimento: form.data_nascimento || null,
       responsavel_data_nascimento: form.responsavel_data_nascimento || null,
     };
-    const { error } = paciente
-      ? await supabase.from("pacientes").update(payload).eq("id", paciente.id)
-      : await supabase.from("pacientes").insert(payload);
+    let pacienteId = paciente?.id ?? null;
+    let error = null as { message: string } | null;
+    if (paciente) {
+      ({ error } = await supabase.from("pacientes").update(payload).eq("id", paciente.id));
+    } else {
+      const res = await supabase.from("pacientes").insert(payload).select("id").single();
+      error = res.error;
+      pacienteId = res.data?.id ?? null;
+    }
+    if (!error && pacienteId && pendentes.length) {
+      await enviarArquivos(pacienteId, pendentes);
+    }
     setSalvando(false);
     if (error) { toast.error("Erro ao salvar: " + error.message); return; }
     toast.success(paciente ? "Cadastro atualizado" : "Paciente cadastrado");
