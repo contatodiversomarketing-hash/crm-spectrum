@@ -26,6 +26,8 @@ interface Interacao {
 
 interface Conversa {
   telefone: string;
+  /** Número real para discagem no WhatsApp (com o nono dígito quando existir) */
+  numeroEnvio: string;
   nome: string;
   itens: Interacao[];
   ultima: string;
