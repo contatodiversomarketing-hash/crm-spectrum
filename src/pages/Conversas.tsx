@@ -319,6 +319,15 @@ export default function Conversas() {
     setEditando(null);
     setEditTexto("");
     carregar();
+
+    // Mensagens já entregues não podem ser alteradas no celular da pessoa;
+    // oferecemos enviar a correção como uma nova mensagem.
+    if (campo === "resposta_final" && ativa) {
+      const ok = window.confirm(
+        "Texto corrigido aqui na plataforma.\n\nO WhatsApp não permite alterar a mensagem que a pessoa já recebeu. Quer enviar a correção como nova mensagem para ela?",
+      );
+      if (ok) await enviarTexto(ativa.numeroEnvio, `*Corrigindo a mensagem anterior:* ${novo}`);
+    }
   }
 
   async function apagarMensagem(item: Interacao, campo: "mensagem_usuario" | "resposta_final") {
