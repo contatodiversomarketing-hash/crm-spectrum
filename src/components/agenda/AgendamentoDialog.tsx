@@ -73,6 +73,7 @@ export function AgendamentoDialog({
   const [duracao, setDuracao] = useState("30");
   const [status, setStatus] = useState("agendado");
   const [obs, setObs] = useState("");
+  const [telefone, setTelefone] = useState("");
 
   useEffect(() => {
     if (!open) return;
