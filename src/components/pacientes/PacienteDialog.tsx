@@ -72,11 +72,48 @@ export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSave
   const [form, setForm] = useState<Form>(vazio);
   const [salvando, setSalvando] = useState(false);
   const [aba, setAba] = useState("dados");
+  const [pendentes, setPendentes] = useState<File[]>([]);
+  const [anexos, setAnexos] = useState<{ id: string; nome: string; path: string }[]>([]);
+  const inputArquivo = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  const carregarAnexos = useCallback(async (pacienteId: string) => {
+    const { data } = await supabase
+      .from("prontuario_anexos")
+      .select("id, nome, path")
+      .eq("paciente_id", pacienteId)
+      .order("criado_em", { ascending: false });
+    setAnexos(data ?? []);
+  }, []);
+
+  const enviarArquivos = async (pacienteId: string, arquivos: File[]) => {
+    for (const file of arquivos) {
+      const path = `${pacienteId}/${Date.now()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
+      const { error: upErr } = await supabase.storage.from("prontuarios").upload(path, file);
+      if (upErr) { toast.error(`Não foi possível anexar ${file.name}`); continue; }
+      await supabase.from("prontuario_anexos").insert({
+        paciente_id: pacienteId, nome: file.name, path, mime: file.type, tamanho: file.size,
+      });
+    }
+  };
+
+  const abrirAnexo = async (a: { path: string }) => {
+    const { data } = await supabase.storage.from("prontuarios").createSignedUrl(a.path, 3600);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+  };
+
+  const removerAnexo = async (a: { id: string; path: string }) => {
+    await supabase.storage.from("prontuarios").remove([a.path]);
+    await supabase.from("prontuario_anexos").delete().eq("id", a.id);
+    setAnexos((l) => l.filter((x) => x.id !== a.id));
+  };
 
   useEffect(() => {
     if (!open) return;
     setAba("dados");
+    setPendentes([]);
+    setAnexos([]);
+    if (paciente) carregarAnexos(paciente.id);
     if (paciente) {
       const f: Form = { ...vazio };
       (Object.keys(vazio) as (keyof Form)[]).forEach((k) => {
