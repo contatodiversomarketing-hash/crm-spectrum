@@ -26,6 +26,8 @@ interface Interacao {
 
 interface Conversa {
   telefone: string;
+  /** Número real para discagem no WhatsApp (com o nono dígito quando existir) */
+  numeroEnvio: string;
   nome: string;
   itens: Interacao[];
   ultima: string;
@@ -62,6 +64,26 @@ function chaveTelefone(v: string) {
   return d ? `55${d}` : "";
 }
 
+
+// Número real para enviar no WhatsApp: prefere a forma com o nono dígito.
+function numeroDiscagem(...candidatos: (string | null | undefined)[]) {
+  let melhor = "";
+  for (const c of candidatos) {
+    let d = soDigitos(c || "");
+    if (!d) continue;
+    if (d.startsWith("55") && d.length > 11) d = d.slice(2);
+    d = d.replace(/^0+/, "");
+    if (d.length < 10) continue;
+    const completo = `55${d}`;
+    if (d.length === 11 && d[2] === "9") return completo;
+    if (!melhor) melhor = completo;
+  }
+  if (melhor) {
+    const local = melhor.slice(2);
+    if (local.length === 10) return `55${local.slice(0, 2)}9${local.slice(2)}`;
+  }
+  return melhor;
+}
 
 function formatarTelefone(v: string) {
   const d = soDigitos(v);
@@ -554,6 +576,12 @@ export default function Conversas() {
       const pendente = !!ultimaEntrada && (!ultimaSaida || ultimaSaida < ultimaEntrada);
       return {
         telefone,
+        numeroEnvio:
+          numeroDiscagem(
+            mapaPacientes[telefone]?.telefone,
+            ...[...ordenados].reverse().map((i) => i.paciente_externo_id.replace("tel:", "")),
+            telefone,
+          ) || telefone,
         nome,
         itens: ordenados,
         ultima: ordenados[ordenados.length - 1].criado_em,
@@ -576,6 +604,7 @@ export default function Conversas() {
       })
       .map(({ p, tel }) => ({
         telefone: tel,
+        numeroEnvio: numeroDiscagem(p.telefone, tel) || tel,
         nome: p.nome || formatarTelefone(tel),
         itens: [],
         ultima: "",
@@ -827,7 +856,7 @@ export default function Conversas() {
                                           variant="secondary"
                                           className="ml-1 h-6 px-2 text-[10px]"
                                           disabled={enviando}
-                                          onClick={() => selecionada && enviarReabordagem(selecionada)}
+                                          onClick={() => ativa && enviarReabordagem(ativa.numeroEnvio)}
                                         >
                                           Reabrir conversa
                                         </Button>
@@ -859,7 +888,7 @@ export default function Conversas() {
                       <Button size="sm" variant="outline" onClick={transcreverAudio} disabled={transcrevendo} title="Transcrever">
                         {transcrevendo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
                       </Button>
-                      <Button size="sm" onClick={() => enviarAudio(ativa.telefone)} disabled={enviando} title="Enviar áudio">
+                      <Button size="sm" onClick={() => enviarAudio(ativa.numeroEnvio)} disabled={enviando} title="Enviar áudio">
                         <Send className="h-3.5 w-3.5" />
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => setAudioBlob(null)}>×</Button>
@@ -894,7 +923,7 @@ export default function Conversas() {
                     className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
-                      if (f) enviarArquivo(ativa.telefone, f);
+                      if (f) enviarArquivo(ativa.numeroEnvio, f);
                       e.target.value = "";
                     }}
                   />
@@ -916,14 +945,14 @@ export default function Conversas() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
-                        enviar(ativa.telefone);
+                        enviar(ativa.numeroEnvio);
                       }
                     }}
                     placeholder="Continuar a conversa..."
                     rows={1}
                     className="min-h-[42px] max-h-32 resize-none text-sm"
                   />
-                  <Button size="icon" onClick={() => enviar(ativa.telefone)} disabled={enviando || !texto.trim()}>
+                  <Button size="icon" onClick={() => enviar(ativa.numeroEnvio)} disabled={enviando || !texto.trim()}>
                     <Send className="h-4 w-4" />
                   </Button>
                 </div>

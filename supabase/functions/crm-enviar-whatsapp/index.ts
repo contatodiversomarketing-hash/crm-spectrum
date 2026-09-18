@@ -102,7 +102,16 @@ Deno.serve(async (req) => {
         whatsappMessageId = t.messageId;
         avisoTemplate = "Mensagem de reabordagem aprovada enviada.";
       } else {
-      const r = await enviarTextoMega(numero, body.texto!);
+      let r = await enviarTextoMega(numero, body.texto!);
+      // Número brasileiro sem o nono dígito: tenta de novo com o 9 antes de desistir.
+      if (!r.ok && /undeliverable|invalid|not.*exist/i.test(r.body)) {
+        const local = numero.startsWith("55") ? numero.slice(2) : numero;
+        if (local.length === 10) {
+          const alternativo = `55${local.slice(0, 2)}9${local.slice(2)}`;
+          const r2 = await enviarTextoMega(alternativo, body.texto!);
+          if (r2.ok) r = r2;
+        }
+      }
       if (r.ok) {
         whatsappMessageId = r.messageId;
       } else {
