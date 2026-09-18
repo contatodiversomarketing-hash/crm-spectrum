@@ -86,6 +86,7 @@ export function AgendamentoDialog({
       setDuracao(String(agendamento.duracao_min ?? 30));
       setStatus(agendamento.status || "agendado");
       setObs(agendamento.observacoes ?? "");
+      setTelefone("");
     } else {
       setNome("");
       setHora(defaultTime ?? "09:00");
