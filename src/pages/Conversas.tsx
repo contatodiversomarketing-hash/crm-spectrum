@@ -604,6 +604,7 @@ export default function Conversas() {
       })
       .map(({ p, tel }) => ({
         telefone: tel,
+        numeroEnvio: numeroDiscagem(p.telefone, tel) || tel,
         nome: p.nome || formatarTelefone(tel),
         itens: [],
         ultima: "",
