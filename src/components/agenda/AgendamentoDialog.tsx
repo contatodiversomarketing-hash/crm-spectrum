@@ -146,7 +146,10 @@ export function AgendamentoDialog({
     const dt = new Date(defaultDate);
     dt.setHours(h, m, 0, 0);
 
+    const pacienteId = await garantirPaciente();
+
     const payload = {
+      paciente_id: pacienteId,
       paciente_nome: nome.trim(),
       data_hora: dt.toISOString(),
       tipo,
