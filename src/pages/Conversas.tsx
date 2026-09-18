@@ -319,6 +319,15 @@ export default function Conversas() {
     setEditando(null);
     setEditTexto("");
     carregar();
+
+    // Mensagens já entregues não podem ser alteradas no celular da pessoa;
+    // oferecemos enviar a correção como uma nova mensagem.
+    if (campo === "resposta_final" && ativa) {
+      const ok = window.confirm(
+        "Texto corrigido aqui na plataforma.\n\nO WhatsApp não permite alterar a mensagem que a pessoa já recebeu. Quer enviar a correção como nova mensagem para ela?",
+      );
+      if (ok) await enviarTexto(ativa.numeroEnvio, `*Corrigindo a mensagem anterior:* ${novo}`);
+    }
   }
 
   async function apagarMensagem(item: Interacao, campo: "mensagem_usuario" | "resposta_final") {
@@ -415,6 +424,38 @@ export default function Conversas() {
       }
     } catch (e) {
       toast({ title: "Falha ao enviar", description: String(e), variant: "destructive" });
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  // Envia um texto específico (ex.: correção de uma mensagem já enviada).
+  async function enviarTexto(numero: string, msg: string) {
+    if (!msg.trim()) return;
+    setEnviando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("crm-enviar-whatsapp", {
+        body: { numero: soDigitos(numero), tipo: "text", texto: msg },
+      });
+      let payload = data as { error?: string; fora_janela?: boolean };
+      if (error && (error as { context?: Response }).context) {
+        try {
+          payload = await (error as unknown as { context: Response }).context.clone().json();
+        } catch { /* mantém erro genérico */ }
+      }
+      if (payload?.fora_janela) {
+        toast({
+          title: "Correção não enviada",
+          description: "O contato não responde há mais de 24 horas; o WhatsApp só aceita a mensagem de reabordagem.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (error || payload?.error) throw new Error(payload?.error || error?.message);
+      toast({ title: "Correção enviada no WhatsApp" });
+      carregar();
+    } catch (e) {
+      toast({ title: "Falha ao enviar a correção", description: String(e), variant: "destructive" });
     } finally {
       setEnviando(false);
     }
