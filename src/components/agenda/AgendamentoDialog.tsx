@@ -197,10 +197,26 @@ export function AgendamentoDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Paciente</Label>
-            <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome do paciente" />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Paciente</Label>
+              <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome do paciente" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Telefone {agendamento ? "" : "(opcional)"}</Label>
+              <Input
+                value={telefone}
+                onChange={(e) => setTelefone(e.target.value)}
+                placeholder="(32) 99999-9999"
+                disabled={!!agendamento?.paciente_id}
+              />
+            </div>
           </div>
+          {!agendamento && (
+            <p className="text-xs text-muted-foreground -mt-2">
+              Ao salvar, o paciente também é cadastrado automaticamente na lista de pacientes.
+            </p>
+          )}
 
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
