@@ -429,6 +429,38 @@ export default function Conversas() {
     }
   }
 
+  // Envia um texto específico (ex.: correção de uma mensagem já enviada).
+  async function enviarTexto(numero: string, msg: string) {
+    if (!msg.trim()) return;
+    setEnviando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("crm-enviar-whatsapp", {
+        body: { numero: soDigitos(numero), tipo: "text", texto: msg },
+      });
+      let payload = data as { error?: string; fora_janela?: boolean };
+      if (error && (error as { context?: Response }).context) {
+        try {
+          payload = await (error as unknown as { context: Response }).context.clone().json();
+        } catch { /* mantém erro genérico */ }
+      }
+      if (payload?.fora_janela) {
+        toast({
+          title: "Correção não enviada",
+          description: "O contato não responde há mais de 24 horas; o WhatsApp só aceita a mensagem de reabordagem.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (error || payload?.error) throw new Error(payload?.error || error?.message);
+      toast({ title: "Correção enviada no WhatsApp" });
+      carregar();
+    } catch (e) {
+      toast({ title: "Falha ao enviar a correção", description: String(e), variant: "destructive" });
+    } finally {
+      setEnviando(false);
+    }
+  }
+
   async function enviarReabordagem(numero: string) {
     if (enviando) return;
     setEnviando(true);
