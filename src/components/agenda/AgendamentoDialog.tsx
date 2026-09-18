@@ -25,6 +25,7 @@ export interface Agendamento {
   id: string;
   data_hora: string;
   status: string;
+  paciente_id?: string | null;
   paciente_nome: string | null;
   tipo: string;
   procedimento: string | null;
@@ -72,6 +73,7 @@ export function AgendamentoDialog({
   const [duracao, setDuracao] = useState("30");
   const [status, setStatus] = useState("agendado");
   const [obs, setObs] = useState("");
+  const [telefone, setTelefone] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -84,6 +86,7 @@ export function AgendamentoDialog({
       setDuracao(String(agendamento.duracao_min ?? 30));
       setStatus(agendamento.status || "agendado");
       setObs(agendamento.observacoes ?? "");
+      setTelefone("");
     } else {
       setNome("");
       setHora(defaultTime ?? "09:00");
@@ -92,8 +95,46 @@ export function AgendamentoDialog({
       setDuracao("30");
       setStatus("agendado");
       setObs("");
+      setTelefone("");
     }
   }, [open, agendamento, defaultTime]);
+
+  // Garante que quem é agendado também apareça na lista de pacientes.
+  const garantirPaciente = async (): Promise<string | null> => {
+    if (agendamento?.paciente_id) return agendamento.paciente_id;
+    const nomeLimpo = nome.trim();
+    const digitos = telefone.replace(/\D/g, "");
+
+    if (digitos.length >= 10) {
+      const variacoes = Array.from(
+        new Set([digitos, digitos.startsWith("55") ? digitos.slice(2) : "55" + digitos]),
+      );
+      const { data } = await supabase
+        .from("pacientes")
+        .select("id")
+        .in("telefone", variacoes)
+        .limit(1);
+      if (data?.[0]) return data[0].id;
+    }
+
+    const { data: porNome } = await supabase
+      .from("pacientes")
+      .select("id")
+      .ilike("nome", nomeLimpo)
+      .limit(1);
+    if (porNome?.[0]) return porNome[0].id;
+
+    const { data: novo, error } = await supabase
+      .from("pacientes")
+      .insert({ nome: nomeLimpo, telefone: digitos || null, tipo: "adulto" })
+      .select("id")
+      .single();
+    if (error) {
+      toast.error("Agendamento salvo, mas não foi possível criar o cadastro do paciente");
+      return null;
+    }
+    return novo?.id ?? null;
+  };
 
   const salvar = async () => {
     if (!nome.trim()) {
@@ -105,7 +146,10 @@ export function AgendamentoDialog({
     const dt = new Date(defaultDate);
     dt.setHours(h, m, 0, 0);
 
+    const pacienteId = await garantirPaciente();
+
     const payload = {
+      paciente_id: pacienteId,
       paciente_nome: nome.trim(),
       data_hora: dt.toISOString(),
       tipo,
@@ -153,10 +197,26 @@ export function AgendamentoDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Paciente</Label>
-            <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome do paciente" />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Paciente</Label>
+              <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome do paciente" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Telefone {agendamento ? "" : "(opcional)"}</Label>
+              <Input
+                value={telefone}
+                onChange={(e) => setTelefone(e.target.value)}
+                placeholder="(32) 99999-9999"
+                disabled={!!agendamento?.paciente_id}
+              />
+            </div>
           </div>
+          {!agendamento && (
+            <p className="text-xs text-muted-foreground -mt-2">
+              Ao salvar, o paciente também é cadastrado automaticamente na lista de pacientes.
+            </p>
+          )}
 
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">

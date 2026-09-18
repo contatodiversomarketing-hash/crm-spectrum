@@ -60,7 +60,7 @@ export default function Agenda() {
     const fimMes = addDays(endOfMonth(mes), 1);
     const { data: rows, error } = await supabase
       .from("agendamentos")
-      .select("id, data_hora, status, paciente_nome, tipo, procedimento, duracao_min, sala, profissional, observacoes")
+      .select("id, data_hora, status, paciente_id, paciente_nome, tipo, procedimento, duracao_min, sala, profissional, observacoes")
       .gte("data_hora", inicioMes.toISOString())
       .lt("data_hora", fimMes.toISOString())
       .order("data_hora");
