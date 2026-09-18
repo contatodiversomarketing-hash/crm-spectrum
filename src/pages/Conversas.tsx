@@ -65,6 +65,26 @@ function chaveTelefone(v: string) {
 }
 
 
+// Número real para enviar no WhatsApp: prefere a forma com o nono dígito.
+function numeroDiscagem(...candidatos: (string | null | undefined)[]) {
+  let melhor = "";
+  for (const c of candidatos) {
+    let d = soDigitos(c || "");
+    if (!d) continue;
+    if (d.startsWith("55") && d.length > 11) d = d.slice(2);
+    d = d.replace(/^0+/, "");
+    if (d.length < 10) continue;
+    const completo = `55${d}`;
+    if (d.length === 11 && d[2] === "9") return completo;
+    if (!melhor) melhor = completo;
+  }
+  if (melhor) {
+    const local = melhor.slice(2);
+    if (local.length === 10) return `55${local.slice(0, 2)}9${local.slice(2)}`;
+  }
+  return melhor;
+}
+
 function formatarTelefone(v: string) {
   const d = soDigitos(v);
   const semDDI = d.startsWith("55") ? d.slice(2) : d;
