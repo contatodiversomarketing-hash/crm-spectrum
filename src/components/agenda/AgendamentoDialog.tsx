@@ -25,6 +25,7 @@ export interface Agendamento {
   id: string;
   data_hora: string;
   status: string;
+  paciente_id?: string | null;
   paciente_nome: string | null;
   tipo: string;
   procedimento: string | null;
