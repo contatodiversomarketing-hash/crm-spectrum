@@ -576,6 +576,12 @@ export default function Conversas() {
       const pendente = !!ultimaEntrada && (!ultimaSaida || ultimaSaida < ultimaEntrada);
       return {
         telefone,
+        numeroEnvio:
+          numeroDiscagem(
+            mapaPacientes[telefone]?.telefone,
+            ...[...ordenados].reverse().map((i) => i.paciente_externo_id.replace("tel:", "")),
+            telefone,
+          ) || telefone,
         nome,
         itens: ordenados,
         ultima: ordenados[ordenados.length - 1].criado_em,
