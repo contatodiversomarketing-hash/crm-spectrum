@@ -38,6 +38,19 @@ export default function CRMPage() {
     if (activePipelineId) fetchLeads();
   }, [activePipelineId]);
 
+  // Chave canônica: últimos 8 dígitos do telefone (ignora DDI/9º dígito)
+  const chaveTelefone = (tel?: string | null) => {
+    const d = (tel || "").replace(/\D/g, "");
+    return d.length >= 8 ? d.slice(-8) : d;
+  };
+
+  // Nome "vazio de verdade": nulo, vazio ou apenas o telefone formatado
+  const semNomeReal = (nome?: string | null) => {
+    const n = (nome || "").trim();
+    if (!n) return true;
+    return n.replace(/\D/g, "").length >= 8 && !/[a-zA-ZÀ-ÿ]/.test(n);
+  };
+
   const fetchLeads = async () => {
     if (!activePipelineId) return;
     setLoading(true);
@@ -49,10 +62,32 @@ export default function CRMPage() {
       .limit(500);
 
     if (!error && data) {
-      setLeads(data as Lead[]);
+      const listaLeads = data as Lead[];
+
+      // Completa o nome com o cadastro do paciente, quando existir
+      const { data: pacientes } = await supabase
+        .from("pacientes")
+        .select("nome, telefone")
+        .not("nome", "is", null)
+        .limit(2000);
+
+      const mapaNomes = new Map<string, string>();
+      (pacientes || []).forEach((p) => {
+        const k = chaveTelefone(p.telefone);
+        if (k && p.nome) mapaNomes.set(k, p.nome);
+      });
+
+      setLeads(
+        listaLeads.map((l) =>
+          semNomeReal(l.nome)
+            ? { ...l, nome: mapaNomes.get(chaveTelefone(l.telefone)) || l.nome }
+            : l
+        )
+      );
     }
     setLoading(false);
   };
+
 
   const filteredLeads = leads.filter((lead) => {
     if (!search) return true;
