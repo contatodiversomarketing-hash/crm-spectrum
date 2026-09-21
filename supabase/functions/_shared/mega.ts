@@ -225,6 +225,32 @@ export async function enviarTemplateMega(
   return { ...r, usouTemplate: true };
 }
 
+// Envia um template aprovado específico (pelo nome), usado na cadência de follow-up.
+export async function enviarTemplateNomeado(
+  numero: string,
+  nomeTemplate: string,
+  parametros: string[] = [],
+  idiomaPadrao = "pt_BR",
+): Promise<Resultado & { usouTemplate: boolean }> {
+  const destino = numeroE164(numero);
+  if (!nomeTemplate || !datafyConfig().configurado) {
+    return { ok: false, status: 0, body: "template_nao_configurado", usouTemplate: false };
+  }
+  const components = parametros.length
+    ? [{ type: "body", parameters: parametros.map((t) => ({ type: "text", text: t })) }]
+    : [];
+  const r = await datafyPost({
+    to: destino,
+    type: "template",
+    template: {
+      name: nomeTemplate,
+      language: { code: idiomaPadrao },
+      ...(components.length ? { components } : {}),
+    },
+  });
+  return { ...r, usouTemplate: true };
+}
+
 // Verifica se o lead falou com a gente nas últimas 24h (janela livre do Meta).
 export function dentroDaJanela24h(ultimaMensagemDoCliente?: string | null): boolean {
   if (!ultimaMensagemDoCliente) return false;
