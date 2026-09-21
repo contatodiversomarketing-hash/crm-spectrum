@@ -48,6 +48,18 @@ Deno.serve(async (req) => {
         return json({ acao: "enviar", status: r.status, ok: r.ok, body: r.body.slice(0, 600) }, 200);
       }
 
+      // Cria os 4 templates da cadência de follow-up (17h)
+      if (payload?.acao === "criar_cadencia") {
+        const resultados = [];
+        for (const tpl of TEMPLATES_CADENCIA) {
+          const r = await fetch(url, { method: "POST", headers, body: JSON.stringify(tpl) });
+          resultados.push({ nome: tpl.name, status: r.status, body: (await r.text()).slice(0, 400) });
+        }
+        return json({ acao: "criar_cadencia", resultados }, 200);
+      }
+
+
+
       const resp = await fetch(url, { method: "POST", headers, body: JSON.stringify(TEMPLATE) });
       const body = await resp.text();
       return json({ acao: "criar", status: resp.status, body }, 200);
