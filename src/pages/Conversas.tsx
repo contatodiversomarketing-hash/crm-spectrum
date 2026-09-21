@@ -389,21 +389,17 @@ export default function Conversas() {
         } catch { /* mantém erro genérico */ }
       }
 
-      if (payload?.fora_janela) {
-        const ok = window.confirm(
-          "Este contato não responde há mais de 24 horas.\n\nO WhatsApp não entrega o texto que você digitou. Deseja enviar a mensagem de reabordagem aprovada para reabrir a conversa?",
-        );
-        setEnviando(false);
-        if (ok) await enviar(numero, true);
-        return;
-      }
+      if (payload?.fora_janela) throw new Error(payload.error || "O WhatsApp recusou o envio.");
       if (error || payload?.error) {
         throw new Error(payload?.error || error?.message);
       }
       const retorno = payload;
       const aviso = retorno?.aviso;
-      if (aviso) toast({ title: "Mensagem de reabordagem", description: aviso });
-      setTexto("");
+      if (aviso) {
+        toast({ title: "Conversa iniciada", description: aviso });
+      } else {
+        setTexto("");
+      }
       carregar();
 
       if (retorno?.messageId) {

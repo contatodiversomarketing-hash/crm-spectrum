@@ -48,8 +48,8 @@ Deno.serve(async (req) => {
 
     const canonico = telCanonico(numero) || numero;
 
-    // Envio manual: tenta sempre o texto digitado, sem bloquear pela janela de 24h.
-    // Só cai no template aprovado se o WhatsApp recusar o texto na hora.
+    // Envio manual: tenta sempre o texto digitado. Para contatos novos ou fora
+    // da janela livre, abre automaticamente a conversa com o template aprovado.
 
 
     let avisoTemplate: string | null = null;
@@ -120,14 +120,8 @@ Deno.serve(async (req) => {
         if (!foraJanela) {
           return json({ error: "Falha ao enviar pelo WhatsApp", status: r.status, details: r.body.slice(0, 400) }, 502);
         }
-        // Só aqui cai no template aprovado, e apenas com confirmação do atendente.
-        if (!body.confirmarTemplate) {
-          return json({
-            fora_janela: true,
-            error:
-              "O WhatsApp recusou o texto digitado porque o contato não responde há mais de 24 horas. Posso enviar a mensagem de reabordagem aprovada para reabrir a conversa?",
-          }, 409);
-        }
+        // Contatos novos também começam fora da janela livre. Nesse caso o
+        // WhatsApp exige um template aprovado para iniciar a conversa.
         const t = await enviarTemplateAprovado();
         if (!t.ok) {
           console.error("[crm-enviar-whatsapp] template falhou", t.status, t.body.slice(0, 400));
@@ -138,7 +132,7 @@ Deno.serve(async (req) => {
           }, 502);
         }
         whatsappMessageId = t.messageId;
-        avisoTemplate = "Mensagem de reabordagem aprovada enviada.";
+        avisoTemplate = "Mensagem inicial aprovada enviada. O texto digitado foi mantido como rascunho para você enviar quando o cliente responder.";
       }
       }
     } else {

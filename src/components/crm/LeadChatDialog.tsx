@@ -120,14 +120,19 @@ export function LeadChatDialog({
     if (error || (data as any)?.error) {
       throw new Error((data as any)?.error || error?.message || "Falha no envio");
     }
+    return data as { aviso?: string | null } | null;
   };
 
   const enviarTexto = async () => {
     if (!texto.trim() || !numero) return;
     setSending(true);
     try {
-      await invokeSend({ tipo: "text", texto });
-      setTexto("");
+      const retorno = await invokeSend({ tipo: "text", texto });
+      if (retorno?.aviso) {
+        toast({ title: "Conversa iniciada", description: retorno.aviso });
+      } else {
+        setTexto("");
+      }
       await fetchMessages();
     } catch (e: any) {
       toast({ title: "Erro ao enviar", description: e.message, variant: "destructive" });
