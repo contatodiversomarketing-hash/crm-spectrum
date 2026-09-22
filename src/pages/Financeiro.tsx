@@ -157,7 +157,9 @@ export default function Financeiro() {
     if (!desc) { toast.error("Informe o que foi vendido"); return; }
     if (!valorNum || valorNum <= 0) { toast.error("Informe um valor válido"); return; }
     const estaPago = pago === "true";
+    const comprovante = recibo ? await enviarRecibo(pacienteId, recibo) : null;
     const { error } = await supabase.from("financeiro_lancamentos").insert({
+      comprovante_path: comprovante,
       paciente_id: pacienteId,
       descricao: desc,
       valor: valorNum,
