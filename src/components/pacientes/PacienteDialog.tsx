@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageSquare, Upload, FileText, X, Download } from "lucide-react";
+import { MessageSquare, Upload, FileText, X, Download, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -161,6 +165,23 @@ export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSave
     setSalvando(false);
     if (error) { toast.error("Erro ao salvar: " + error.message); return; }
     toast.success(paciente ? "Cadastro atualizado" : "Paciente cadastrado");
+    onOpenChange(false);
+    onSaved();
+  };
+
+  const excluirCadastro = async () => {
+    if (!paciente) return;
+    setSalvando(true);
+    const paths = anexos.map((a) => a.path);
+    if (paths.length) await supabase.storage.from("prontuarios").remove(paths);
+    await supabase.from("prontuario_anexos").delete().eq("paciente_id", paciente.id);
+    await supabase.from("prontuario_registros").delete().eq("paciente_id", paciente.id);
+    await supabase.from("financeiro_lancamentos").delete().eq("paciente_id", paciente.id);
+    await supabase.from("agendamentos").update({ paciente_id: null }).eq("paciente_id", paciente.id);
+    const { error } = await supabase.from("pacientes").delete().eq("id", paciente.id);
+    setSalvando(false);
+    if (error) { toast.error("Erro ao excluir: " + error.message); return; }
+    toast.success("Cadastro excluído");
     onOpenChange(false);
     onSaved();
   };
@@ -320,6 +341,28 @@ export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSave
             </div>
 
             <div className="flex justify-end gap-2">
+              {paciente && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" className="mr-auto text-destructive hover:text-destructive">
+                      <Trash2 className="h-4 w-4 mr-1" /> Excluir cadastro
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir este cadastro?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        O cadastro de {paciente.nome || "paciente"}, prontuário, anexos e lançamentos
+                        financeiros serão apagados. Esta ação não pode ser desfeita.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={excluirCadastro}>Excluir</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
               <Button onClick={salvar} disabled={salvando}>{salvando ? "Salvando..." : "Salvar cadastro"}</Button>
             </div>

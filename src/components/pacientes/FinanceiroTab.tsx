@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Trash2, CheckCircle2, Circle } from "lucide-react";
+import { Trash2, CheckCircle2, Circle, Upload, Receipt, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Lancamento {
@@ -21,10 +21,12 @@ interface Lancamento {
   pago: boolean;
   vencimento: string | null;
   data_pagamento: string | null;
+  comprovante_path: string | null;
 }
 
 const FORMAS = ["Pix", "Cartão de crédito", "Cartão de débito", "Dinheiro", "Boleto", "Transferência"];
 const PARCELAVEIS = ["Cartão de crédito", "Boleto"];
+const COM_COMPROVANTE = ["Pix", "Cartão de crédito", "Cartão de débito"];
 const PRODUTOS = [
   "Consulta inicial",
   "SPECTRA ADULTO — Plano 1 (Investigação)",
@@ -44,10 +46,12 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
   const [pago, setPago] = useState("false");
   const [vencimento, setVencimento] = useState("");
   const [parcelas, setParcelas] = useState("1");
+  const [recibo, setRecibo] = useState<File | null>(null);
+  const inputRecibo = useRef<HTMLInputElement>(null);
 
   const carregar = useCallback(async () => {
     const { data } = await supabase.from("financeiro_lancamentos")
-      .select("id, descricao, valor, forma_pagamento, parcelas, valor_parcela, pago, vencimento, data_pagamento")
+      .select("id, descricao, valor, forma_pagamento, parcelas, valor_parcela, pago, vencimento, data_pagamento, comprovante_path")
       .eq("paciente_id", pacienteId).order("criado_em", { ascending: false });
     setItens((data ?? []) as Lancamento[]);
   }, [pacienteId]);
@@ -55,6 +59,28 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
   useEffect(() => { carregar(); }, [carregar]);
 
   const podeParcelar = PARCELAVEIS.includes(forma);
+  const pedeComprovante = COM_COMPROVANTE.includes(forma);
+
+  const abrirRecibo = async (path: string) => {
+    const { data } = await supabase.storage.from("prontuarios").createSignedUrl(path, 3600);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+    else toast.error("Não foi possível abrir o recibo");
+  };
+
+  const enviarRecibo = async (file: File) => {
+    const path = `comprovantes/${pacienteId}/${Date.now()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
+    const { error } = await supabase.storage.from("prontuarios").upload(path, file);
+    if (error) { toast.error("Não foi possível enviar o recibo"); return null; }
+    return path;
+  };
+
+  const anexarRecibo = async (l: Lancamento, file: File) => {
+    const path = await enviarRecibo(file);
+    if (!path) return;
+    await supabase.from("financeiro_lancamentos").update({ comprovante_path: path }).eq("id", l.id);
+    toast.success("Recibo anexado");
+    carregar();
+  };
 
   const adicionar = async () => {
     const desc = descricao === "Outro" ? descricaoLivre.trim() : descricao;
@@ -63,14 +89,16 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
     if (!v || v <= 0) { toast.error("Informe um valor válido"); return; }
     const estaPago = pago === "true";
     const n = podeParcelar ? Math.max(1, Number(parcelas) || 1) : 1;
+    const comprovante = recibo ? await enviarRecibo(recibo) : null;
     const { error } = await supabase.from("financeiro_lancamentos").insert({
       paciente_id: pacienteId, descricao: desc, valor: v, forma_pagamento: forma,
       parcelas: n, valor_parcela: Number((v / n).toFixed(2)),
       pago: estaPago, vencimento: vencimento || null,
       data_pagamento: estaPago ? new Date().toISOString().slice(0, 10) : null,
+      comprovante_path: comprovante,
     });
     if (error) { toast.error("Erro ao lançar: " + error.message); return; }
-    setValor(""); setVencimento(""); setDescricaoLivre(""); setParcelas("1");
+    setValor(""); setVencimento(""); setDescricaoLivre(""); setParcelas("1"); setRecibo(null);
     toast.success("Lançamento registrado");
     carregar();
   };
@@ -168,6 +196,24 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
             </div>
           </div>
         </div>
+        {pedeComprovante && (
+          <div className="space-y-1.5">
+            <Label>Foto do recibo do pagamento</Label>
+            <input ref={inputRecibo} type="file" accept="image/*,application/pdf" className="hidden"
+              onChange={(e) => { setRecibo(e.target.files?.[0] ?? null); e.target.value = ""; }} />
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => inputRecibo.current?.click()}>
+                <Upload className="h-4 w-4 mr-2" /> Anexar recibo
+              </Button>
+              {recibo && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  {recibo.name}
+                  <button onClick={() => setRecibo(null)} title="Remover"><X className="h-3.5 w-3.5" /></button>
+                </span>
+              )}
+            </div>
+          </div>
+        )}
         <Button onClick={adicionar}>Lançar</Button>
       </div>
 
@@ -188,6 +234,17 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
               </p>
             </div>
             <span className={cn("text-sm font-semibold", l.pago ? "text-success" : "text-accent")}>{brl(Number(l.valor))}</span>
+            {l.comprovante_path ? (
+              <button onClick={() => abrirRecibo(l.comprovante_path!)} title="Ver recibo" className="text-primary">
+                <Receipt className="h-4 w-4" />
+              </button>
+            ) : (
+              <label title="Anexar recibo" className="cursor-pointer text-muted-foreground hover:text-foreground">
+                <Upload className="h-4 w-4" />
+                <input type="file" accept="image/*,application/pdf" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) anexarRecibo(l, f); }} />
+              </label>
+            )}
             <button onClick={() => excluir(l.id)} className="text-destructive/70 hover:text-destructive">
               <Trash2 className="h-4 w-4" />
             </button>

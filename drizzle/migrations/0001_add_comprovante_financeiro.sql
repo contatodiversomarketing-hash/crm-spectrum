@@ -1,0 +1,1 @@
+ALTER TABLE public.financeiro_lancamentos ADD COLUMN IF NOT EXISTS comprovante_path text;

@@ -492,6 +492,7 @@ export type Database = {
       financeiro_lancamentos: {
         Row: {
           atualizado_em: string
+          comprovante_path: string | null
           criado_em: string
           data_pagamento: string | null
           descricao: string
@@ -507,6 +508,7 @@ export type Database = {
         }
         Insert: {
           atualizado_em?: string
+          comprovante_path?: string | null
           criado_em?: string
           data_pagamento?: string | null
           descricao: string
@@ -522,6 +524,7 @@ export type Database = {
         }
         Update: {
           atualizado_em?: string
+          comprovante_path?: string | null
           criado_em?: string
           data_pagamento?: string | null
           descricao?: string

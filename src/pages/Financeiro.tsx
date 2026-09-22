@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Search, Plus, Trash2, CheckCircle2, Circle } from "lucide-react";
+import { Search, Plus, Trash2, CheckCircle2, Circle, Upload, Receipt, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Lancamento {
@@ -26,6 +26,7 @@ interface Lancamento {
   vencimento: string | null;
   data_pagamento: string | null;
   observacoes: string | null;
+  comprovante_path: string | null;
   criado_em: string;
 }
 
@@ -33,6 +34,7 @@ interface PacienteMin { id: string; nome: string | null; telefone: string | null
 
 const FORMAS = ["Pix", "Cartão de crédito", "Cartão de débito", "Dinheiro", "Boleto", "Transferência"];
 const PARCELAVEIS = ["Cartão de crédito", "Boleto"];
+const COM_COMPROVANTE = ["Pix", "Cartão de crédito", "Cartão de débito"];
 const PRODUTOS = [
   "Consulta inicial",
   "SPECTRA ADULTO — Plano 1 (Investigação)",
@@ -64,12 +66,14 @@ export default function Financeiro() {
   const [pago, setPago] = useState("false");
   const [vencimento, setVencimento] = useState("");
   const [observacoes, setObservacoes] = useState("");
+  const [recibo, setRecibo] = useState<File | null>(null);
+  const inputRecibo = useRef<HTMLInputElement>(null);
 
   const carregar = useCallback(async () => {
     setLoading(true);
     const [lanc, pac] = await Promise.all([
       supabase.from("financeiro_lancamentos")
-        .select("id, paciente_id, descricao, valor, forma_pagamento, parcelas, valor_parcela, pago, vencimento, data_pagamento, observacoes, criado_em")
+        .select("id, paciente_id, descricao, valor, forma_pagamento, parcelas, valor_parcela, pago, vencimento, data_pagamento, observacoes, comprovante_path, criado_em")
         .order("criado_em", { ascending: false }),
       supabase.from("pacientes").select("id, nome, telefone").order("nome"),
     ]);
@@ -124,6 +128,28 @@ export default function Financeiro() {
   const valorNum = Number(String(valor).replace(",", ".")) || 0;
   const nParcelas = podeParcelar ? Math.max(1, Number(parcelas) || 1) : 1;
   const parcelaCalc = valorNum > 0 ? valorNum / nParcelas : 0;
+  const pedeComprovante = COM_COMPROVANTE.includes(forma);
+
+  const abrirRecibo = async (path: string) => {
+    const { data } = await supabase.storage.from("prontuarios").createSignedUrl(path, 3600);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+    else toast.error("Não foi possível abrir o recibo");
+  };
+
+  const enviarRecibo = async (pid: string, file: File) => {
+    const path = `comprovantes/${pid}/${Date.now()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
+    const { error } = await supabase.storage.from("prontuarios").upload(path, file);
+    if (error) { toast.error("Não foi possível enviar o recibo"); return null; }
+    return path;
+  };
+
+  const anexarRecibo = async (l: Lancamento, file: File) => {
+    const path = await enviarRecibo(l.paciente_id, file);
+    if (!path) return;
+    await supabase.from("financeiro_lancamentos").update({ comprovante_path: path }).eq("id", l.id);
+    toast.success("Recibo anexado");
+    carregar();
+  };
 
   const salvar = async () => {
     if (!pacienteId) { toast.error("Escolha o paciente"); return; }
@@ -131,7 +157,9 @@ export default function Financeiro() {
     if (!desc) { toast.error("Informe o que foi vendido"); return; }
     if (!valorNum || valorNum <= 0) { toast.error("Informe um valor válido"); return; }
     const estaPago = pago === "true";
+    const comprovante = recibo ? await enviarRecibo(pacienteId, recibo) : null;
     const { error } = await supabase.from("financeiro_lancamentos").insert({
+      comprovante_path: comprovante,
       paciente_id: pacienteId,
       descricao: desc,
       valor: valorNum,
@@ -145,7 +173,7 @@ export default function Financeiro() {
     });
     if (error) { toast.error("Erro ao lançar: " + error.message); return; }
     toast.success("Venda registrada");
-    setValor(""); setVencimento(""); setObservacoes(""); setDescricaoLivre(""); setParcelas("1");
+    setValor(""); setVencimento(""); setObservacoes(""); setDescricaoLivre(""); setParcelas("1"); setRecibo(null);
     setOpen(false);
     carregar();
   };
@@ -265,6 +293,24 @@ export default function Financeiro() {
                   <Input value={observacoes} onChange={(e) => setObservacoes(e.target.value)}
                     placeholder="Ex.: sinal de 30% pago no Pix" />
                 </div>
+                {pedeComprovante && (
+                  <div className="space-y-1.5">
+                    <Label>Foto do recibo do pagamento</Label>
+                    <input ref={inputRecibo} type="file" accept="image/*,application/pdf" className="hidden"
+                      onChange={(e) => { setRecibo(e.target.files?.[0] ?? null); e.target.value = ""; }} />
+                    <div className="flex items-center gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={() => inputRecibo.current?.click()}>
+                        <Upload className="h-4 w-4 mr-2" /> Anexar recibo
+                      </Button>
+                      {recibo && (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          {recibo.name}
+                          <button onClick={() => setRecibo(null)} title="Remover"><X className="h-3.5 w-3.5" /></button>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <Button onClick={salvar} className="w-full">Registrar venda</Button>
               </div>
             </DialogContent>
@@ -358,6 +404,17 @@ export default function Financeiro() {
                 <span className={cn("text-sm font-semibold", l.pago ? "text-success" : "text-accent")}>
                   {brl(Number(l.valor))}
                 </span>
+                {l.comprovante_path ? (
+                  <button onClick={() => abrirRecibo(l.comprovante_path!)} title="Ver recibo" className="text-primary">
+                    <Receipt className="h-4 w-4" />
+                  </button>
+                ) : (
+                  <label title="Anexar recibo" className="cursor-pointer text-muted-foreground hover:text-foreground">
+                    <Upload className="h-4 w-4" />
+                    <input type="file" accept="image/*,application/pdf" className="hidden"
+                      onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) anexarRecibo(l, f); }} />
+                  </label>
+                )}
                 <button onClick={() => excluir(l.id)} className="text-destructive/70 hover:text-destructive">
                   <Trash2 className="h-4 w-4" />
                 </button>
