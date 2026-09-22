@@ -341,6 +341,28 @@ export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSave
             </div>
 
             <div className="flex justify-end gap-2">
+              {paciente && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" className="mr-auto text-destructive hover:text-destructive">
+                      <Trash2 className="h-4 w-4 mr-1" /> Excluir cadastro
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir este cadastro?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        O cadastro de {paciente.nome || "paciente"}, prontuário, anexos e lançamentos
+                        financeiros serão apagados. Esta ação não pode ser desfeita.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={excluirCadastro}>Excluir</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
               <Button onClick={salvar} disabled={salvando}>{salvando ? "Salvando..." : "Salvar cadastro"}</Button>
             </div>
