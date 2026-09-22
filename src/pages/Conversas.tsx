@@ -852,6 +852,9 @@ export default function Conversas() {
                             )}
                           </div>
                           <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
+                            <Button size="icon" variant="ghost" className="h-7 w-7" title="Responder" onClick={() => setRespondendo({ autor: ativa.nome, texto: i.mensagem_usuario || "" })}>
+                              <Reply className="h-3.5 w-3.5" />
+                            </Button>
                             <Button size="icon" variant="ghost" className="h-7 w-7" title="Editar" onClick={() => { setEditando(`${i.id}:in`); setEditTexto(i.mensagem_usuario || ""); }}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
