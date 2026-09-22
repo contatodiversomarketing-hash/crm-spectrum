@@ -233,9 +233,10 @@ export default function Financeiro() {
   };
 
   const alternarPago = async (l: Lancamento) => {
+    if (l.tem_sinal) { alternarRestante(l); return; }
     const novo = !l.pago;
     const { error } = await supabase.from("financeiro_lancamentos")
-      .update({ pago: novo, data_pagamento: novo ? new Date().toISOString().slice(0, 10) : null })
+      .update({ pago: novo, restante_pago: novo, data_pagamento: novo ? new Date().toISOString().slice(0, 10) : null })
       .eq("id", l.id);
     if (error) { toast.error("Erro ao atualizar"); return; }
     carregar();
@@ -296,6 +297,18 @@ export default function Financeiro() {
                     <Input value={valor} onChange={(e) => setValor(e.target.value)} placeholder="500,00" />
                   </div>
                   <div className="space-y-1.5">
+                    <Label>Tem entrada (sinal)?</Label>
+                    <Select value={temSinal} onValueChange={setTemSinal}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        <SelectItem value="false">Não, pagamento único</SelectItem>
+                        <SelectItem value="true">Sim, com entrada</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {!comSinal && (
+                  <div className="space-y-1.5">
                     <Label>Forma de pagamento</Label>
                     <Select value={forma} onValueChange={setForma}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
@@ -304,11 +317,61 @@ export default function Financeiro() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
+                )}
+                {comSinal && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label>Valor da entrada (R$)</Label>
+                        <Input value={sinalValor} onChange={(e) => setSinalValor(e.target.value)} placeholder="150,00" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Forma da entrada</Label>
+                        <Select value={sinalForma} onValueChange={setSinalForma}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent className="bg-popover z-50">
+                            {FORMAS.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label>Entrada (sinal) já foi paga?</Label>
+                        <Select value={sinalPago} onValueChange={setSinalPago}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent className="bg-popover z-50">
+                            <SelectItem value="false">Aguardando</SelectItem>
+                            <SelectItem value="true">Sim, baixa feita</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Restante {brl(Math.max(0, valorNum - sinalNum))} — forma</Label>
+                        <Select value={restanteForma} onValueChange={setRestanteForma}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent className="bg-popover z-50">
+                            {FORMAS.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Restante já foi pago?</Label>
+                      <Select value={restantePago} onValueChange={setRestantePago}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent className="bg-popover z-50">
+                          <SelectItem value="false">Aguardando</SelectItem>
+                          <SelectItem value="true">Sim, baixa feita</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
                 {podeParcelar && (
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label>Quantas vezes</Label>
+                      <Label>Quantas vezes {comSinal ? "(restante)" : ""}</Label>
                       <Select value={parcelas} onValueChange={setParcelas}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent className="bg-popover z-50 max-h-64">
@@ -327,16 +390,18 @@ export default function Financeiro() {
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Situação</Label>
-                    <Select value={pago} onValueChange={setPago}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-popover z-50">
-                        <SelectItem value="false">Pendente</SelectItem>
-                        <SelectItem value="true">Pago</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {!comSinal && (
+                    <div className="space-y-1.5">
+                      <Label>Situação</Label>
+                      <Select value={pago} onValueChange={setPago}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent className="bg-popover z-50">
+                          <SelectItem value="false">Pendente</SelectItem>
+                          <SelectItem value="true">Pago</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <div className="space-y-1.5">
                     <Label>Vencimento</Label>
                     <Input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
@@ -439,39 +504,59 @@ export default function Financeiro() {
             const n = l.parcelas ?? 1;
             const vp = l.valor_parcela ?? Number(l.valor) / n;
             return (
-              <div key={l.id} className="flex items-center gap-3 rounded-lg border bg-card p-3">
-                <button onClick={() => alternarPago(l)} title={l.pago ? "Marcar como pendente" : "Marcar como pago"}>
-                  {l.pago ? <CheckCircle2 className="h-5 w-5 text-success" /> : <Circle className="h-5 w-5 text-muted-foreground" />}
-                </button>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {nomePaciente(l.paciente_id)} <span className="text-muted-foreground">· {l.descricao}</span>
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {l.forma_pagamento}
-                    {n > 1 ? ` · ${n}x de ${brl(Number(vp))}` : " · à vista"}
-                    {l.vencimento ? ` · vence ${format(new Date(l.vencimento + "T00:00:00"), "dd/MM/yyyy")}` : ""}
-                    {l.pago && l.data_pagamento ? ` · pago em ${format(new Date(l.data_pagamento + "T00:00:00"), "dd/MM/yyyy")}` : ""}
-                  </p>
-                  {l.observacoes && <p className="text-[11px] text-muted-foreground truncate">{l.observacoes}</p>}
-                </div>
-                <span className={cn("text-sm font-semibold", l.pago ? "text-success" : "text-accent")}>
-                  {brl(Number(l.valor))}
-                </span>
-                {l.comprovante_path ? (
-                  <button onClick={() => abrirRecibo(l.comprovante_path!)} title="Ver recibo" className="text-primary">
-                    <Receipt className="h-4 w-4" />
+              <div key={l.id} className="rounded-lg border bg-card p-3 space-y-2">
+                <div className="flex items-center gap-3">
+                  <button onClick={() => alternarPago(l)} title={l.pago ? "Marcar como pendente" : "Marcar como pago"}>
+                    {l.pago ? <CheckCircle2 className="h-5 w-5 text-success" /> : <Circle className="h-5 w-5 text-muted-foreground" />}
                   </button>
-                ) : (
-                  <label title="Anexar recibo" className="cursor-pointer text-muted-foreground hover:text-foreground">
-                    <Upload className="h-4 w-4" />
-                    <input type="file" accept="image/*,application/pdf" className="hidden"
-                      onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) anexarRecibo(l, f); }} />
-                  </label>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {nomePaciente(l.paciente_id)} <span className="text-muted-foreground">· {l.descricao}</span>
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {l.forma_pagamento}
+                      {n > 1 ? ` · ${n}x de ${brl(Number(vp))}` : " · à vista"}
+                      {l.vencimento ? ` · vence ${format(new Date(l.vencimento + "T00:00:00"), "dd/MM/yyyy")}` : ""}
+                      {l.pago && l.data_pagamento ? ` · pago em ${format(new Date(l.data_pagamento + "T00:00:00"), "dd/MM/yyyy")}` : ""}
+                    </p>
+                    {l.observacoes && <p className="text-[11px] text-muted-foreground truncate">{l.observacoes}</p>}
+                  </div>
+                  <span className={cn("text-sm font-semibold", l.pago ? "text-success" : "text-accent")}>
+                    {brl(Number(l.valor))}
+                  </span>
+                  {l.comprovante_path ? (
+                    <button onClick={() => abrirRecibo(l.comprovante_path!)} title="Ver recibo" className="text-primary">
+                      <Receipt className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <label title="Anexar recibo" className="cursor-pointer text-muted-foreground hover:text-foreground">
+                      <Upload className="h-4 w-4" />
+                      <input type="file" accept="image/*,application/pdf" className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) anexarRecibo(l, f); }} />
+                    </label>
+                  )}
+                  <button onClick={() => excluir(l.id)} className="text-destructive/70 hover:text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+                {l.tem_sinal && (
+                  <div className="flex flex-wrap gap-4 pl-8 text-[11px]">
+                    <button onClick={() => alternarSinal(l)} className="flex items-center gap-1.5">
+                      {l.sinal_pago ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
+                      <span className={l.sinal_pago ? "text-success" : "text-muted-foreground"}>
+                        Entrada {brl(Number(l.sinal_valor ?? 0))} · {l.sinal_forma}
+                        {l.sinal_pago && l.sinal_data ? ` · pago em ${format(new Date(l.sinal_data + "T00:00:00"), "dd/MM/yyyy")}` : ""}
+                      </span>
+                    </button>
+                    <button onClick={() => alternarRestante(l)} className="flex items-center gap-1.5">
+                      {l.restante_pago ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
+                      <span className={l.restante_pago ? "text-success" : "text-muted-foreground"}>
+                        Restante {brl(Number(l.valor) - Number(l.sinal_valor ?? 0))} · {l.restante_forma}
+                        {l.restante_pago && l.restante_data ? ` · pago em ${format(new Date(l.restante_data + "T00:00:00"), "dd/MM/yyyy")}` : ""}
+                      </span>
+                    </button>
+                  </div>
                 )}
-                <button onClick={() => excluir(l.id)} className="text-destructive/70 hover:text-destructive">
-                  <Trash2 className="h-4 w-4" />
-                </button>
               </div>
             );
           })}
