@@ -502,6 +502,16 @@ export type Database = {
           paciente_id: string
           pago: boolean
           parcelas: number
+          restante_comprovante_path: string | null
+          restante_data: string | null
+          restante_forma: string | null
+          restante_pago: boolean
+          sinal_comprovante_path: string | null
+          sinal_data: string | null
+          sinal_forma: string | null
+          sinal_pago: boolean
+          sinal_valor: number | null
+          tem_sinal: boolean
           valor: number
           valor_parcela: number | null
           vencimento: string | null
@@ -518,6 +528,16 @@ export type Database = {
           paciente_id: string
           pago?: boolean
           parcelas?: number
+          restante_comprovante_path?: string | null
+          restante_data?: string | null
+          restante_forma?: string | null
+          restante_pago?: boolean
+          sinal_comprovante_path?: string | null
+          sinal_data?: string | null
+          sinal_forma?: string | null
+          sinal_pago?: boolean
+          sinal_valor?: number | null
+          tem_sinal?: boolean
           valor?: number
           valor_parcela?: number | null
           vencimento?: string | null
@@ -534,6 +554,16 @@ export type Database = {
           paciente_id?: string
           pago?: boolean
           parcelas?: number
+          restante_comprovante_path?: string | null
+          restante_data?: string | null
+          restante_forma?: string | null
+          restante_pago?: boolean
+          sinal_comprovante_path?: string | null
+          sinal_data?: string | null
+          sinal_forma?: string | null
+          sinal_pago?: boolean
+          sinal_valor?: number | null
+          tem_sinal?: boolean
           valor?: number
           valor_parcela?: number | null
           vencimento?: string | null
