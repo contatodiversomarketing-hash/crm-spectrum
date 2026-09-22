@@ -40,6 +40,7 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
   const [forma, setForma] = useState(FORMAS[0]);
   const [pago, setPago] = useState("false");
   const [vencimento, setVencimento] = useState("");
+  const [parcelas, setParcelas] = useState("1");
 
   const carregar = useCallback(async () => {
     const { data } = await supabase.from("financeiro_lancamentos")
