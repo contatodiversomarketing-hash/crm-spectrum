@@ -323,19 +323,10 @@ export default function Agenda() {
                           </td>
                           <td className="px-3 py-2">
                             {ag && (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger className="text-muted-foreground hover:text-foreground">
-                                  <MoreVertical className="h-4 w-4" />
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="bg-popover z-50">
-                                  {STATUS_OPTIONS.map((s) => (
-                                    <DropdownMenuItem key={s.value} onClick={() => mudarStatus(ag, s.value)}>
-                                      {s.label}
-                                    </DropdownMenuItem>
-                                  ))}
-                                  <DropdownMenuItem onClick={() => abrirEdicao(ag)}>Editar / Excluir</DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              <button onClick={() => setAcoesAg(ag)} title="Opções"
+                                className="text-muted-foreground hover:text-foreground">
+                                <MoreVertical className="h-4 w-4" />
+                              </button>
                             )}
                           </td>
                         </tr>
