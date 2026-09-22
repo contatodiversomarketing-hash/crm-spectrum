@@ -46,10 +46,12 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
   const [pago, setPago] = useState("false");
   const [vencimento, setVencimento] = useState("");
   const [parcelas, setParcelas] = useState("1");
+  const [recibo, setRecibo] = useState<File | null>(null);
+  const inputRecibo = useRef<HTMLInputElement>(null);
 
   const carregar = useCallback(async () => {
     const { data } = await supabase.from("financeiro_lancamentos")
-      .select("id, descricao, valor, forma_pagamento, parcelas, valor_parcela, pago, vencimento, data_pagamento")
+      .select("id, descricao, valor, forma_pagamento, parcelas, valor_parcela, pago, vencimento, data_pagamento, comprovante_path")
       .eq("paciente_id", pacienteId).order("criado_em", { ascending: false });
     setItens((data ?? []) as Lancamento[]);
   }, [pacienteId]);
@@ -57,6 +59,28 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
   useEffect(() => { carregar(); }, [carregar]);
 
   const podeParcelar = PARCELAVEIS.includes(forma);
+  const pedeComprovante = COM_COMPROVANTE.includes(forma);
+
+  const abrirRecibo = async (path: string) => {
+    const { data } = await supabase.storage.from("prontuarios").createSignedUrl(path, 3600);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+    else toast.error("Não foi possível abrir o recibo");
+  };
+
+  const enviarRecibo = async (file: File) => {
+    const path = `comprovantes/${pacienteId}/${Date.now()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
+    const { error } = await supabase.storage.from("prontuarios").upload(path, file);
+    if (error) { toast.error("Não foi possível enviar o recibo"); return null; }
+    return path;
+  };
+
+  const anexarRecibo = async (l: Lancamento, file: File) => {
+    const path = await enviarRecibo(file);
+    if (!path) return;
+    await supabase.from("financeiro_lancamentos").update({ comprovante_path: path }).eq("id", l.id);
+    toast.success("Recibo anexado");
+    carregar();
+  };
 
   const adicionar = async () => {
     const desc = descricao === "Outro" ? descricaoLivre.trim() : descricao;
