@@ -196,6 +196,24 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
             </div>
           </div>
         </div>
+        {pedeComprovante && (
+          <div className="space-y-1.5">
+            <Label>Foto do recibo do pagamento</Label>
+            <input ref={inputRecibo} type="file" accept="image/*,application/pdf" className="hidden"
+              onChange={(e) => { setRecibo(e.target.files?.[0] ?? null); e.target.value = ""; }} />
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => inputRecibo.current?.click()}>
+                <Upload className="h-4 w-4 mr-2" /> Anexar recibo
+              </Button>
+              {recibo && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  {recibo.name}
+                  <button onClick={() => setRecibo(null)} title="Remover"><X className="h-3.5 w-3.5" /></button>
+                </span>
+              )}
+            </div>
+          </div>
+        )}
         <Button onClick={adicionar}>Lançar</Button>
       </div>
 
