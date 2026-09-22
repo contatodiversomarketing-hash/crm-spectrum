@@ -234,7 +234,18 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
               </p>
             </div>
             <span className={cn("text-sm font-semibold", l.pago ? "text-success" : "text-accent")}>{brl(Number(l.valor))}</span>
-            <button onClick={() => excluir(l.id)} className="text-destructive/70 hover:text-destructive">
+            {l.comprovante_path ? (
+              <button onClick={() => abrirRecibo(l.comprovante_path!)} title="Ver recibo" className="text-primary">
+                <Receipt className="h-4 w-4" />
+              </button>
+            ) : (
+              <label title="Anexar recibo" className="cursor-pointer text-muted-foreground hover:text-foreground">
+                <Upload className="h-4 w-4" />
+                <input type="file" accept="image/*,application/pdf" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) anexarRecibo(l, f); }} />
+              </label>
+            )}
+            <button onClick={() => excluir(l.id)} className="text-destructive/70 hover:text-destructive">†
               <Trash2 className="h-4 w-4" />
             </button>
           </div>
