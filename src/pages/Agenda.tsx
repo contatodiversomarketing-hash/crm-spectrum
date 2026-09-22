@@ -15,6 +15,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AgendamentoDialog, Agendamento, STATUS_OPTIONS } from "@/components/agenda/AgendamentoDialog";
+import { AcoesAgendamentoDialog } from "@/components/agenda/AcoesAgendamentoDialog";
 
 const HORA_INICIO = 9;
 const HORA_FIM = 14.75; // 14:45
