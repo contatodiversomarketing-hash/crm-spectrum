@@ -11,10 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { AgendamentoDialog, Agendamento, STATUS_OPTIONS } from "@/components/agenda/AgendamentoDialog";
+import { AgendamentoDialog, Agendamento } from "@/components/agenda/AgendamentoDialog";
+import { AcoesAgendamentoDialog } from "@/components/agenda/AcoesAgendamentoDialog";
 
 const HORA_INICIO = 9;
 const HORA_FIM = 14.75; // 14:45
@@ -53,6 +51,7 @@ export default function Agenda() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editando, setEditando] = useState<Agendamento | null>(null);
   const [horaPadrao, setHoraPadrao] = useState<string | undefined>();
+  const [acoesAg, setAcoesAg] = useState<Agendamento | null>(null);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -321,19 +320,10 @@ export default function Agenda() {
                           </td>
                           <td className="px-3 py-2">
                             {ag && (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger className="text-muted-foreground hover:text-foreground">
-                                  <MoreVertical className="h-4 w-4" />
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="bg-popover z-50">
-                                  {STATUS_OPTIONS.map((s) => (
-                                    <DropdownMenuItem key={s.value} onClick={() => mudarStatus(ag, s.value)}>
-                                      {s.label}
-                                    </DropdownMenuItem>
-                                  ))}
-                                  <DropdownMenuItem onClick={() => abrirEdicao(ag)}>Editar / Excluir</DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              <button onClick={() => setAcoesAg(ag)} title="Opções"
+                                className="text-muted-foreground hover:text-foreground">
+                                <MoreVertical className="h-4 w-4" />
+                              </button>
                             )}
                           </td>
                         </tr>
@@ -402,6 +392,9 @@ export default function Agenda() {
       <AgendamentoDialog open={dialogOpen} onOpenChange={setDialogOpen} agendamento={editando}
         defaultDate={data} defaultTime={horaPadrao} profissional={PROFISSIONAL} sala={SALA}
         onSaved={carregar} />
+
+      <AcoesAgendamentoDialog open={!!acoesAg} onOpenChange={(v) => !v && setAcoesAg(null)}
+        agendamento={acoesAg} onEditar={abrirEdicao} onStatus={mudarStatus} onChanged={carregar} />
     </div>
   );
 }
