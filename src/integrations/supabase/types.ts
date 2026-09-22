@@ -500,7 +500,9 @@ export type Database = {
           observacoes: string | null
           paciente_id: string
           pago: boolean
+          parcelas: number
           valor: number
+          valor_parcela: number | null
           vencimento: string | null
         }
         Insert: {
@@ -513,7 +515,9 @@ export type Database = {
           observacoes?: string | null
           paciente_id: string
           pago?: boolean
+          parcelas?: number
           valor?: number
+          valor_parcela?: number | null
           vencimento?: string | null
         }
         Update: {
@@ -526,7 +530,9 @@ export type Database = {
           observacoes?: string | null
           paciente_id?: string
           pago?: boolean
+          parcelas?: number
           valor?: number
+          valor_parcela?: number | null
           vencimento?: string | null
         }
         Relationships: [
