@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Search, Plus, Trash2, CheckCircle2, Circle } from "lucide-react";
+import { Search, Plus, Trash2, CheckCircle2, Circle, Upload, Receipt, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Lancamento {
@@ -26,6 +26,7 @@ interface Lancamento {
   vencimento: string | null;
   data_pagamento: string | null;
   observacoes: string | null;
+  comprovante_path: string | null;
   criado_em: string;
 }
 
@@ -33,6 +34,7 @@ interface PacienteMin { id: string; nome: string | null; telefone: string | null
 
 const FORMAS = ["Pix", "Cartão de crédito", "Cartão de débito", "Dinheiro", "Boleto", "Transferência"];
 const PARCELAVEIS = ["Cartão de crédito", "Boleto"];
+const COM_COMPROVANTE = ["Pix", "Cartão de crédito", "Cartão de débito"];
 const PRODUTOS = [
   "Consulta inicial",
   "SPECTRA ADULTO — Plano 1 (Investigação)",
