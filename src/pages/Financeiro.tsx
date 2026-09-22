@@ -173,7 +173,7 @@ export default function Financeiro() {
     });
     if (error) { toast.error("Erro ao lançar: " + error.message); return; }
     toast.success("Venda registrada");
-    setValor(""); setVencimento(""); setObservacoes(""); setDescricaoLivre(""); setParcelas("1");
+    setValor(""); setVencimento(""); setObservacoes(""); setDescricaoLivre(""); setParcelas("1"); setRecibo(null);
     setOpen(false);
     carregar();
   };
