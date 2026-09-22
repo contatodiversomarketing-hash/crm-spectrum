@@ -54,6 +54,7 @@ export default function Agenda() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editando, setEditando] = useState<Agendamento | null>(null);
   const [horaPadrao, setHoraPadrao] = useState<string | undefined>();
+  const [acoesAg, setAcoesAg] = useState<Agendamento | null>(null);
 
   const carregar = useCallback(async () => {
     setLoading(true);
