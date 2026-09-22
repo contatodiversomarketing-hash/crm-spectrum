@@ -66,12 +66,14 @@ export default function Financeiro() {
   const [pago, setPago] = useState("false");
   const [vencimento, setVencimento] = useState("");
   const [observacoes, setObservacoes] = useState("");
+  const [recibo, setRecibo] = useState<File | null>(null);
+  const inputRecibo = useRef<HTMLInputElement>(null);
 
   const carregar = useCallback(async () => {
     setLoading(true);
     const [lanc, pac] = await Promise.all([
       supabase.from("financeiro_lancamentos")
-        .select("id, paciente_id, descricao, valor, forma_pagamento, parcelas, valor_parcela, pago, vencimento, data_pagamento, observacoes, criado_em")
+        .select("id, paciente_id, descricao, valor, forma_pagamento, parcelas, valor_parcela, pago, vencimento, data_pagamento, observacoes, comprovante_path, criado_em")
         .order("criado_em", { ascending: false }),
       supabase.from("pacientes").select("id, nome, telefone").order("nome"),
     ]);
