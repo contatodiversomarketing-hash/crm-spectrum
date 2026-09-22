@@ -404,6 +404,7 @@ export default function Conversas() {
         toast({ title: "Conversa iniciada", description: aviso });
       } else {
         setTexto("");
+        setRespondendo(null);
       }
       carregar();
 
