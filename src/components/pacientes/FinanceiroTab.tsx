@@ -138,6 +138,19 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
               </SelectContent>
             </Select>
           </div>
+          {podeParcelar && (
+            <div className="space-y-1.5">
+              <Label>Quantas vezes</Label>
+              <Select value={parcelas} onValueChange={setParcelas}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-popover z-50 max-h-64">
+                  {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((n) => (
+                    <SelectItem key={n} value={n}>{n}x</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Situação</Label>
@@ -169,6 +182,7 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
               <p className="text-sm font-medium truncate">{l.descricao}</p>
               <p className="text-[11px] text-muted-foreground">
                 {l.forma_pagamento}
+                {(l.parcelas ?? 1) > 1 ? ` · ${l.parcelas}x de ${brl(Number(l.valor_parcela ?? Number(l.valor) / (l.parcelas ?? 1)))}` : ""}
                 {l.vencimento ? ` · vence ${format(new Date(l.vencimento + "T00:00:00"), "dd/MM/yyyy")}` : ""}
                 {l.pago && l.data_pagamento ? ` · pago em ${format(new Date(l.data_pagamento + "T00:00:00"), "dd/MM/yyyy")}` : ""}
               </p>
