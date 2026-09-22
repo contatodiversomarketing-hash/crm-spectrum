@@ -16,12 +16,15 @@ interface Lancamento {
   descricao: string;
   valor: number;
   forma_pagamento: string | null;
+  parcelas: number | null;
+  valor_parcela: number | null;
   pago: boolean;
   vencimento: string | null;
   data_pagamento: string | null;
 }
 
 const FORMAS = ["Pix", "Cartão de crédito", "Cartão de débito", "Dinheiro", "Boleto", "Transferência"];
+const PARCELAVEIS = ["Cartão de crédito", "Boleto"];
 const PRODUTOS = [
   "Consulta inicial",
   "SPECTRA ADULTO — Plano 1 (Investigação)",
@@ -44,12 +47,14 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
 
   const carregar = useCallback(async () => {
     const { data } = await supabase.from("financeiro_lancamentos")
-      .select("id, descricao, valor, forma_pagamento, pago, vencimento, data_pagamento")
+      .select("id, descricao, valor, forma_pagamento, parcelas, valor_parcela, pago, vencimento, data_pagamento")
       .eq("paciente_id", pacienteId).order("criado_em", { ascending: false });
     setItens((data ?? []) as Lancamento[]);
   }, [pacienteId]);
 
   useEffect(() => { carregar(); }, [carregar]);
+
+  const podeParcelar = PARCELAVEIS.includes(forma);
 
   const adicionar = async () => {
     const desc = descricao === "Outro" ? descricaoLivre.trim() : descricao;
@@ -57,13 +62,15 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
     const v = Number(String(valor).replace(",", "."));
     if (!v || v <= 0) { toast.error("Informe um valor válido"); return; }
     const estaPago = pago === "true";
+    const n = podeParcelar ? Math.max(1, Number(parcelas) || 1) : 1;
     const { error } = await supabase.from("financeiro_lancamentos").insert({
       paciente_id: pacienteId, descricao: desc, valor: v, forma_pagamento: forma,
+      parcelas: n, valor_parcela: Number((v / n).toFixed(2)),
       pago: estaPago, vencimento: vencimento || null,
       data_pagamento: estaPago ? new Date().toISOString().slice(0, 10) : null,
     });
     if (error) { toast.error("Erro ao lançar: " + error.message); return; }
-    setValor(""); setVencimento(""); setDescricaoLivre("");
+    setValor(""); setVencimento(""); setDescricaoLivre(""); setParcelas("1");
     toast.success("Lançamento registrado");
     carregar();
   };
