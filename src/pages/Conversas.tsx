@@ -930,6 +930,19 @@ export default function Conversas() {
               </ScrollArea>
               <div className="border-t bg-card p-3">
                 <div className="max-w-3xl mx-auto space-y-2">
+                  {respondendo && (
+                    <div className="flex items-start gap-2 rounded-md border-l-4 border-primary bg-muted/50 px-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-primary">{respondendo.autor}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {respondendo.texto.replace(RE_MIDIA, "").trim() || "Mídia"}
+                        </p>
+                      </div>
+                      <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" title="Cancelar resposta" onClick={() => setRespondendo(null)}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
                   {audioBlob && (
                     <div className="flex items-center gap-2 rounded-md border p-2">
                       <AudioLines className="h-4 w-4 text-primary shrink-0" />
