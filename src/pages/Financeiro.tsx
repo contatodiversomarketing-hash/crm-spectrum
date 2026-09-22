@@ -128,6 +128,28 @@ export default function Financeiro() {
   const valorNum = Number(String(valor).replace(",", ".")) || 0;
   const nParcelas = podeParcelar ? Math.max(1, Number(parcelas) || 1) : 1;
   const parcelaCalc = valorNum > 0 ? valorNum / nParcelas : 0;
+  const pedeComprovante = COM_COMPROVANTE.includes(forma);
+
+  const abrirRecibo = async (path: string) => {
+    const { data } = await supabase.storage.from("prontuarios").createSignedUrl(path, 3600);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+    else toast.error("Não foi possível abrir o recibo");
+  };
+
+  const enviarRecibo = async (pid: string, file: File) => {
+    const path = `comprovantes/${pid}/${Date.now()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
+    const { error } = await supabase.storage.from("prontuarios").upload(path, file);
+    if (error) { toast.error("Não foi possível enviar o recibo"); return null; }
+    return path;
+  };
+
+  const anexarRecibo = async (l: Lancamento, file: File) => {
+    const path = await enviarRecibo(l.paciente_id, file);
+    if (!path) return;
+    await supabase.from("financeiro_lancamentos").update({ comprovante_path: path }).eq("id", l.id);
+    toast.success("Recibo anexado");
+    carregar();
+  };
 
   const salvar = async () => {
     if (!pacienteId) { toast.error("Escolha o paciente"); return; }
