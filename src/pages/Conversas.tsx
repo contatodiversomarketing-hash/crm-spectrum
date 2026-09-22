@@ -167,6 +167,7 @@ export default function Conversas() {
   const [configId, setConfigId] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
   const [editando, setEditando] = useState<string | null>(null);
+  const [respondendo, setRespondendo] = useState<{ autor: string; texto: string } | null>(null);
   const [editTexto, setEditTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const sincronizados = useRef<Set<string>>(new Set());
