@@ -102,16 +102,46 @@ Deno.serve(async (req) => {
         whatsappMessageId = t.messageId;
         avisoTemplate = "Mensagem de reabordagem aprovada enviada.";
       } else {
-      let r = await enviarTextoMega(numero, body.texto!);
+      // O WhatsApp recusa textos com mais de 4096 caracteres: quebramos em partes.
+      const partes: string[] = [];
+      const textoCompleto = body.texto!;
+      const LIMITE = 3900;
+      if (textoCompleto.length <= LIMITE) {
+        partes.push(textoCompleto);
+      } else {
+        let restante = textoCompleto;
+        while (restante.length > 0) {
+          if (restante.length <= LIMITE) { partes.push(restante); break; }
+          let corte = restante.lastIndexOf("\n", LIMITE);
+          if (corte < LIMITE * 0.5) corte = restante.lastIndexOf(" ", LIMITE);
+          if (corte < LIMITE * 0.5) corte = LIMITE;
+          partes.push(restante.slice(0, corte).trim());
+          restante = restante.slice(corte).trim();
+        }
+      }
+
+      const enviarPartes = async (destino: string) => {
+        let ultimo = await enviarTextoMega(destino, partes[0]);
+        if (!ultimo.ok) return ultimo;
+        for (let i = 1; i < partes.length; i++) {
+          const parcial = await enviarTextoMega(destino, partes[i]);
+          if (!parcial.ok) return parcial;
+          ultimo = parcial;
+        }
+        return ultimo;
+      };
+
+      let r = await enviarPartes(numero);
       // Número brasileiro sem o nono dígito: tenta de novo com o 9 antes de desistir.
       if (!r.ok && /undeliverable|invalid|not.*exist/i.test(r.body)) {
         const local = numero.startsWith("55") ? numero.slice(2) : numero;
         if (local.length === 10) {
           const alternativo = `55${local.slice(0, 2)}9${local.slice(2)}`;
-          const r2 = await enviarTextoMega(alternativo, body.texto!);
+          const r2 = await enviarPartes(alternativo);
           if (r2.ok) r = r2;
         }
       }
+
       if (r.ok) {
         whatsappMessageId = r.messageId;
       } else {
