@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, RefreshCw, MessageSquare, MessagesSquare, Send, Power, UserPlus, Bell, BellOff, Smile, Mic, Square, FileText, Loader2, AudioLines, Paperclip, Pencil, Trash2, Check, X, CheckCheck, AlertCircle } from "lucide-react";
+import { Search, RefreshCw, MessageSquare, MessagesSquare, Send, Power, UserPlus, Bell, BellOff, Smile, Mic, Square, FileText, Loader2, AudioLines, Paperclip, Pencil, Trash2, Check, X, CheckCheck, AlertCircle, Reply } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -167,6 +167,7 @@ export default function Conversas() {
   const [configId, setConfigId] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
   const [editando, setEditando] = useState<string | null>(null);
+  const [respondendo, setRespondendo] = useState<{ autor: string; texto: string } | null>(null);
   const [editTexto, setEditTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const sincronizados = useRef<Set<string>>(new Set());
@@ -375,8 +376,12 @@ export default function Conversas() {
   }
 
   async function enviar(numero: string, confirmarTemplate = false) {
-    const msg = texto.trim();
-    if (!msg || enviando) return;
+    const digitado = texto.trim();
+    if (!digitado || enviando) return;
+    const citacao = respondendo
+      ? `> *${respondendo.autor}:* ${respondendo.texto.replace(RE_MIDIA, "").trim().slice(0, 300).replace(/\n/g, "\n> ")}\n\n`
+      : "";
+    const msg = `${citacao}${digitado}`;
     setEnviando(true);
     try {
       const { data, error } = await supabase.functions.invoke("crm-enviar-whatsapp", {
@@ -399,6 +404,7 @@ export default function Conversas() {
         toast({ title: "Conversa iniciada", description: aviso });
       } else {
         setTexto("");
+        setRespondendo(null);
       }
       carregar();
 
@@ -846,6 +852,9 @@ export default function Conversas() {
                             )}
                           </div>
                           <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
+                            <Button size="icon" variant="ghost" className="h-7 w-7" title="Responder" onClick={() => setRespondendo({ autor: ativa.nome, texto: i.mensagem_usuario || "" })}>
+                              <Reply className="h-3.5 w-3.5" />
+                            </Button>
                             <Button size="icon" variant="ghost" className="h-7 w-7" title="Editar" onClick={() => { setEditando(`${i.id}:in`); setEditTexto(i.mensagem_usuario || ""); }}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
@@ -858,6 +867,9 @@ export default function Conversas() {
                       {i.resposta_final && (
                         <div className="flex justify-end items-center gap-1 group">
                           <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
+                            <Button size="icon" variant="ghost" className="h-7 w-7" title="Responder" onClick={() => setRespondendo({ autor: i.supervisionado ? i.atendente_humano || "Atendente" : "Ana", texto: i.resposta_final || "" })}>
+                              <Reply className="h-3.5 w-3.5" />
+                            </Button>
                             <Button size="icon" variant="ghost" className="h-7 w-7" title="Editar" onClick={() => { setEditando(`${i.id}:out`); setEditTexto(i.resposta_final || ""); }}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
@@ -918,6 +930,19 @@ export default function Conversas() {
               </ScrollArea>
               <div className="border-t bg-card p-3">
                 <div className="max-w-3xl mx-auto space-y-2">
+                  {respondendo && (
+                    <div className="flex items-start gap-2 rounded-md border-l-4 border-primary bg-muted/50 px-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-primary">{respondendo.autor}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {respondendo.texto.replace(RE_MIDIA, "").trim() || "Mídia"}
+                        </p>
+                      </div>
+                      <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" title="Cancelar resposta" onClick={() => setRespondendo(null)}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
                   {audioBlob && (
                     <div className="flex items-center gap-2 rounded-md border p-2">
                       <AudioLines className="h-4 w-4 text-primary shrink-0" />
