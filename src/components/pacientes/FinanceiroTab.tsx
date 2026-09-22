@@ -89,14 +89,16 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
     if (!v || v <= 0) { toast.error("Informe um valor válido"); return; }
     const estaPago = pago === "true";
     const n = podeParcelar ? Math.max(1, Number(parcelas) || 1) : 1;
+    const comprovante = recibo ? await enviarRecibo(recibo) : null;
     const { error } = await supabase.from("financeiro_lancamentos").insert({
       paciente_id: pacienteId, descricao: desc, valor: v, forma_pagamento: forma,
       parcelas: n, valor_parcela: Number((v / n).toFixed(2)),
       pago: estaPago, vencimento: vencimento || null,
       data_pagamento: estaPago ? new Date().toISOString().slice(0, 10) : null,
+      comprovante_path: comprovante,
     });
     if (error) { toast.error("Erro ao lançar: " + error.message); return; }
-    setValor(""); setVencimento(""); setDescricaoLivre(""); setParcelas("1");
+    setValor(""); setVencimento(""); setDescricaoLivre(""); setParcelas("1"); setRecibo(null);
     toast.success("Lançamento registrado");
     carregar();
   };
