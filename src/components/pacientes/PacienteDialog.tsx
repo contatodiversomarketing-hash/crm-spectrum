@@ -169,6 +169,23 @@ export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSave
     onSaved();
   };
 
+  const excluirCadastro = async () => {
+    if (!paciente) return;
+    setSalvando(true);
+    const paths = anexos.map((a) => a.path);
+    if (paths.length) await supabase.storage.from("prontuarios").remove(paths);
+    await supabase.from("prontuario_anexos").delete().eq("paciente_id", paciente.id);
+    await supabase.from("prontuario_registros").delete().eq("paciente_id", paciente.id);
+    await supabase.from("financeiro_lancamentos").delete().eq("paciente_id", paciente.id);
+    await supabase.from("agendamentos").update({ paciente_id: null }).eq("paciente_id", paciente.id);
+    const { error } = await supabase.from("pacientes").delete().eq("id", paciente.id);
+    setSalvando(false);
+    if (error) { toast.error("Erro ao excluir: " + error.message); return; }
+    toast.success("Cadastro excluído");
+    onOpenChange(false);
+    onSaved();
+  };
+
   const campo = (label: string, k: keyof Form, type = "text", ph = "") => (
     <div className="space-y-1.5">
       <Label>{label}</Label>
