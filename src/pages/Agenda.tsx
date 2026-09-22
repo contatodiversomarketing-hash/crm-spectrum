@@ -392,6 +392,9 @@ export default function Agenda() {
       <AgendamentoDialog open={dialogOpen} onOpenChange={setDialogOpen} agendamento={editando}
         defaultDate={data} defaultTime={horaPadrao} profissional={PROFISSIONAL} sala={SALA}
         onSaved={carregar} />
+
+      <AcoesAgendamentoDialog open={!!acoesAg} onOpenChange={(v) => !v && setAcoesAg(null)}
+        agendamento={acoesAg} onEditar={abrirEdicao} onStatus={mudarStatus} onChanged={carregar} />
     </div>
   );
 }
