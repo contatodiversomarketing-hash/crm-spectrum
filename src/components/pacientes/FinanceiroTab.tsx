@@ -245,7 +245,7 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
                   onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) anexarRecibo(l, f); }} />
               </label>
             )}
-            <button onClick={() => excluir(l.id)} className="text-destructive/70 hover:text-destructive">†
+            <button onClick={() => excluir(l.id)} className="text-destructive/70 hover:text-destructive">
               <Trash2 className="h-4 w-4" />
             </button>
           </div>
