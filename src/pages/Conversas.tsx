@@ -376,8 +376,12 @@ export default function Conversas() {
   }
 
   async function enviar(numero: string, confirmarTemplate = false) {
-    const msg = texto.trim();
-    if (!msg || enviando) return;
+    const digitado = texto.trim();
+    if (!digitado || enviando) return;
+    const citacao = respondendo
+      ? `> *${respondendo.autor}:* ${respondendo.texto.replace(RE_MIDIA, "").trim().slice(0, 300).replace(/\n/g, "\n> ")}\n\n`
+      : "";
+    const msg = `${citacao}${digitado}`;
     setEnviando(true);
     try {
       const { data, error } = await supabase.functions.invoke("crm-enviar-whatsapp", {
