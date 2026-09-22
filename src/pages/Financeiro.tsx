@@ -27,6 +27,14 @@ interface Lancamento {
   data_pagamento: string | null;
   observacoes: string | null;
   comprovante_path: string | null;
+  tem_sinal: boolean;
+  sinal_valor: number | null;
+  sinal_forma: string | null;
+  sinal_pago: boolean;
+  sinal_data: string | null;
+  restante_forma: string | null;
+  restante_pago: boolean;
+  restante_data: string | null;
   criado_em: string;
 }
 
@@ -68,12 +76,18 @@ export default function Financeiro() {
   const [observacoes, setObservacoes] = useState("");
   const [recibo, setRecibo] = useState<File | null>(null);
   const inputRecibo = useRef<HTMLInputElement>(null);
+  const [temSinal, setTemSinal] = useState("false");
+  const [sinalValor, setSinalValor] = useState("");
+  const [sinalForma, setSinalForma] = useState(FORMAS[0]);
+  const [sinalPago, setSinalPago] = useState("false");
+  const [restanteForma, setRestanteForma] = useState(FORMAS[0]);
+  const [restantePago, setRestantePago] = useState("false");
 
   const carregar = useCallback(async () => {
     setLoading(true);
     const [lanc, pac] = await Promise.all([
       supabase.from("financeiro_lancamentos")
-        .select("id, paciente_id, descricao, valor, forma_pagamento, parcelas, valor_parcela, pago, vencimento, data_pagamento, observacoes, comprovante_path, criado_em")
+        .select("id, paciente_id, descricao, valor, forma_pagamento, parcelas, valor_parcela, pago, vencimento, data_pagamento, observacoes, comprovante_path, tem_sinal, sinal_valor, sinal_forma, sinal_pago, sinal_data, restante_forma, restante_pago, restante_data, criado_em")
         .order("criado_em", { ascending: false }),
       supabase.from("pacientes").select("id, nome, telefone").order("nome"),
     ]);
@@ -124,11 +138,14 @@ export default function Financeiro() {
     return [...m.entries()].sort((a, b) => b[1].total - a[1].total);
   }, [filtrados]);
 
-  const podeParcelar = PARCELAVEIS.includes(forma);
+  const comSinal = temSinal === "true";
+  const podeParcelar = PARCELAVEIS.includes(comSinal ? restanteForma : forma);
   const valorNum = Number(String(valor).replace(",", ".")) || 0;
+  const sinalNum = Number(String(sinalValor).replace(",", ".")) || 0;
   const nParcelas = podeParcelar ? Math.max(1, Number(parcelas) || 1) : 1;
-  const parcelaCalc = valorNum > 0 ? valorNum / nParcelas : 0;
-  const pedeComprovante = COM_COMPROVANTE.includes(forma);
+  const baseParcela = comSinal ? Math.max(0, valorNum - sinalNum) : valorNum;
+  const parcelaCalc = baseParcela > 0 ? baseParcela / nParcelas : 0;
+  const pedeComprovante = COM_COMPROVANTE.includes(comSinal ? sinalForma : forma);
 
   const abrirRecibo = async (path: string) => {
     const { data } = await supabase.storage.from("prontuarios").createSignedUrl(path, 3600);
@@ -156,25 +173,62 @@ export default function Financeiro() {
     const desc = descricao === "Outro" ? descricaoLivre.trim() : descricao;
     if (!desc) { toast.error("Informe o que foi vendido"); return; }
     if (!valorNum || valorNum <= 0) { toast.error("Informe um valor válido"); return; }
-    const estaPago = pago === "true";
+    if (comSinal && (sinalNum <= 0 || sinalNum > valorNum)) {
+      toast.error("Informe um valor de entrada válido"); return;
+    }
+    const sPago = comSinal && sinalPago === "true";
+    const rPago = comSinal ? restantePago === "true" : pago === "true";
+    const estaPago = comSinal ? sPago && rPago : pago === "true";
     const comprovante = recibo ? await enviarRecibo(pacienteId, recibo) : null;
+    const hj = new Date().toISOString().slice(0, 10);
     const { error } = await supabase.from("financeiro_lancamentos").insert({
       comprovante_path: comprovante,
       paciente_id: pacienteId,
       descricao: desc,
       valor: valorNum,
-      forma_pagamento: forma,
+      forma_pagamento: comSinal ? restanteForma : forma,
       parcelas: nParcelas,
       valor_parcela: Number(parcelaCalc.toFixed(2)),
       pago: estaPago,
       vencimento: vencimento || null,
-      data_pagamento: estaPago ? new Date().toISOString().slice(0, 10) : null,
+      data_pagamento: estaPago ? hj : null,
       observacoes: observacoes.trim() || null,
+      tem_sinal: comSinal,
+      sinal_valor: comSinal ? sinalNum : null,
+      sinal_forma: comSinal ? sinalForma : null,
+      sinal_pago: sPago,
+      sinal_data: sPago ? hj : null,
+      restante_forma: comSinal ? restanteForma : null,
+      restante_pago: rPago,
+      restante_data: rPago ? hj : null,
     });
     if (error) { toast.error("Erro ao lançar: " + error.message); return; }
     toast.success("Venda registrada");
     setValor(""); setVencimento(""); setObservacoes(""); setDescricaoLivre(""); setParcelas("1"); setRecibo(null);
+    setSinalValor(""); setSinalPago("false"); setRestantePago("false");
     setOpen(false);
+    carregar();
+  };
+
+  const alternarSinal = async (l: Lancamento) => {
+    const novo = !l.sinal_pago;
+    const hj = new Date().toISOString().slice(0, 10);
+    await supabase.from("financeiro_lancamentos").update({
+      sinal_pago: novo, sinal_data: novo ? hj : null,
+      pago: novo && l.restante_pago,
+      data_pagamento: novo && l.restante_pago ? hj : null,
+    }).eq("id", l.id);
+    carregar();
+  };
+
+  const alternarRestante = async (l: Lancamento) => {
+    const novo = !l.restante_pago;
+    const hj = new Date().toISOString().slice(0, 10);
+    await supabase.from("financeiro_lancamentos").update({
+      restante_pago: novo, restante_data: novo ? hj : null,
+      pago: novo && (!l.tem_sinal || l.sinal_pago),
+      data_pagamento: novo && (!l.tem_sinal || l.sinal_pago) ? hj : null,
+    }).eq("id", l.id);
     carregar();
   };
 
