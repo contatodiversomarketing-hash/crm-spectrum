@@ -14,6 +14,7 @@ import TreinamentoIA from "./pages/TreinamentoIA";
 import CRM from "./pages/CRM";
 import Agenda from "./pages/Agenda";
 import Pacientes from "./pages/Pacientes";
+import Financeiro from "./pages/Financeiro";
 import Usuarios from "./pages/Usuarios";
 import Conversas from "./pages/Conversas";
 import NotFound from "./pages/NotFound";
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/crm" element={<ProtectedRoute><AppLayout><CRM /></AppLayout></ProtectedRoute>} />
             <Route path="/agenda" element={<ProtectedRoute><AppLayout><Agenda /></AppLayout></ProtectedRoute>} />
             <Route path="/pacientes" element={<ProtectedRoute><AppLayout><Pacientes /></AppLayout></ProtectedRoute>} />
+            <Route path="/financeiro" element={<ProtectedRoute><AppLayout><Financeiro /></AppLayout></ProtectedRoute>} />
             <Route path="/conversas-ia" element={<Navigate to="/conversas" replace />} />
             <Route path="/conversas-atendente" element={<Navigate to="/conversas" replace />} />
             <Route path="/conversas" element={<ProtectedRoute requiredRoles={["admin", "supervisao", "analista", "auxiliar"]}><AppLayout><Conversas /></AppLayout></ProtectedRoute>} />

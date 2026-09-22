@@ -1,4 +1,4 @@
-import { Brain, Eye, BarChart3, GraduationCap, LogOut, Users, CalendarDays, UserPlus, ShieldCheck, MessagesSquare } from "lucide-react";
+import { Brain, Eye, BarChart3, GraduationCap, LogOut, Users, CalendarDays, UserPlus, ShieldCheck, MessagesSquare, Wallet } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,6 +25,7 @@ const menuItems: { title: string; url: string; icon: typeof Brain; roles?: AppRo
   { title: "Agenda", url: "/agenda", icon: CalendarDays },
   { title: "Pacientes", url: "/pacientes", icon: UserPlus },
   { title: "CRM / Leads", url: "/crm", icon: Users },
+  { title: "Financeiro", url: "/financeiro", icon: Wallet },
   { title: "Conversas", url: "/conversas", icon: MessagesSquare, roles: ["admin", "supervisao", "analista", "auxiliar"] },
   { title: "Supervisão IA e Atendente", url: "/supervisao", icon: Eye, roles: ["admin", "supervisao"] },
   { title: "Dashboard IA", url: "/dashboard-ia", icon: BarChart3, roles: ["admin", "supervisao", "analista"] },
