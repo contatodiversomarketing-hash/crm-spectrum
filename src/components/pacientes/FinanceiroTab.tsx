@@ -16,12 +16,15 @@ interface Lancamento {
   descricao: string;
   valor: number;
   forma_pagamento: string | null;
+  parcelas: number | null;
+  valor_parcela: number | null;
   pago: boolean;
   vencimento: string | null;
   data_pagamento: string | null;
 }
 
 const FORMAS = ["Pix", "Cartão de crédito", "Cartão de débito", "Dinheiro", "Boleto", "Transferência"];
+const PARCELAVEIS = ["Cartão de crédito", "Boleto"];
 const PRODUTOS = [
   "Consulta inicial",
   "SPECTRA ADULTO — Plano 1 (Investigação)",
@@ -40,15 +43,18 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
   const [forma, setForma] = useState(FORMAS[0]);
   const [pago, setPago] = useState("false");
   const [vencimento, setVencimento] = useState("");
+  const [parcelas, setParcelas] = useState("1");
 
   const carregar = useCallback(async () => {
     const { data } = await supabase.from("financeiro_lancamentos")
-      .select("id, descricao, valor, forma_pagamento, pago, vencimento, data_pagamento")
+      .select("id, descricao, valor, forma_pagamento, parcelas, valor_parcela, pago, vencimento, data_pagamento")
       .eq("paciente_id", pacienteId).order("criado_em", { ascending: false });
     setItens((data ?? []) as Lancamento[]);
   }, [pacienteId]);
 
   useEffect(() => { carregar(); }, [carregar]);
+
+  const podeParcelar = PARCELAVEIS.includes(forma);
 
   const adicionar = async () => {
     const desc = descricao === "Outro" ? descricaoLivre.trim() : descricao;
@@ -56,13 +62,15 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
     const v = Number(String(valor).replace(",", "."));
     if (!v || v <= 0) { toast.error("Informe um valor válido"); return; }
     const estaPago = pago === "true";
+    const n = podeParcelar ? Math.max(1, Number(parcelas) || 1) : 1;
     const { error } = await supabase.from("financeiro_lancamentos").insert({
       paciente_id: pacienteId, descricao: desc, valor: v, forma_pagamento: forma,
+      parcelas: n, valor_parcela: Number((v / n).toFixed(2)),
       pago: estaPago, vencimento: vencimento || null,
       data_pagamento: estaPago ? new Date().toISOString().slice(0, 10) : null,
     });
     if (error) { toast.error("Erro ao lançar: " + error.message); return; }
-    setValor(""); setVencimento(""); setDescricaoLivre("");
+    setValor(""); setVencimento(""); setDescricaoLivre(""); setParcelas("1");
     toast.success("Lançamento registrado");
     carregar();
   };
@@ -130,6 +138,19 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
               </SelectContent>
             </Select>
           </div>
+          {podeParcelar && (
+            <div className="space-y-1.5">
+              <Label>Quantas vezes</Label>
+              <Select value={parcelas} onValueChange={setParcelas}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-popover z-50 max-h-64">
+                  {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((n) => (
+                    <SelectItem key={n} value={n}>{n}x</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Situação</Label>
@@ -161,6 +182,7 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
               <p className="text-sm font-medium truncate">{l.descricao}</p>
               <p className="text-[11px] text-muted-foreground">
                 {l.forma_pagamento}
+                {(l.parcelas ?? 1) > 1 ? ` · ${l.parcelas}x de ${brl(Number(l.valor_parcela ?? Number(l.valor) / (l.parcelas ?? 1)))}` : ""}
                 {l.vencimento ? ` · vence ${format(new Date(l.vencimento + "T00:00:00"), "dd/MM/yyyy")}` : ""}
                 {l.pago && l.data_pagamento ? ` · pago em ${format(new Date(l.data_pagamento + "T00:00:00"), "dd/MM/yyyy")}` : ""}
               </p>
