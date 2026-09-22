@@ -11,10 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { AgendamentoDialog, Agendamento, STATUS_OPTIONS } from "@/components/agenda/AgendamentoDialog";
+import { AgendamentoDialog, Agendamento } from "@/components/agenda/AgendamentoDialog";
 import { AcoesAgendamentoDialog } from "@/components/agenda/AcoesAgendamentoDialog";
 
 const HORA_INICIO = 9;
