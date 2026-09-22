@@ -867,6 +867,9 @@ export default function Conversas() {
                       {i.resposta_final && (
                         <div className="flex justify-end items-center gap-1 group">
                           <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
+                            <Button size="icon" variant="ghost" className="h-7 w-7" title="Responder" onClick={() => setRespondendo({ autor: i.supervisionado ? i.atendente_humano || "Atendente" : "Ana", texto: i.resposta_final || "" })}>
+                              <Reply className="h-3.5 w-3.5" />
+                            </Button>
                             <Button size="icon" variant="ghost" className="h-7 w-7" title="Editar" onClick={() => { setEditando(`${i.id}:out`); setEditTexto(i.resposta_final || ""); }}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
