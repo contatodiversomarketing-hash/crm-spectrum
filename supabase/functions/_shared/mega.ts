@@ -319,53 +319,106 @@ export async function enviarDocumentoMega(
 export async function baixarMidiaDatafy(mediaId: string): Promise<{ base64: string; mimetype: string } | null> {
   const { base, token, phoneNumberId, configurado } = datafyConfig();
   if (!configurado || !mediaId) return null;
+
+  const auth = { Authorization: `Bearer ${token}` };
+
+  const paraBase64 = async (resp: Response, mimeFallback: string) => {
+    const buf = new Uint8Array(await resp.arrayBuffer());
+    if (buf.length < 100) return null;
+    let bin = "";
+    for (let i = 0; i < buf.length; i += 8192) {
+      bin += String.fromCharCode(...buf.subarray(i, i + 8192));
+    }
+    const mime = (resp.headers.get("content-type") || mimeFallback || "application/octet-stream").split(";")[0].trim();
+    return { base64: btoa(bin), mimetype: mime };
+  };
+
   try {
-    const auth = { Authorization: `Bearer ${token}` };
+    // 1) Metadados / possíveis endpoints que já devolvem o binário ou base64
     const tentativas = [
       `${base}/${mediaId}?phone_number_id=${phoneNumberId}`,
       `${base}/${mediaId}`,
       `${base}/${phoneNumberId}/media/${mediaId}`,
       `${base}/media/${mediaId}`,
+      `${base}/${mediaId}/download`,
+      `${base}/media/${mediaId}/download`,
     ];
 
     let meta: any = null;
     for (const url of tentativas) {
       const r = await fetch(url, { headers: auth });
+      const ct = (r.headers.get("content-type") || "").toLowerCase();
       if (!r.ok) {
         console.error(`[datafy] metadados de mídia falharam [${r.status}] em ${url}`);
         continue;
       }
+      // Endpoint devolveu o arquivo direto
+      if (!ct.includes("json")) {
+        const direto = await paraBase64(r, "");
+        if (direto) {
+          console.log(`[datafy] mídia baixada direto em ${url} (${direto.base64.length} chars)`);
+          return direto;
+        }
+        continue;
+      }
       const j = await r.json().catch(() => null);
+      const b64 = j?.base64 || j?.data?.base64;
+      if (typeof b64 === "string" && b64.length > 100) {
+        return {
+          base64: b64.replace(/^data:[^;]+;base64,/, ""),
+          mimetype: j?.mime_type || j?.data?.mime_type || "application/octet-stream",
+        };
+      }
       if (j?.url || j?.data?.url) {
         meta = j.url ? j : j.data;
         break;
       }
-      if (typeof j?.base64 === "string" && j.base64.length > 100) {
-        return { base64: j.base64, mimetype: j.mime_type || "application/octet-stream" };
-      }
     }
+
     if (!meta?.url) {
       console.error("[datafy] nenhum endpoint retornou URL da mídia");
       return null;
     }
 
-    let binResp = await fetch(meta.url, { headers: auth });
-    if (!binResp.ok) {
-      // Alguns proxies devolvem URL pré-assinada que rejeita o header de auth
-      binResp = await fetch(meta.url);
+    // 2) Baixar o binário. A URL da Meta (lookaside) exige o token; proxies
+    // pré-assinados recusam o header. Tentamos as variantes conhecidas.
+    const variantes: Array<{ nome: string; init: RequestInit }> = [
+      { nome: "bearer", init: { headers: auth } },
+      { nome: "sem-auth", init: {} },
+      { nome: "apikey", init: { headers: { apikey: token, "x-api-key": token } } },
+      { nome: "bearer+ua", init: { headers: { ...auth, "User-Agent": "curl/8.4.0" } } },
+    ];
+
+    for (const v of variantes) {
+      const resp = await fetch(meta.url, v.init);
+      if (!resp.ok) {
+        const corpo = await resp.text().catch(() => "");
+        console.error(`[datafy] download (${v.nome}) falhou [${resp.status}]: ${corpo.slice(0, 200)}`);
+        continue;
+      }
+      const dados = await paraBase64(resp, meta.mime_type || "");
+      if (dados) {
+        console.log(`[datafy] mídia baixada via ${v.nome} (${dados.base64.length} chars)`);
+        return dados;
+      }
     }
-    if (!binResp.ok) {
-      console.error(`[datafy] download de mídia falhou [${binResp.status}]`);
-      return null;
+
+    // 3) Último recurso: pedir o binário ao proxy da Datafy passando a URL da Meta
+    const proxy = `${base}/media/download?url=${encodeURIComponent(meta.url)}`;
+    const rp = await fetch(proxy, { headers: auth });
+    if (rp.ok) {
+      const dados = await paraBase64(rp, meta.mime_type || "");
+      if (dados) {
+        console.log(`[datafy] mídia baixada via proxy (${dados.base64.length} chars)`);
+        return dados;
+      }
     }
-    const buf = new Uint8Array(await binResp.arrayBuffer());
-    let bin = "";
-    for (let i = 0; i < buf.length; i += 8192) {
-      bin += String.fromCharCode(...buf.subarray(i, i + 8192));
-    }
-    return { base64: btoa(bin), mimetype: meta.mime_type || "application/octet-stream" };
+
+    console.error("[datafy] todas as tentativas de download de mídia falharam");
+    return null;
   } catch (e) {
     console.error("[datafy] erro ao baixar mídia:", e);
     return null;
   }
 }
+
