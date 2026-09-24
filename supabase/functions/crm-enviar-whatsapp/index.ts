@@ -142,11 +142,14 @@ Deno.serve(async (req) => {
       };
 
       let r = await enviarPartes(numero);
-      // Número brasileiro sem o nono dígito: tenta de novo com o 9 antes de desistir.
-      if (!r.ok && /undeliverable|invalid|not.*exist/i.test(r.body)) {
+      // A Meta identifica muitos números brasileiros SEM o nono dígito (ex.: 554299927826).
+      // Se falhar, tenta a outra variante (com/sem o 9) antes de desistir.
+      if (!r.ok && !/131047|24 hour|re-?engagement/i.test(r.body)) {
         const local = numero.startsWith("55") ? numero.slice(2) : numero;
-        if (local.length === 10) {
-          const alternativo = `55${local.slice(0, 2)}9${local.slice(2)}`;
+        let alternativo: string | null = null;
+        if (local.length === 10) alternativo = `55${local.slice(0, 2)}9${local.slice(2)}`;
+        else if (local.length === 11 && local[2] === "9") alternativo = `55${local.slice(0, 2)}${local.slice(3)}`;
+        if (alternativo) {
           const r2 = await enviarPartes(alternativo);
           if (r2.ok) r = r2;
         }
