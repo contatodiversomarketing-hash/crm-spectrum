@@ -120,11 +120,21 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Erro 131000 ("Something went wrong") e 5xx da Meta são temporários: tenta de novo.
+      const enviarComRetry = async (destino: string, texto: string) => {
+        let r = await enviarTextoMega(destino, texto);
+        for (let t = 1; t <= 3 && !r.ok && (r.status >= 500 || /131000|something went wrong/i.test(r.body)); t++) {
+          await new Promise((res) => setTimeout(res, 1200 * t));
+          r = await enviarTextoMega(destino, texto);
+        }
+        return r;
+      };
+
       const enviarPartes = async (destino: string) => {
-        let ultimo = await enviarTextoMega(destino, partes[0]);
+        let ultimo = await enviarComRetry(destino, partes[0]);
         if (!ultimo.ok) return ultimo;
         for (let i = 1; i < partes.length; i++) {
-          const parcial = await enviarTextoMega(destino, partes[i]);
+          const parcial = await enviarComRetry(destino, partes[i]);
           if (!parcial.ok) return parcial;
           ultimo = parcial;
         }
