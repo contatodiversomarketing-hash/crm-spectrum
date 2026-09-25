@@ -22,6 +22,7 @@ interface Lancamento {
   vencimento: string | null;
   data_pagamento: string | null;
   comprovante_path: string | null;
+  comprovantes: string[] | null;
   tem_sinal: boolean;
   sinal_valor: number | null;
   sinal_forma: string | null;
@@ -33,7 +34,7 @@ interface Lancamento {
 }
 
 const CAMPOS =
-  "id, descricao, valor, forma_pagamento, parcelas, valor_parcela, pago, vencimento, data_pagamento, comprovante_path, tem_sinal, sinal_valor, sinal_forma, sinal_pago, sinal_data, restante_forma, restante_pago, restante_data";
+  "id, descricao, valor, forma_pagamento, parcelas, valor_parcela, pago, vencimento, data_pagamento, comprovante_path, comprovantes, tem_sinal, sinal_valor, sinal_forma, sinal_pago, sinal_data, restante_forma, restante_pago, restante_data";
 
 const FORMAS = ["Pix", "Cartão de crédito", "Cartão de débito", "Dinheiro", "Boleto", "Transferência"];
 const PARCELAVEIS = ["Cartão de crédito", "Boleto"];
@@ -59,7 +60,7 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
   const [pago, setPago] = useState("false");
   const [vencimento, setVencimento] = useState("");
   const [parcelas, setParcelas] = useState("1");
-  const [recibo, setRecibo] = useState<File | null>(null);
+  const [recibo, setRecibo] = useState<File[]>([]);
   const inputRecibo = useRef<HTMLInputElement>(null);
   // entrada / sinal
   const [temSinal, setTemSinal] = useState("false");
@@ -82,6 +83,9 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
   const podeParcelar = PARCELAVEIS.includes(comSinal ? restanteForma : forma);
   const pedeComprovante = COM_COMPROVANTE.includes(comSinal ? sinalForma : forma);
 
+  const listaRecibos = (l: Lancamento) =>
+    l.comprovantes && l.comprovantes.length ? l.comprovantes : l.comprovante_path ? [l.comprovante_path] : [];
+
   const abrirRecibo = async (path: string) => {
     const { data } = await supabase.storage.from("prontuarios").createSignedUrl(path, 3600);
     if (data?.signedUrl) window.open(data.signedUrl, "_blank");
@@ -98,7 +102,7 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
   const anexarRecibo = async (l: Lancamento, file: File) => {
     const path = await enviarRecibo(file);
     if (!path) return;
-    await supabase.from("financeiro_lancamentos").update({ comprovante_path: path }).eq("id", l.id);
+    await supabase.from("financeiro_lancamentos").update({ comprovante_path: l.comprovante_path ?? path, comprovantes: [...listaRecibos(l), path] }).eq("id", l.id);
     toast.success("Recibo anexado");
     carregar();
   };
@@ -115,14 +119,16 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
     const estaPago = comSinal ? sPago && rPago : pago === "true";
     const n = podeParcelar ? Math.max(1, Number(parcelas) || 1) : 1;
     const base = comSinal ? v - sv : v;
-    const comprovante = recibo ? await enviarRecibo(recibo) : null;
+    const comprovantesEnviados: string[] = [];
+    for (const r of recibo) { const p = await enviarRecibo(r); if (p) comprovantesEnviados.push(p); }
+    const comprovante = comprovantesEnviados[0] ?? null;
     const { error } = await supabase.from("financeiro_lancamentos").insert({
       paciente_id: pacienteId, descricao: desc, valor: v,
       forma_pagamento: comSinal ? restanteForma : forma,
       parcelas: n, valor_parcela: Number((base / n).toFixed(2)),
       pago: estaPago, vencimento: vencimento || null,
       data_pagamento: estaPago ? hoje() : null,
-      comprovante_path: comprovante,
+      comprovante_path: comprovante, comprovantes: comprovantesEnviados,
       tem_sinal: comSinal,
       sinal_valor: comSinal ? sv : null,
       sinal_forma: comSinal ? sinalForma : null,
@@ -133,7 +139,7 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
       restante_data: rPago ? hoje() : null,
     });
     if (error) { toast.error("Erro ao lançar: " + error.message); return; }
-    setValor(""); setVencimento(""); setDescricaoLivre(""); setParcelas("1"); setRecibo(null);
+    setValor(""); setVencimento(""); setDescricaoLivre(""); setParcelas("1"); setRecibo([]);
     setSinalValor(""); setSinalPago("false"); setRestantePago("false");
     toast.success("Lançamento registrado");
     carregar();
@@ -320,18 +326,18 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
         {pedeComprovante && (
           <div className="space-y-1.5">
             <Label>Foto do recibo do pagamento</Label>
-            <input ref={inputRecibo} type="file" accept="image/*,application/pdf" className="hidden"
-              onChange={(e) => { setRecibo(e.target.files?.[0] ?? null); e.target.value = ""; }} />
+            <input ref={inputRecibo} type="file" multiple accept="image/*,application/pdf" className="hidden"
+              onChange={(e) => { const fs = Array.from(e.target.files ?? []); setRecibo((r) => [...r, ...fs]); e.target.value = ""; }} />
             <div className="flex items-center gap-2">
               <Button type="button" variant="outline" size="sm" onClick={() => inputRecibo.current?.click()}>
-                <Upload className="h-4 w-4 mr-2" /> Anexar recibo
+                <Upload className="h-4 w-4 mr-2" /> Anexar recibos
               </Button>
-              {recibo && (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  {recibo.name}
-                  <button onClick={() => setRecibo(null)} title="Remover"><X className="h-3.5 w-3.5" /></button>
-                </span>
-              )}
+              {recibo.map((r, i) => (
+<span key={i} className="flex items-center gap-1 text-xs text-muted-foreground">
+{r.name}
+<button onClick={() => setRecibo((l) => l.filter((_, j) => j !== i))} title="Remover"><X className="h-3.5 w-3.5" /></button>
+</span>
+))}
             </div>
           </div>
         )}
@@ -356,17 +362,16 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
                 </p>
               </div>
               <span className={cn("text-sm font-semibold", l.pago ? "text-success" : "text-accent")}>{brl(Number(l.valor))}</span>
-              {l.comprovante_path ? (
-                <button onClick={() => abrirRecibo(l.comprovante_path!)} title="Ver recibo" className="text-primary">
-                  <Receipt className="h-4 w-4" />
-                </button>
-              ) : (
-                <label title="Anexar recibo" className="cursor-pointer text-muted-foreground hover:text-foreground">
+              {listaRecibos(l).map((p, i) => (
+<button key={p} onClick={() => abrirRecibo(p)} title={`Ver recibo ${i + 1}`} className="text-primary flex items-center">
+<Receipt className="h-4 w-4" />{listaRecibos(l).length > 1 && <span className="text-[10px]">{i + 1}</span>}
+</button>
+))}
+<label title="Anexar mais um recibo" className="cursor-pointer text-muted-foreground hover:text-foreground">
                   <Upload className="h-4 w-4" />
-                  <input type="file" accept="image/*,application/pdf" className="hidden"
+                  <input type="file" multiple accept="image/*,application/pdf" className="hidden"
                     onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) anexarRecibo(l, f); }} />
                 </label>
-              )}
               <button onClick={() => excluir(l.id)} className="text-destructive/70 hover:text-destructive">
                 <Trash2 className="h-4 w-4" />
               </button>

@@ -1,0 +1,2 @@
+ALTER TABLE public.financeiro_lancamentos ADD COLUMN IF NOT EXISTS comprovantes text[] NOT NULL DEFAULT '{}';
+UPDATE public.financeiro_lancamentos SET comprovantes = ARRAY[comprovante_path] WHERE comprovante_path IS NOT NULL AND cardinality(comprovantes) = 0;

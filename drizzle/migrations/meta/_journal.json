@@ -22,6 +22,13 @@
       "when": 1790099273827,
       "tag": "0002_add_sinal_financeiro",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790344166470,
+      "tag": "0003_comprovantes_multiplos",
+      "breakpoints": true
     }
   ]
 }
