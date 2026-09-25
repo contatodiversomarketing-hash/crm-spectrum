@@ -27,6 +27,7 @@ interface Lancamento {
   data_pagamento: string | null;
   observacoes: string | null;
   comprovante_path: string | null;
+  comprovantes: string[] | null;
   tem_sinal: boolean;
   sinal_valor: number | null;
   sinal_forma: string | null;
@@ -74,7 +75,7 @@ export default function Financeiro() {
   const [pago, setPago] = useState("false");
   const [vencimento, setVencimento] = useState("");
   const [observacoes, setObservacoes] = useState("");
-  const [recibo, setRecibo] = useState<File | null>(null);
+  const [recibo, setRecibo] = useState<File[]>([]);
   const inputRecibo = useRef<HTMLInputElement>(null);
   const [temSinal, setTemSinal] = useState("false");
   const [sinalValor, setSinalValor] = useState("");
@@ -87,7 +88,7 @@ export default function Financeiro() {
     setLoading(true);
     const [lanc, pac] = await Promise.all([
       supabase.from("financeiro_lancamentos")
-        .select("id, paciente_id, descricao, valor, forma_pagamento, parcelas, valor_parcela, pago, vencimento, data_pagamento, observacoes, comprovante_path, tem_sinal, sinal_valor, sinal_forma, sinal_pago, sinal_data, restante_forma, restante_pago, restante_data, criado_em")
+        .select("id, paciente_id, descricao, valor, forma_pagamento, parcelas, valor_parcela, pago, vencimento, data_pagamento, observacoes, comprovante_path, comprovantes, tem_sinal, sinal_valor, sinal_forma, sinal_pago, sinal_data, restante_forma, restante_pago, restante_data, criado_em")
         .order("criado_em", { ascending: false }),
       supabase.from("pacientes").select("id, nome, telefone").order("nome"),
     ]);
@@ -147,6 +148,9 @@ export default function Financeiro() {
   const parcelaCalc = baseParcela > 0 ? baseParcela / nParcelas : 0;
   const pedeComprovante = COM_COMPROVANTE.includes(comSinal ? sinalForma : forma);
 
+  const listaRecibos = (l: Lancamento) =>
+    l.comprovantes && l.comprovantes.length ? l.comprovantes : l.comprovante_path ? [l.comprovante_path] : [];
+
   const abrirRecibo = async (path: string) => {
     const { data } = await supabase.storage.from("prontuarios").createSignedUrl(path, 3600);
     if (data?.signedUrl) window.open(data.signedUrl, "_blank");
@@ -163,7 +167,7 @@ export default function Financeiro() {
   const anexarRecibo = async (l: Lancamento, file: File) => {
     const path = await enviarRecibo(l.paciente_id, file);
     if (!path) return;
-    await supabase.from("financeiro_lancamentos").update({ comprovante_path: path }).eq("id", l.id);
+    await supabase.from("financeiro_lancamentos").update({ comprovante_path: l.comprovante_path ?? path, comprovantes: [...listaRecibos(l), path] }).eq("id", l.id);
     toast.success("Recibo anexado");
     carregar();
   };
@@ -179,10 +183,12 @@ export default function Financeiro() {
     const sPago = comSinal && sinalPago === "true";
     const rPago = comSinal ? restantePago === "true" : pago === "true";
     const estaPago = comSinal ? sPago && rPago : pago === "true";
-    const comprovante = recibo ? await enviarRecibo(pacienteId, recibo) : null;
+    const comprovantesEnviados: string[] = [];
+    for (const r of recibo) { const p = await enviarRecibo(pacienteId, r); if (p) comprovantesEnviados.push(p); }
+    const comprovante = comprovantesEnviados[0] ?? null;
     const hj = new Date().toISOString().slice(0, 10);
     const { error } = await supabase.from("financeiro_lancamentos").insert({
-      comprovante_path: comprovante,
+      comprovante_path: comprovante, comprovantes: comprovantesEnviados,
       paciente_id: pacienteId,
       descricao: desc,
       valor: valorNum,
@@ -204,7 +210,7 @@ export default function Financeiro() {
     });
     if (error) { toast.error("Erro ao lançar: " + error.message); return; }
     toast.success("Venda registrada");
-    setValor(""); setVencimento(""); setObservacoes(""); setDescricaoLivre(""); setParcelas("1"); setRecibo(null);
+    setValor(""); setVencimento(""); setObservacoes(""); setDescricaoLivre(""); setParcelas("1"); setRecibo([]);
     setSinalValor(""); setSinalPago("false"); setRestantePago("false");
     setOpen(false);
     carregar();
@@ -415,18 +421,18 @@ export default function Financeiro() {
                 {pedeComprovante && (
                   <div className="space-y-1.5">
                     <Label>Foto do recibo do pagamento</Label>
-                    <input ref={inputRecibo} type="file" accept="image/*,application/pdf" className="hidden"
-                      onChange={(e) => { setRecibo(e.target.files?.[0] ?? null); e.target.value = ""; }} />
+                    <input ref={inputRecibo} type="file" multiple accept="image/*,application/pdf" className="hidden"
+                      onChange={(e) => { const fs = Array.from(e.target.files ?? []); setRecibo((r) => [...r, ...fs]); e.target.value = ""; }} />
                     <div className="flex items-center gap-2">
                       <Button type="button" variant="outline" size="sm" onClick={() => inputRecibo.current?.click()}>
-                        <Upload className="h-4 w-4 mr-2" /> Anexar recibo
+                        <Upload className="h-4 w-4 mr-2" /> Anexar recibos
                       </Button>
-                      {recibo && (
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          {recibo.name}
-                          <button onClick={() => setRecibo(null)} title="Remover"><X className="h-3.5 w-3.5" /></button>
-                        </span>
-                      )}
+                      {recibo.map((r, i) => (
+<span key={i} className="flex items-center gap-1 text-xs text-muted-foreground">
+{r.name}
+<button onClick={() => setRecibo((l) => l.filter((_, j) => j !== i))} title="Remover"><X className="h-3.5 w-3.5" /></button>
+</span>
+))}
                     </div>
                   </div>
                 )}
@@ -524,17 +530,16 @@ export default function Financeiro() {
                   <span className={cn("text-sm font-semibold", l.pago ? "text-success" : "text-accent")}>
                     {brl(Number(l.valor))}
                   </span>
-                  {l.comprovante_path ? (
-                    <button onClick={() => abrirRecibo(l.comprovante_path!)} title="Ver recibo" className="text-primary">
-                      <Receipt className="h-4 w-4" />
-                    </button>
-                  ) : (
-                    <label title="Anexar recibo" className="cursor-pointer text-muted-foreground hover:text-foreground">
+                  {listaRecibos(l).map((p, i) => (
+<button key={p} onClick={() => abrirRecibo(p)} title={`Ver recibo ${i + 1}`} className="text-primary flex items-center">
+<Receipt className="h-4 w-4" />{listaRecibos(l).length > 1 && <span className="text-[10px]">{i + 1}</span>}
+</button>
+))}
+<label title="Anexar mais um recibo" className="cursor-pointer text-muted-foreground hover:text-foreground">
                       <Upload className="h-4 w-4" />
-                      <input type="file" accept="image/*,application/pdf" className="hidden"
+                      <input type="file" multiple accept="image/*,application/pdf" className="hidden"
                         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) anexarRecibo(l, f); }} />
                     </label>
-                  )}
                   <button onClick={() => excluir(l.id)} className="text-destructive/70 hover:text-destructive">
                     <Trash2 className="h-4 w-4" />
                   </button>
