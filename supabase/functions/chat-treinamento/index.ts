@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { PROMPT_COMERCIAL_ANA } from "../_shared/prompt-comercial-ana.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -130,7 +131,7 @@ serve(async (req) => {
       }
     }
 
-    const systemPrompt = SYSTEM_PROMPT_BASE + instrucoesExtra + `\n\nSaudação atual: "${getSaudacao()}"`;
+    const systemPrompt = SYSTEM_PROMPT_BASE + instrucoesExtra + "\n\n" + PROMPT_COMERCIAL_ANA + `\n\nSaudação atual: "${getSaudacao()}"`;
 
     const messages = [
       { role: "system", content: systemPrompt },

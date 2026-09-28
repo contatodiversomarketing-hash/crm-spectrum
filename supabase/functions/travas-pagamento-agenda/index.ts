@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
       const nome = primeiroNome(ag.paciente_nome || (ag as any).pacientes?.nome);
       const texto =
         `${nome ? nome + ", " : ""}passando aqui rapidinho 💚\n\n` +
-        `Sua consulta com a Dra. Amélia está reservada para ${horaBR(ag.data_hora)}, mas ainda não recebi o sinal de *R$ 150,00* (30%) que reserva o horário exclusivamente para o seu atendimento.\n\n` +
+        `Sua consulta com a Dra. Amélia está reservada para ${horaBR(ag.data_hora)}, mas ainda não recebi o sinal de *R$ 180,00* (30%) que reserva o horário exclusivamente para o seu atendimento.\n\n` +
         `Chave Pix: ${CHAVE_PIX}\n\n` +
         `Assim que puder fazer, me manda o comprovante aqui que eu deixo tudo confirmadinho pra você 🌿`;
       const env = await enviarTextoMega(tel, texto);
@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
       const nome = primeiroNome(ag.paciente_nome || (ag as any).pacientes?.nome);
       const texto =
         `${nome ? nome + ", " : ""}sua consulta com a Dra. Amélia é às ${horaBR(ag.data_hora)} ⏰\n\n` +
-        `Para o sistema conseguir liberar o atendimento, preciso do pagamento do restante (*R$ 350,00*) até 30 minutos antes.\n\n` +
+        `Para o sistema conseguir liberar o atendimento, preciso do pagamento do restante (*R$ 420,00*) até 30 minutos antes.\n\n` +
         `Chave Pix: ${CHAVE_PIX}\n\n` +
         `Se você já pagou, me envia o comprovante aqui que eu libero na hora ✅`;
       const env = await enviarTextoMega(tel, texto);
