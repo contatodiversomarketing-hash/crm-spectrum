@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { PipelineColumn } from "@/hooks/usePipelineColumns";
-import { Phone, Mail, MapPin, Calendar, FileText, Eye, Pencil, StickyNote, BellRing, CheckCircle2, Bell, Baby, GripVertical, MoveRight, MessageCircle, Trash2 } from "lucide-react";
+import { Phone, Mail, MapPin, Calendar, FileText, Eye, Pencil, StickyNote, BellRing, CheckCircle2, Bell, Baby, GripVertical, MoveRight, MessageCircle, Trash2, Megaphone } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,15 @@ const ETAPA_LABEL: Record<number, { texto: string; tom: string }> = {
   15: { texto: "Último follow-up — desconto R$15 (D+15)", tom: "bg-rose-500/15 text-rose-700 dark:text-rose-300" },
 }
 
-// Pipeline columns are now dynamic - loaded from DB via usePipelineColumns hook
+const ORIGENS: { nome: string; descricao: string; detalhe?: string }[] = [
+  { nome: "Anúncio (Instagram/Facebook)", descricao: "Veio de anúncio. Anotar qual anúncio, se souber", detalhe: "Qual anúncio? (opcional)" },
+  { nome: "Instagram orgânico", descricao: "Viu post, reels ou stories sem ser anúncio" },
+  { nome: "Google", descricao: "Achou pelo Google ou Google Maps" },
+  { nome: "Indicação", descricao: "Anotar quem indicou e agradecer a essa pessoa depois", detalhe: "Quem indicou?" },
+  { nome: "Paciente antigo", descricao: "Já foi atendido antes" },
+  { nome: "Palestra ou evento", descricao: "Veio de palestra, aula ou evento", detalhe: "Qual evento? (opcional)" },
+  { nome: "Parceiros", descricao: "Escola, terapeuta ou outro profissional indicou", detalhe: "Qual parceiro? (opcional)" },
+];
 
 function formatEndereco(lead: Lead): string | null {
   const parts = [
@@ -88,6 +97,27 @@ export function LeadCard({
   const [chatOpen, setChatOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [origemOpen, setOrigemOpen] = useState(false);
+  const [origemSel, setOrigemSel] = useState<string | null>(null);
+  const [origemDetalhe, setOrigemDetalhe] = useState("");
+  const [salvandoOrigem, setSalvandoOrigem] = useState(false);
+
+  const salvarOrigem = async () => {
+    if (!origemSel) return;
+    const op = ORIGENS.find((o) => o.nome === origemSel);
+    const valor = op?.detalhe && origemDetalhe.trim() ? `${origemSel} — ${origemDetalhe.trim()}` : origemSel;
+    setSalvandoOrigem(true);
+    const { error } = await supabase.from("leads").update({ origem: valor }).eq("id", lead.id);
+    setSalvandoOrigem(false);
+    if (error) {
+      toast({ title: "Erro ao salvar origem", description: error.message, variant: "destructive" });
+      return;
+    }
+    setOrigemOpen(false);
+    toast({ title: "Origem registrada", description: valor });
+    onRefresh();
+  };
+
 
   const excluirLead = async () => {
     setDeleting(true);
@@ -137,6 +167,9 @@ export function LeadCard({
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setOrigemSel(null); setOrigemDetalhe(""); setOrigemOpen(true); }} title="De onde veio o lead">
+              <Megaphone className="h-3.5 w-3.5" />
+            </Button>
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setChatOpen(true)} title="Conversar no WhatsApp">
               <MessageCircle className="h-3.5 w-3.5" />
             </Button>
@@ -371,6 +404,38 @@ export function LeadCard({
         </AlertDialogContent>
       </AlertDialog>
 
+      <Dialog open={origemOpen} onOpenChange={setOrigemOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>De onde veio {lead.nome || "este lead"}?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            {ORIGENS.map((o) => (
+              <button
+                key={o.nome}
+                type="button"
+                onClick={() => setOrigemSel(o.nome)}
+                className={`w-full text-left rounded-lg border p-3 transition-colors ${
+                  origemSel === o.nome ? "border-primary bg-primary/10" : "border-border hover:bg-muted"
+                }`}
+              >
+                <p className="text-sm font-medium text-foreground">{o.nome}</p>
+                <p className="text-xs text-muted-foreground">{o.descricao}</p>
+              </button>
+            ))}
+            {origemSel && ORIGENS.find((o) => o.nome === origemSel)?.detalhe && (
+              <Input
+                placeholder={ORIGENS.find((o) => o.nome === origemSel)?.detalhe}
+                value={origemDetalhe}
+                onChange={(e) => setOrigemDetalhe(e.target.value)}
+              />
+            )}
+            <Button className="w-full" disabled={!origemSel || salvandoOrigem} onClick={salvarOrigem}>
+              {salvandoOrigem ? "Salvando..." : "Salvar origem"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
