@@ -59,10 +59,10 @@ Deno.serve(async (req) => {
       const { email, senha, nome, roles } = body as {
         email: string; senha: string; nome: string; roles: string[];
       };
-      if (!email || !senha || !nome) return json({ error: "Nome, email e senha são obrigatórios" }, 400);
-      if (senha.length < 6) return json({ error: "A senha precisa ter ao menos 6 caracteres" }, 400);
+      if (!email || !senha || !nome) return json({ error: "Nome, email e senha são obrigatórios" }, 200);
+      if (senha.length < 6) return json({ error: "A senha precisa ter ao menos 6 caracteres" }, 200);
       const rolesFiltradas = (roles ?? []).filter((r) => ROLES_VALIDAS.includes(r));
-      if (rolesFiltradas.length === 0) return json({ error: "Selecione ao menos um perfil de acesso" }, 400);
+      if (rolesFiltradas.length === 0) return json({ error: "Selecione ao menos um perfil de acesso" }, 200);
 
       const { data: created, error: createErr } = await admin.auth.admin.createUser({
         email,
@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
           : /already registered|already been registered|exists/i.test(createErr.message)
             ? "Já existe um usuário com esse email."
             : createErr.message;
-        return json({ error: msg }, 400);
+        return json({ error: msg }, 200);
       }
 
       const novoId = created.user!.id;
@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
       const { error: roleErr } = await admin
         .from("user_roles")
         .insert(rolesFiltradas.map((role) => ({ user_id: novoId, role })));
-      if (roleErr) return json({ error: roleErr.message }, 400);
+      if (roleErr) return json({ error: roleErr.message }, 200);
 
       return json({ ok: true, user_id: novoId });
     }
@@ -95,26 +95,26 @@ Deno.serve(async (req) => {
     if (action === "atualizar_roles") {
       const { user_id, roles } = body as { user_id: string; roles: string[] };
       const rolesFiltradas = (roles ?? []).filter((r) => ROLES_VALIDAS.includes(r));
-      if (!user_id) return json({ error: "Usuário inválido" }, 400);
-      if (rolesFiltradas.length === 0) return json({ error: "Selecione ao menos um perfil de acesso" }, 400);
+      if (!user_id) return json({ error: "Usuário inválido" }, 200);
+      if (rolesFiltradas.length === 0) return json({ error: "Selecione ao menos um perfil de acesso" }, 200);
 
       await admin.from("user_roles").delete().eq("user_id", user_id);
       const { error } = await admin
         .from("user_roles")
         .insert(rolesFiltradas.map((role) => ({ user_id, role })));
-      if (error) return json({ error: error.message }, 400);
+      if (error) return json({ error: error.message }, 200);
       return json({ ok: true });
     }
 
     if (action === "alterar_senha") {
       const { user_id, senha } = body as { user_id: string; senha: string };
-      if (!user_id || !senha || senha.length < 6) return json({ error: "Senha inválida" }, 400);
+      if (!user_id || !senha || senha.length < 6) return json({ error: "Senha inválida" }, 200);
       const { error } = await admin.auth.admin.updateUserById(user_id, { password: senha });
       if (error) {
         const msg = /weak|easy to guess|pwned/i.test(error.message)
           ? "Essa senha é muito fraca ou comum. Use uma senha com letras, números e símbolos (ex.: Amelia@2026!)."
           : error.message;
-        return json({ error: msg }, 400);
+        return json({ error: msg }, 200);
       }
       return json({ ok: true });
     }
@@ -122,20 +122,20 @@ Deno.serve(async (req) => {
     if (action === "ativar") {
       const { user_id, ativo } = body as { user_id: string; ativo: boolean };
       const { error } = await admin.from("profiles").update({ ativo }).eq("user_id", user_id);
-      if (error) return json({ error: error.message }, 400);
+      if (error) return json({ error: error.message }, 200);
       return json({ ok: true });
     }
 
     if (action === "excluir") {
       const { user_id } = body as { user_id: string };
-      if (!user_id) return json({ error: "Usuário inválido" }, 400);
-      if (user_id === user.id) return json({ error: "Você não pode excluir sua própria conta" }, 400);
+      if (!user_id) return json({ error: "Usuário inválido" }, 200);
+      if (user_id === user.id) return json({ error: "Você não pode excluir sua própria conta" }, 200);
       const { error } = await admin.auth.admin.deleteUser(user_id);
-      if (error) return json({ error: error.message }, 400);
+      if (error) return json({ error: error.message }, 200);
       return json({ ok: true });
     }
 
-    return json({ error: "Ação desconhecida" }, 400);
+    return json({ error: "Ação desconhecida" }, 200);
   } catch (e) {
     console.error("admin-usuarios error", e);
     return json({ error: e instanceof Error ? e.message : "Erro inesperado" }, 500);
