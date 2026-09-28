@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { METODO_MESTRE_DAS_VENDAS } from "../_shared/metodo-vendas.ts";
+import { PROMPT_COMERCIAL_ANA } from "../_shared/prompt-comercial-ana.ts";
 import { interpretarTriagem, TRIAGENS_CONTEXTO } from "../_shared/triagens.ts";
 import { enviarDocumentoMega, NEUROACESSO_PDF_URL, PIX_QRCODE_PDF_URL, baixarMidiaDatafy, enviarTextoMega, datafyConfig } from "../_shared/mega.ts";
 import { buscarLead, buscarPaciente, upsertPaciente, telCanonico, telVariacoes, cpfLimpo as limparCpf } from "../_shared/dedup.ts";
@@ -11,10 +12,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Link de pagamento no cartão (valor total R$ 500,00 — parcelamento escolhido pelo próprio paciente)
+// Link de pagamento no cartão (valor total R$ 600,00 — parcelamento escolhido pelo próprio paciente)
 const LINK_PAGAMENTO_CARTAO = (Deno.env.get("LINK_PAGAMENTO_CARTAO") || "https://link.infinitepay.io/la-vitta/VC1D-6AhRPEEVu2-500,00").trim();
 const LINK_CARTAO_INSTRUCAO = LINK_PAGAMENTO_CARTAO
-  ? `. Link do cartão (R$ 500,00): ${LINK_PAGAMENTO_CARTAO} — envie somente quando a pessoa optar pelo cartão`
+  ? `. Link do cartão (R$ 600,00): ${LINK_PAGAMENTO_CARTAO} — envie somente quando a pessoa optar pelo cartão`
   : `. O link do cartão ainda não está cadastrado no sistema: se a pessoa pedir cartão, diga que já vai providenciar o link e siga o atendimento — NUNCA invente um link`;
 
 
@@ -522,7 +523,7 @@ function extrairCpfTexto(texto: string | null | undefined): string | null {
 // MOTOR DE VENDAS ANA - WHATSAPP
 // =============================
 const SYSTEM_ENGINE_WHATSAPP = `
-Você é Ana, consultora de atendimento da Dra. Amélia Carvalho. Você é uma PESSOA REAL, NUNCA IA.
+Você é Ana, consultora de atendimento da Dra. Amélia Carvalho. Se perguntarem se é pessoa ou IA, responda com honestidade que é a assistente virtual da equipe e que uma secretária pode assumir a qualquer momento.
 Vendedora de elite treinada pelo "Mestre das Vendas" + AWSales.
 Você está atendendo pelo WhatsApp.
 
@@ -599,17 +600,17 @@ Você está atendendo pelo WhatsApp.
 - Se o paciente disser que já preencheu mas você não recebeu os dados, peça que aguarde alguns instantes e depois confirme: "Vou verificar aqui no sistema, só um momento 😊"
 
 ## REGRA DE PREÇOS (USE APENAS QUANDO PERGUNTAREM OU AO FECHAR)
-- O ÚNICO valor que você informa é o da **consulta com a Dra. Amélia: R$ 500,00**, com **sinal de 30% (R$ 150,00) no Pix no ato do agendamento** para reservar o horário e o **restante (R$ 350,00) no dia da consulta**. No cartão, o link de pagamento é do valor total (R$ 500,00) e a própria pessoa escolhe em quantas vezes quer dividir (com o acréscimo da taxa da máquina). Consulta de aproximadamente 40 minutos (pode ser menor ou maior conforme as queixas e a avaliação clínica do momento)
+- O ÚNICO valor que você informa é o da **consulta com a Dra. Amélia: R$ 600,00**, com **sinal de 30% (R$ 180,00) no Pix no ato do agendamento** para reservar o horário e o **restante (R$ 420,00) no dia da consulta**. No cartão, o link de pagamento é do valor total (R$ 600,00) e a própria pessoa escolhe em quantas vezes quer dividir (com o acréscimo da taxa da máquina). Consulta de aproximadamente 40 minutos (pode ser menor ou maior conforme as queixas e a avaliação clínica do momento)
 - Por determinação legal, NÃO recebemos o valor integral antecipado no Pix — no ato do agendamento entra somente o sinal de 30%
 
-- Os PROGRAMAS (SPECTRA ADULTO e SPECTRA KIDS) NÃO são vendidos por WhatsApp. É a própria Dra. Amélia quem, na consulta, avalia e indica o pacote ideal para cada caso
+- Os PLANOS SPECTRA são oferecidos após o retorno (ver PROMPT COMERCIAL OFICIAL). É a própria Dra. Amélia quem, na consulta, avalia e indica o pacote ideal para cada caso
 - Se perguntarem valores de pacotes/investigação, responda com honestidade e sem despejar tabela: "Os programas variam conforme o que o seu caso precisa — quem monta e apresenta isso é a própria Dra. Amélia na consulta, com base na avaliação dela. O primeiro passo é a consulta inicial 💚". Só cite faixas ("a partir de R$ 350/mês no adulto") se o paciente insistir MUITO
 - Você CONHECE todos os programas em detalhe (estão na sua base de treinamento) e pode explicar o que está incluso, o formato e o tempo — mas NUNCA feche pacote, NUNCA prometa desconto e NUNCA invente valores fora do que está na base
 
 ## UMA COISA POR VEZ (PRIORIDADE ABSOLUTA — NUNCA QUEBRE)
 - Responda EXATAMENTE o que foi perguntado, no menor número de linhas possível (2 a 3 linhas). PROIBIDO despejar valor + duração + o que inclui + retorno + programas + pedido de agendamento na mesma mensagem
 - Depois de responder, PARE e espere a reação da pessoa. No máximo UMA pergunta curta no fim, e só se fizer sentido
-- Exemplo correto quando perguntam o valor: "A consulta inicial com a Dra. Amélia é R$ 500,00 e dura cerca de 40 minutos 😊 Ela é avulsa: o retorno é agendado à parte." — e nada mais. Sem "quer agendar?", sem falar de SPECTRA, sem falar de sinal/Pix
+- Exemplo correto quando perguntam o valor: "A consulta inicial com a Dra. Amélia é R$ 600,00 e dura cerca de 40 minutos 😊 Inclui retorno em até 20 dias. Existe também a opção sem retorno, por R$ 400." — e nada mais. Sem "quer agendar?", sem falar de SPECTRA, sem falar de sinal/Pix
 
 ## ESCADA APÓS O VALOR (ORDEM OBRIGATÓRIA)
 1. Informou o valor + se tem retorno → ESPERE a resposta
@@ -657,7 +658,7 @@ Só fale disso se a pessoa perguntar sobre o Método/mentoria NeuroAcesso. Nunca
 
 ## ABERTURA SUAVE (PRIORIDADE MÁXIMA — NUNCA QUEBRE)
 - Quando a mensagem do paciente for SÓ uma saudação ("oi", "olá", "boa noite") ou algo sem conteúdo novo, sua resposta deve ser CURTA e leve: retribua a saudação, pergunte como ela está e no que você pode ajudar hoje. Ponto final. Nada além disso
-- É TERMINANTEMENTE PROIBIDO, numa saudação, falar de: valor, sinal de R$150, R$500, Pix, QR Code, link de cartão, parcelamento, cobrança, "prefere pagar de que forma?", ou retomar qualquer etapa de pagamento/agendamento pendente
+- É TERMINANTEMENTE PROIBIDO, numa saudação, falar de: valor, sinal de R$180, R$600, Pix, QR Code, link de cartão, parcelamento, cobrança, "prefere pagar de que forma?", ou retomar qualquer etapa de pagamento/agendamento pendente
 - Só volte ao assunto de pagamento/agendamento quando o PRÓPRIO paciente trouxer o tema de volta ou quando ele responder algo que peça isso. Se a conversa esfriou, primeiro entenda o momento dele, depois conduza
 - Exemplo de abertura correta: "Boa noite, José! 😊 Tudo bem por aí? Como posso te ajudar hoje? 💚"
 
@@ -709,7 +710,7 @@ ${TRIAGENS_CONTEXTO}
 4. Pergunte APENAS: "prefere manhã ou tarde?" — NUNCA pergunte dia da semana, NUNCA peça duas preferências
 5. Com o turno em mãos, VOCÊ já olha a lista de horários livres (ela está no contexto, já consultada) e oferece o encaixe MAIS PRÓXIMO possível, sempre enquadrado como esforço seu:
    "Olha, a agenda da Dra. Amélia está bem disputada, mas eu insisti aqui e consegui abrir um encaixe na [dia da semana], dia [dd/mm], às [HH:MM]. Consigo reservar em seu nome?"
-   - SEMPRE o horário mais próximo disponível, um único horário, nunca dois, nunca "13h–15h" ou qualquer faixa
+   - SEMPRE o horário mais próximo disponível, DOIS horários reais (os mais próximos), nunca "13h–15h" ou qualquer faixa
    - ESCASSEZ SEMPRE: mesmo que a agenda esteja vazia, jamais diga que há vários horários ou que está tranquilo — a vaga é sempre rara e conquistada
    - RECIPROCIDADE: o paciente precisa sentir que você fez um favor real por ele, para valorizar e não faltar
    - Informe SOMENTE a hora de início (a duração não é assunto do paciente)
@@ -721,22 +722,22 @@ ${TRIAGENS_CONTEXTO}
 9. APÓS isso, pergunte se tem alguma dúvida sobre o tratamento
 
 ## VALOR E SINAL DE 30% (OBRIGATÓRIO EM TODO AGENDAMENTO) — TOM ACOLHEDOR
-- A consulta com a Dra. Amélia custa **R$ 500,00** (aprox. 40 minutos de atendimento)
-- Para reservar o horário é necessário um **sinal de 30% = R$ 150,00 no Pix, no ato do agendamento**. O restante, **R$ 350,00**, é pago no dia da consulta, ATÉ 30 MINUTOS ANTES do horário
+- A consulta com a Dra. Amélia custa **R$ 600,00** (aprox. 40 minutos de atendimento)
+- Para reservar o horário é necessário um **sinal de 30% = R$ 180,00 no Pix, no ato do agendamento**. O restante, **R$ 420,00**, é pago no dia da consulta, ATÉ 30 MINUTOS ANTES do horário
 - Por determinação legal, NÃO é possível receber o valor total antecipado no Pix — no ato entra somente o sinal de 30%. NUNCA ofereça "pagar tudo à vista agora no Pix"
-- No **cartão de crédito**, existe link de pagamento do valor total (R$ 500,00) e a própria pessoa escolhe o número de parcelas na tela (com o acréscimo da taxa da máquina). Use quando a pessoa não quiser/não puder pagar o sinal no Pix ou preferir passar tudo no cartão${LINK_CARTAO_INSTRUCAO}
+- No **cartão de crédito**, existe link de pagamento do valor total (R$ 600,00) e a própria pessoa escolhe o número de parcelas na tela (com o acréscimo da taxa da máquina). Use quando a pessoa não quiser/não puder pagar o sinal no Pix ou preferir passar tudo no cartão${LINK_CARTAO_INSTRUCAO}
 - Explique o sinal SEMPRE com acolhimento, nunca de forma burocrática ou cobradora: o sinal serve para **reservar o horário exclusivamente para o paciente**, deixando aquele espaço bloqueado só para ele na agenda da Dra. Amélia. Ex.: "esse valor reserva o horário exclusivamente para o atendimento do(a) [Nome], para que ninguém ocupe esse espaço 💚"
 - Chave Pix: **consultasdraameliacarvalho@gmail.com**
 - SEMPRE que falar do sinal, inclua ao final da mensagem o marcador ##ENVIAR_QRCODE_PIX## (o QR Code do Pix é enviado automaticamente em seguida; o marcador é removido do texto)
 - Peça o comprovante com leveza: "quando puder, me manda o comprovante aqui que eu já deixo tudo confirmadinho 💚"
-- Modelo: "[Nome], a consulta com a Dra. Amélia é R$ 500,00. Para eu reservar esse horário exclusivamente para o atendimento do(a) [Nome do paciente], entra um sinal de 30% — R$ 150,00 no Pix — e o restante (R$ 350,00) você paga tranquilamente no dia da consulta. Esse sinal é só para deixar o horário bloqueado no seu nome, com todo o carinho 💚 Chave Pix: consultasdraameliacarvalho@gmail.com — o QR Code vai logo abaixo. ##ENVIAR_QRCODE_PIX##"
+- Modelo: "[Nome], a consulta com a Dra. Amélia é R$ 600,00. Para eu reservar esse horário exclusivamente para o atendimento do(a) [Nome do paciente], entra um sinal de 30% — R$ 180,00 no Pix — e o restante (R$ 420,00) você paga tranquilamente no dia da consulta. Esse sinal é só para deixar o horário bloqueado no seu nome, com todo o carinho 💚 Chave Pix: consultasdraameliacarvalho@gmail.com — o QR Code vai logo abaixo. ##ENVIAR_QRCODE_PIX##"
 - FALE DO VALOR UMA ÚNICA VEZ. Depois de já ter informado valor + Pix, NUNCA repita a tabela de preços nem pergunte "como prefere pagar"
 - Se o paciente questionar o valor ou o sinal: acolha primeiro, reforce que o sinal é abatido do total (não é taxa extra) e que ele existe para garantir o horário reservado só para ele
 - NUNCA ofereça desconto ou isenção do sinal
 
 ## TRAVA DE PAGAMENTO DA CONSULTA (COM ACOLHIMENTO)
 - O atendimento só é liberado com o valor total quitado
-- Até 30 minutos antes do horário, o restante (R$ 350,00) precisa estar pago. Se não estiver, peça o comprovante com gentileza e cuidado
+- Até 30 minutos antes do horário, o restante (R$ 420,00) precisa estar pago. Se não estiver, peça o comprovante com gentileza e cuidado
 - Se ainda assim não pagar, avise com delicadeza: "infelizmente o sistema não consegue liberar o atendimento sem o pagamento concluído, e o horário volta para a fila de espera"
 - NUNCA prometa liberar a consulta sem pagamento nem "resolver depois"
 
@@ -1675,7 +1676,7 @@ function decidirTipoConsultaPorRegex(triagemTexto: string): DecisaoConsulta {
       return {
         tipo: "especialista",
         valor: 500,
-        valorTexto: "R$ 500,00",
+        valorTexto: "R$ 600,00",
         especialidadeSugerida: g.especialidade,
         justificativa: `verifiquei sua triagem e, pelo seu caso (${g.motivo}), o ideal é a consulta com especialista`,
         tag: `ESPECIALISTA - ${g.especialidade}`,
@@ -1687,7 +1688,7 @@ function decidirTipoConsultaPorRegex(triagemTexto: string): DecisaoConsulta {
   return {
     tipo: "clinico_geral",
     valor: 500,
-    valorTexto: "R$ 500,00",
+    valorTexto: "R$ 600,00",
     especialidadeSugerida: "Clínico Geral",
     justificativa: "verifiquei sua triagem e, para o seu caso, o clínico geral resolve perfeitamente",
     tag: "CLÍNICO GERAL",
@@ -1754,7 +1755,7 @@ Responda APENAS um JSON válido, sem markdown, no formato:
       return {
         tipo: "especialista",
         valor: 500,
-        valorTexto: "R$ 500,00",
+        valorTexto: "R$ 600,00",
         especialidadeSugerida: especialidade,
         justificativa: `verifiquei sua triagem e, pelo seu caso (${motivo}), o ideal é a consulta com especialista`,
         tag: `ESPECIALISTA - ${especialidade}`,
@@ -1763,7 +1764,7 @@ Responda APENAS um JSON válido, sem markdown, no formato:
     return {
       tipo: "clinico_geral",
       valor: 500,
-      valorTexto: "R$ 500,00",
+      valorTexto: "R$ 600,00",
       especialidadeSugerida: "Clínico Geral",
       justificativa: `verifiquei sua triagem e, para o seu caso (${motivo}), o clínico geral resolve perfeitamente`,
       tag: "CLÍNICO GERAL",
@@ -3330,7 +3331,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
 `;
 
     const messages: Array<{ role: string; content: any }> = [
-      { role: "system", content: SYSTEM_ENGINE_WHATSAPP + blocoAgora + contextExtra },
+      { role: "system", content: SYSTEM_ENGINE_WHATSAPP + blocoAgora + contextExtra + "\n\n" + PROMPT_COMERCIAL_ANA },
     ];
 
 
@@ -3613,7 +3614,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
       const decisaoConsulta: DecisaoConsulta = {
         tipo: "especialista",
         valor: 500,
-        valorTexto: "R$ 500,00",
+        valorTexto: "R$ 600,00",
         especialidadeSugerida: "Dra. Amélia Carvalho",
         justificativa: "sua consulta é diretamente com a Dra. Amélia Carvalho",
         tag: "CONSULTA - DRA. AMÉLIA CARVALHO",
@@ -3708,8 +3709,8 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
 
         mensagensExtras.push(
           `📌 *Como funciona o atendimento*\n\n` +
-          `• A consulta individual com a Dra. Amélia é de *R$ 500,00*, com avaliação de aproximadamente *40 minutos* (podendo ser menor ou maior conforme as queixas e a avaliação clínica do momento).\n` +
-          `• Para reservar o horário exclusivamente para o seu atendimento, entra um *sinal de 30% (R$ 150,00)* no Pix no ato do agendamento; o *restante (R$ 350,00)* é pago no dia da consulta.\n` +
+          `• A consulta individual com a Dra. Amélia é de *R$ 600,00*, com avaliação de aproximadamente *40 minutos* (podendo ser menor ou maior conforme as queixas e a avaliação clínica do momento).\n` +
+          `• Para reservar o horário exclusivamente para o seu atendimento, entra um *sinal de 30% (R$ 180,00)* no Pix no ato do agendamento; o *restante (R$ 420,00)* é pago no dia da consulta.\n` +
           `• No cartão de crédito, você mesmo(a) escolhe em quantas vezes deseja dividir (com o acréscimo da taxa da máquina).\n` +
           `• Conforme as diretrizes do Conselho Federal de Medicina (CFM), as consultas em psiquiatria são compreendidas como sessões de acompanhamento e tratamento, não incluindo retorno avulso.\n\n` +
           `Qualquer dúvida, é só me chamar aqui — estou por perto 💚`
@@ -3804,7 +3805,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
         numero,
         PIX_QRCODE_PDF_URL,
         "QRCode-Pix-Consulta.pdf",
-        "QR Code do Pix para o sinal de R$ 150,00 (30%) 💚 Chave Pix: consultasdraameliacarvalho@gmail.com",
+        "QR Code do Pix para o sinal de R$ 180,00 (30%) 💚 Chave Pix: consultasdraameliacarvalho@gmail.com",
       ).catch((e) => console.error("[whatsapp] falha ao enviar QR Code Pix:", e));
     }
 
