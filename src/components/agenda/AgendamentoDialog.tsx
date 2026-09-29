@@ -99,67 +99,68 @@ export function AgendamentoDialog({
     }
   }, [open, agendamento, defaultTime]);
 
-  // Garante que quem é agendado também apareça na lista de pacientes.
-  const garantirPaciente = async (): Promise<string | null> => {
+  const normNome = (s: string | null | undefined) =>
+    (s ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+
+  // Chave de telefone: DDD + últimos 8 dígitos (ignora DDI, 9º dígito, espaços, parênteses).
+  const chaveTel = (s: string | null | undefined) => {
+    let d = (s ?? "").replace(/\D/g, "");
+    if (d.length >= 12 && d.startsWith("55")) d = d.slice(2);
+    if (d.length < 10) return "";
+    return d.slice(0, 2) + d.slice(-8);
+  };
+
+  // Localiza o paciente já cadastrado (sem criar), tolerante a formatação.
+  const buscarPacienteExistente = async (): Promise<string | null> => {
     if (agendamento?.paciente_id) return agendamento.paciente_id;
-    const nomeLimpo = nome.trim();
-    const digitos = telefone.replace(/\D/g, "");
-
-    if (digitos.length >= 10) {
-      const variacoes = Array.from(
-        new Set([digitos, digitos.startsWith("55") ? digitos.slice(2) : "55" + digitos]),
-      );
-      const { data } = await supabase
-        .from("pacientes")
-        .select("id")
-        .in("telefone", variacoes)
-        .limit(1);
-      if (data?.[0]) return data[0].id;
+    const chave = chaveTel(telefone);
+    const alvo = normNome(nome);
+    const { data } = await supabase.from("pacientes").select("id, nome, telefone").limit(5000);
+    const lista = data ?? [];
+    if (chave) {
+      const porTel = lista.find((p) => chaveTel(p.telefone) === chave);
+      if (porTel) return porTel.id;
     }
+    if (alvo) {
+      const porNome = lista.filter((p) => normNome(p.nome) === alvo);
+      if (porNome.length) {
+        // Se houver homônimos, prioriza quem tem sinal quitado.
+        for (const p of porNome) if (await sinalQuitado(p.id)) return p.id;
+        return porNome[0].id;
+      }
+    }
+    return null;
+  };
 
-    const { data: porNome } = await supabase
-      .from("pacientes")
-      .select("id")
-      .ilike("nome", nomeLimpo)
-      .limit(1);
-    if (porNome?.[0]) return porNome[0].id;
-
+  // Garante que quem é agendado também apareça na lista de pacientes.
+  const garantirPaciente = async (existente: string | null): Promise<string | null> => {
+    if (existente) return existente;
+    const digitos = telefone.replace(/\D/g, "");
     const { data: novo, error } = await supabase
       .from("pacientes")
-      .insert({ nome: nomeLimpo, telefone: digitos || null, tipo: "adulto" })
+      .insert({ nome: nome.trim(), telefone: digitos || null, tipo: "adulto" })
       .select("id")
       .single();
     if (error) {
-      toast.error("Agendamento salvo, mas não foi possível criar o cadastro do paciente");
+      toast.error("Não foi possível criar o cadastro do paciente");
       return null;
     }
     return novo?.id ?? null;
   };
 
-  // Localiza o paciente já cadastrado (sem criar) para checar o sinal.
-  const buscarPacienteExistente = async (): Promise<string | null> => {
-    if (agendamento?.paciente_id) return agendamento.paciente_id;
-    const digitos = telefone.replace(/\D/g, "");
-    if (digitos.length >= 10) {
-      const variacoes = Array.from(
-        new Set([digitos, digitos.startsWith("55") ? digitos.slice(2) : "55" + digitos]),
-      );
-      const { data } = await supabase.from("pacientes").select("id").in("telefone", variacoes).limit(1);
-      if (data?.[0]) return data[0].id;
-    }
-    const { data: porNome } = await supabase
-      .from("pacientes").select("id").ilike("nome", nome.trim()).limit(1);
-    return porNome?.[0]?.id ?? null;
-  };
-
-  const sinalQuitado = async (pid: string | null) => {
+  async function sinalQuitado(pid: string | null) {
     if (!pid) return false;
     const { data } = await supabase
       .from("financeiro_lancamentos")
-      .select("id, pago, tem_sinal, sinal_pago")
+      .select("id, pago, tem_sinal, sinal_pago, restante_pago")
       .eq("paciente_id", pid);
-    return (data ?? []).some((l) => (l.tem_sinal ? l.sinal_pago : l.pago));
-  };
+    return (data ?? []).some((l) => l.sinal_pago || l.pago || l.restante_pago);
+  }
 
   const salvar = async () => {
     if (!nome.trim()) {
@@ -175,12 +176,18 @@ export function AgendamentoDialog({
     if (!agendamento && !(await sinalQuitado(existente))) {
       setSaving(false);
       toast.error(
-        "Agendamento liberado só depois da baixa do sinal. Registre o pagamento da entrada no Financeiro do paciente.",
+        existente
+          ? "Paciente encontrado, mas sem baixa do sinal. Registre o pagamento da entrada no Financeiro dele."
+          : "Paciente não encontrado no cadastro. Confira o nome ou informe o telefone igual ao do cadastro (onde o sinal foi lançado).",
       );
       return;
     }
 
-    const pacienteId = await garantirPaciente();
+    const pacienteId = await garantirPaciente(existente);
+    if (!pacienteId) {
+      setSaving(false);
+      return;
+    }
 
     const payload = {
       paciente_id: pacienteId,
