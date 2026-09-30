@@ -33,6 +33,8 @@ Deno.serve(async (req) => {
       if (!/^AC[0-9a-f]{32}$/i.test(e.accountSid)) issues.push("TWILIO_ACCOUNT_SID não tem o formato AC + 32 caracteres");
       if (!/^SK[0-9a-f]{32}$/i.test(e.apiKey)) issues.push("TWILIO_API_KEY não tem o formato SK + 32 caracteres");
       if (!/^AP[0-9a-f]{32}$/i.test(e.twimlAppSid)) issues.push("TWILIO_TWIML_APP_SID não tem o formato AP + 32 caracteres");
+      const k = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${e.accountSid}.json`, { headers: { Authorization: "Basic " + btoa(`${e.apiKey}:${e.apiSecret}`) } });
+      if (!k.ok) issues.push(`API Key/Secret recusados (${k.status})`);
       if (e.twimlAppSid) {
         const a = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${e.accountSid}/Applications/${e.twimlAppSid}.json`, { headers: { Authorization: basicAuth() } });
         if (!a.ok) issues.push(`TwiML App respondeu ${a.status}`);
