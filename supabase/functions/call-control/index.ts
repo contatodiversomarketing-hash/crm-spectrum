@@ -25,22 +25,29 @@ Deno.serve(async (req) => {
       return new Response(r.body, { headers: { ...corsHeaders, "Content-Type": "audio/mpeg" } });
     }
 
-    if (action === "test") {
+    if (action === "test" || action === "configurar") {
       const issues: string[] = [];
-      for (const [k, v] of Object.entries(e)) if (!v) issues.push(`${k} ausente`);
-      const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${e.accountSid}.json`, { headers: { Authorization: basicAuth() } });
-      if (!r.ok) issues.push(`Conta Twilio respondeu ${r.status} (SID ${e.accountSid.length} caracteres; API Key ${e.apiKey.length}; API Secret ${e.apiSecret.length}; Auth Token ${e.authToken.length})`);
-      if (!/^AC[0-9a-f]{32}$/i.test(e.accountSid)) issues.push("TWILIO_ACCOUNT_SID não tem o formato AC + 32 caracteres");
-      if (!/^SK[0-9a-f]{32}$/i.test(e.apiKey)) issues.push("TWILIO_API_KEY não tem o formato SK + 32 caracteres");
-      if (!/^AP[0-9a-f]{32}$/i.test(e.twimlAppSid)) issues.push("TWILIO_TWIML_APP_SID não tem o formato AP + 32 caracteres");
-      const k = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${e.accountSid}.json`, { headers: { Authorization: "Basic " + btoa(`${e.apiKey}:${e.apiSecret}`) } });
-      if (!k.ok) issues.push(`API Key/Secret recusados (${k.status})`);
-      if (e.twimlAppSid) {
-        const a = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${e.accountSid}/Applications/${e.twimlAppSid}.json`, { headers: { Authorization: basicAuth() } });
-        if (!a.ok) issues.push(`TwiML App respondeu ${a.status}`);
-        else {
-          const app = await a.json();
-          if (!String(app.voice_url ?? "").includes("twilio-outbound-call")) issues.push(`Voice URL do TwiML App incorreta: ${app.voice_url || "(vazia)"}`);
+      const base = `https://api.twilio.com/2010-04-01/Accounts/${e.accountSid}`;
+      const voiceUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/twilio-outbound-call`;
+      if (!/^AC[0-9a-f]{32}$/i.test(e.accountSid)) issues.push("Account SID em formato inválido");
+      if (!/^AP[0-9a-f]{32}$/i.test(e.twimlAppSid)) issues.push("TwiML App SID em formato inválido");
+      const a = await fetch(`${base}/Applications/${e.twimlAppSid}.json`, { headers: { Authorization: basicAuth() } });
+      if (!a.ok) issues.push(`Twilio recusou o acesso (${a.status}) — confira Account SID, API Key e Secret`);
+      else {
+        const app = await a.json();
+        if (app.voice_url !== voiceUrl) {
+          if (action === "configurar") {
+            const u = await fetch(`${base}/Applications/${e.twimlAppSid}.json`, {
+              method: "POST", headers: { Authorization: basicAuth(), "Content-Type": "application/x-www-form-urlencoded" },
+              body: new URLSearchParams({ VoiceUrl: voiceUrl, VoiceMethod: "POST" }),
+            });
+            if (!u.ok) issues.push(`Não consegui ajustar a Voice URL (${u.status})`);
+          } else issues.push(`Voice URL do TwiML App incorreta: ${app.voice_url || "(vazia)"}`);
+        }
+        const n = await fetch(`${base}/IncomingPhoneNumbers.json?PhoneNumber=${encodeURIComponent(e.phone)}`, { headers: { Authorization: basicAuth() } });
+        if (n.ok) {
+          const nj = await n.json();
+          if (!nj.incoming_phone_numbers?.length) issues.push(`O número ${e.phone} não foi encontrado nesta conta Twilio`);
         }
       }
       return json({ status: issues.length ? "ISSUES_FOUND" : "Twilio OK", issues });
