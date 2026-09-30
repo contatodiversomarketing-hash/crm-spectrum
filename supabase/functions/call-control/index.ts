@@ -9,8 +9,21 @@ Deno.serve(async (req) => {
   try {
     const user = await userFromRequest(req);
     if (!user) return json({ error: "Não autenticado" }, 401);
-    const { action, callSid } = await req.json().catch(() => ({}));
+    const { action, callSid, callId } = await req.json().catch(() => ({}));
     const e = twilioEnv();
+
+    if (action === "recording" && typeof callId === "string") {
+      const sb = adminClient();
+      const { data: call } = await sb.from("calls").select("agent_user_id, recording_url").eq("id", callId).maybeSingle();
+      if (!call?.recording_url) return json({ error: "Sem gravação" }, 404);
+      if (call.agent_user_id !== user.id) {
+        const { data: roles } = await sb.from("user_roles").select("role").eq("user_id", user.id);
+        if (!(roles ?? []).some((r) => r.role === "admin" || r.role === "supervisao")) return json({ error: "Sem permissão" }, 403);
+      }
+      const r = await fetch(call.recording_url, { headers: { Authorization: basicAuth() } });
+      if (!r.ok) return json({ error: `Twilio ${r.status}` }, 502);
+      return new Response(r.body, { headers: { ...corsHeaders, "Content-Type": "audio/mpeg" } });
+    }
 
     if (action === "test") {
       const issues: string[] = [];
