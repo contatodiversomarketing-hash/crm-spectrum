@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
       const issues: string[] = [];
       for (const [k, v] of Object.entries(e)) if (!v) issues.push(`${k} ausente`);
       const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${e.accountSid}.json`, { headers: { Authorization: basicAuth() } });
-      if (!r.ok) issues.push(`Conta Twilio respondeu ${r.status} (SID começa com "${e.accountSid.slice(0, 2)}", ${e.accountSid.length} caracteres; token com ${e.authToken.length} caracteres)`);
+      if (!r.ok) issues.push(`Conta Twilio respondeu ${r.status} (SID ${e.accountSid.length} caracteres; API Key ${e.apiKey.length}; API Secret ${e.apiSecret.length})`);
       if (!/^AC[0-9a-f]{32}$/i.test(e.accountSid)) issues.push("TWILIO_ACCOUNT_SID não tem o formato AC + 32 caracteres");
       if (!/^SK[0-9a-f]{32}$/i.test(e.apiKey)) issues.push("TWILIO_API_KEY não tem o formato SK + 32 caracteres");
       if (!/^AP[0-9a-f]{32}$/i.test(e.twimlAppSid)) issues.push("TWILIO_TWIML_APP_SID não tem o formato AP + 32 caracteres");

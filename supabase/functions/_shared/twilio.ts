@@ -18,6 +18,8 @@ export function twilioEnv() {
 
 export function basicAuth() {
   const e = twilioEnv();
+  // API Key + Secret funciona na API REST da Twilio; usa o Auth Token só se não houver API Key
+  if (e.apiKey && e.apiSecret) return "Basic " + btoa(`${e.apiKey}:${e.apiSecret}`);
   return "Basic " + btoa(`${e.accountSid}:${e.authToken}`);
 }
 
