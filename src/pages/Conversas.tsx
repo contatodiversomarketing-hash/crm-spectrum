@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { BotaoLigar } from "@/contexts/TwilioContext";
 import { Search, RefreshCw, MessageSquare, MessagesSquare, Send, Power, UserPlus, Bell, BellOff, Smile, Mic, Square, FileText, Loader2, AudioLines, Paperclip, Pencil, Trash2, Check, X, CheckCheck, AlertCircle, Reply } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -762,10 +763,10 @@ export default function Conversas() {
                 const ultimaMsg = c.itens[c.itens.length - 1];
                 const isAtiva = ativa?.telefone === c.telefone;
                 return (
+                  <div key={c.telefone} className={`flex items-center border-b hover:bg-secondary/50 transition-colors ${isAtiva ? "bg-secondary" : ""}`}>
                   <button
-                    key={c.telefone}
                     onClick={() => setSelecionada(c.telefone)}
-                    className={`w-full text-left px-3 py-3 border-b hover:bg-secondary/50 transition-colors ${isAtiva ? "bg-secondary" : ""}`}
+                    className="flex-1 min-w-0 text-left px-3 py-3"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-medium truncate">{c.nome}</span>
@@ -784,6 +785,8 @@ export default function Conversas() {
                       )}
                     </div>
                   </button>
+                  <BotaoLigar telefone={c.numeroEnvio || c.telefone} nome={c.nome} pacienteId={c.pacienteId} className="h-7 w-7 mr-2 shrink-0" />
+                  </div>
                 );
               })
             )}
@@ -806,6 +809,7 @@ export default function Conversas() {
                   <p className="text-xs text-muted-foreground">{formatarTelefone(ativa.telefone)}</p>
                 </div>
                 <div className="flex items-center gap-2">
+                  <BotaoLigar telefone={ativa.numeroEnvio || ativa.telefone} nome={ativa.nome} pacienteId={ativa.pacienteId} className="h-8 w-8 border" />
                   <Button
                     variant="outline"
                     size="sm"
