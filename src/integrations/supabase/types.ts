@@ -324,6 +324,38 @@ export type Database = {
           },
         ]
       }
+      call_events: {
+        Row: {
+          call_id: string | null
+          created_at: string
+          event: string
+          id: string
+          payload: Json | null
+        }
+        Insert: {
+          call_id?: string | null
+          created_at?: string
+          event: string
+          id?: string
+          payload?: Json | null
+        }
+        Update: {
+          call_id?: string | null
+          created_at?: string
+          event?: string
+          id?: string
+          payload?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_events_call_id_fkey"
+            columns: ["call_id"]
+            isOneToOne: false
+            referencedRelation: "calls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_recordings: {
         Row: {
           analyzed: boolean
@@ -350,6 +382,81 @@ export type Database = {
           recording_url?: string
         }
         Relationships: []
+      }
+      calls: {
+        Row: {
+          agent_user_id: string | null
+          answered_at: string | null
+          client_name: string | null
+          created_at: string
+          direction: string
+          duration_seconds: number | null
+          ended_at: string | null
+          id: string
+          lead_id: string | null
+          metadata: Json
+          paciente_id: string | null
+          phone_number: string
+          recording_url: string | null
+          started_at: string
+          status: string
+          transcription: string | null
+          twilio_call_sid: string | null
+        }
+        Insert: {
+          agent_user_id?: string | null
+          answered_at?: string | null
+          client_name?: string | null
+          created_at?: string
+          direction?: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          lead_id?: string | null
+          metadata?: Json
+          paciente_id?: string | null
+          phone_number: string
+          recording_url?: string | null
+          started_at?: string
+          status?: string
+          transcription?: string | null
+          twilio_call_sid?: string | null
+        }
+        Update: {
+          agent_user_id?: string | null
+          answered_at?: string | null
+          client_name?: string | null
+          created_at?: string
+          direction?: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          lead_id?: string | null
+          metadata?: Json
+          paciente_id?: string | null
+          phone_number?: string
+          recording_url?: string | null
+          started_at?: string
+          status?: string
+          transcription?: string | null
+          twilio_call_sid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calls_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calls_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       clinicas: {
         Row: {
@@ -416,6 +523,53 @@ export type Database = {
           whatsapp_ativo?: boolean
         }
         Relationships: []
+      }
+      consultant_scores: {
+        Row: {
+          agent_user_id: string | null
+          call_id: string | null
+          cordialidade: number | null
+          created_at: string
+          fechamento: number | null
+          feedback: string | null
+          id: string
+          nota_geral: number | null
+          objecoes: number | null
+          rapport: number | null
+        }
+        Insert: {
+          agent_user_id?: string | null
+          call_id?: string | null
+          cordialidade?: number | null
+          created_at?: string
+          fechamento?: number | null
+          feedback?: string | null
+          id?: string
+          nota_geral?: number | null
+          objecoes?: number | null
+          rapport?: number | null
+        }
+        Update: {
+          agent_user_id?: string | null
+          call_id?: string | null
+          cordialidade?: number | null
+          created_at?: string
+          fechamento?: number | null
+          feedback?: string | null
+          id?: string
+          nota_geral?: number | null
+          objecoes?: number | null
+          rapport?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consultant_scores_call_id_fkey"
+            columns: ["call_id"]
+            isOneToOne: false
+            referencedRelation: "calls"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       desempenho_vendedoras: {
         Row: {
