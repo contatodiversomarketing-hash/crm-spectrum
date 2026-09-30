@@ -1,6 +1,9 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-export const normalizeSecret = (v?: string | null) => (v ?? "").trim().replace(/^['"]|['"]$/g, "");
+export const normalizeSecret = (v?: string | null) =>
+  (v ?? "").replace(/[\s\u200B-\u200D\uFEFF\u00A0]/g, "").replace(/^['"]|['"]$/g, "");
+// SIDs/tokens da Twilio são só letras e números: remove qualquer caractere extra colado sem querer
+const soAlnum = (v: string) => v.replace(/[^0-9a-zA-Z]/g, "");
 
 export function twilioEnv() {
   return {
