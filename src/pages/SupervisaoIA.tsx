@@ -4,6 +4,7 @@ import { Brain, CheckCircle, Edit3, UserCheck, Clock, Shield, RefreshCw, ArrowLe
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { RelatorioAtendimento } from "@/components/RelatorioAtendimento";
+import { RelatorioLigacoes } from "@/components/RelatorioLigacoes";
 
 interface Interacao {
   id: string;
@@ -236,6 +237,8 @@ const SupervisaoIA = () => {
 
         {/* Relatórios de qualidade (IA + Atendente) */}
         <RelatorioAtendimento />
+
+        <RelatorioLigacoes />
 
 
         {/* Seção 1 — Fila de Supervisão */}
