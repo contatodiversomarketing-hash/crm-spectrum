@@ -7,7 +7,7 @@ const soAlnum = (v: string) => v.replace(/[^0-9a-zA-Z]/g, "");
 
 export function twilioEnv() {
   return {
-    accountSid: normalizeSecret(Deno.env.get("TWILIO_ACCOUNT_SID")),
+    accountSid: normalizeSecret(Deno.env.get("TWILIO_VOICE_ACCOUNT_SID") || Deno.env.get("TWILIO_ACCOUNT_SID")),
     authToken: normalizeSecret(Deno.env.get("TWILIO_VOICE_AUTH_TOKEN") || Deno.env.get("TWILIO_AUTH_TOKEN")),
     phone: normalizePhoneBR(normalizeSecret(Deno.env.get("TWILIO_PHONE_NUMBER"))) || normalizeSecret(Deno.env.get("TWILIO_PHONE_NUMBER")),
     apiKey: normalizeSecret(Deno.env.get("TWILIO_VOICE_API_KEY") || Deno.env.get("TWILIO_API_KEY")),
@@ -19,7 +19,6 @@ export function twilioEnv() {
 export function basicAuth() {
   const e = twilioEnv();
   // API Key + Secret funciona na API REST da Twilio; usa o Auth Token só se não houver API Key
-  if (e.authToken.length === 32) return "Basic " + btoa(`${e.accountSid}:${e.authToken}`);
   if (e.apiKey && e.apiSecret) return "Basic " + btoa(`${e.apiKey}:${e.apiSecret}`);
   return "Basic " + btoa(`${e.accountSid}:${e.authToken}`);
 }
