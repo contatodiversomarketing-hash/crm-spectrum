@@ -17,6 +17,8 @@ import Pacientes from "./pages/Pacientes";
 import Financeiro from "./pages/Financeiro";
 import Usuarios from "./pages/Usuarios";
 import Conversas from "./pages/Conversas";
+import Chamadas from "./pages/Chamadas";
+import { TwilioProvider } from "@/contexts/TwilioContext";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +29,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AuthProvider>
+        <TwilioProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -44,9 +47,11 @@ const App = () => (
             <Route path="/conversas" element={<ProtectedRoute requiredRoles={["admin", "supervisao", "analista", "auxiliar"]}><AppLayout><Conversas /></AppLayout></ProtectedRoute>} />
 
 
+            <Route path="/chamadas" element={<ProtectedRoute><AppLayout><Chamadas /></AppLayout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+        </TwilioProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
