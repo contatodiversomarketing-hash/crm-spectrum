@@ -1,92 +1,56 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { adminClient, processarGravacaoLigacao } from "../_shared/twilio.ts";
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-      },
-    });
-  }
+const MAP: Record<string, string> = {
+  queued: "ringing", initiated: "ringing", ringing: "ringing",
+  "in-progress": "in_progress", answered: "in_progress",
+  completed: "completed", busy: "busy", "no-answer": "no_answer", failed: "failed", canceled: "failed",
+};
+const TERMINAIS = ["completed", "busy", "no_answer", "failed"];
+const ok = () => new Response("<Response/>", { headers: { "Content-Type": "text/xml" } });
 
+Deno.serve(async (req) => {
   try {
-    const bodyText = await req.text();
-    const params = new URLSearchParams(bodyText);
+    const params = new URLSearchParams(await req.text());
+    const all = Object.fromEntries(params.entries());
+    const callId = new URL(req.url).searchParams.get("callId");
+    const sb = adminClient();
 
-    const callSid = params.get("CallSid") || "";
-    const callStatus = params.get("CallStatus") || "";
-    const from = params.get("From") || "";
-    const to = params.get("To") || "";
-    const duration = params.get("CallDuration") || "0";
-    const direction = params.get("Direction") || "";
-    const timestamp = params.get("Timestamp") || new Date().toISOString();
-
-    console.log(`[call-events] CallSid=${callSid} Status=${callStatus} From=${from} To=${to} Duration=${duration}s`);
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
-    // Log every status event
-    await supabase.from("logs_decisao").insert({
-      evento: "call_status_event",
-      decisao: callStatus,
-      regra_aplicada: `twilio_callback_${callStatus}`,
-      confianca: 1.0,
-      dados_entrada: {
-        call_sid: callSid,
-        from,
-        to,
-        duration: parseInt(duration),
-        direction,
-        timestamp,
-        all_params: Object.fromEntries(params.entries()),
-      },
-    });
-
-    // On completed/failed/busy/no-answer, update the automation record
-    if (["completed", "failed", "busy", "no-answer", "canceled"].includes(callStatus)) {
-      const statusMap: Record<string, string> = {
-        completed: "atendido",
-        failed: "falhou",
-        busy: "ocupado",
-        "no-answer": "sem_resposta",
-        canceled: "cancelado",
-      };
-
-      const { data: automacao } = await supabase
-        .from("automacoes")
-        .select("id")
-        .filter("payload->>call_sid", "eq", callSid)
-        .in("tipo", ["reativacao_voz", "confirmacao_voz"])
-        .order("criado_em", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (automacao) {
-        await supabase
-          .from("automacoes")
-          .update({
-            status: statusMap[callStatus] || callStatus,
-            ...(callStatus === "completed" && { respondeu: true }),
-          })
-          .eq("id", automacao.id);
-
-        console.log(`[call-events] Automação ${automacao.id} atualizada para ${statusMap[callStatus]}`);
-      }
+    if (!callId) {
+      // Fluxo antigo (automações de voz)
+      await sb.from("logs_decisao").insert({ evento: "call_status_event", decisao: all.CallStatus ?? "", confianca: 1, dados_entrada: all });
+      return ok();
     }
 
-    // Twilio expects 200 + TwiML or empty
-    return new Response("<Response/>", {
-      headers: { "Content-Type": "text/xml" },
-    });
-  } catch (error) {
-    console.error("[call-events] Erro:", (error as Error).message);
-    return new Response("<Response/>", {
-      headers: { "Content-Type": "text/xml" },
-    });
+    await sb.from("call_events").insert({ call_id: callId, event: all.CallStatus || all.RecordingStatus || "evento", payload: all });
+    const { data: call } = await sb.from("calls").select("*").eq("id", callId).maybeSingle();
+    if (!call) return ok();
+
+    const upd: Record<string, unknown> = {};
+    let status = all.CallStatus ? MAP[all.CallStatus] : undefined;
+    if (!status && all.RecordingUrl) status = "completed";
+    // não regredir status terminal
+    if (status && !TERMINAIS.includes(call.status)) upd.status = status;
+    if (status === "in_progress" && !call.answered_at) upd.answered_at = new Date().toISOString();
+    if (status && TERMINAIS.includes(status) && !call.ended_at) {
+      const end = new Date();
+      upd.ended_at = end.toISOString();
+      const d = parseInt(all.DialCallDuration || all.CallDuration || "", 10);
+      const base = call.answered_at ?? upd.answered_at;
+      upd.duration_seconds = Number.isFinite(d) ? d : base ? Math.round((end.getTime() - new Date(base as string).getTime()) / 1000) : 0;
+    }
+    if (all.RecordingUrl && (all.RecordingStatus ?? "completed") === "completed") {
+      upd.recording_url = all.RecordingUrl + ".mp3";
+      if (all.RecordingDuration && !call.duration_seconds) upd.duration_seconds = parseInt(all.RecordingDuration, 10);
+    }
+    if (Object.keys(upd).length) await sb.from("calls").update(upd).eq("id", callId);
+
+    if (upd.recording_url) {
+      // @ts-ignore EdgeRuntime existe no runtime
+      EdgeRuntime.waitUntil(processarGravacaoLigacao(callId));
+    }
+    return ok();
+  } catch (e) {
+    console.error("[call-events]", (e as Error).message);
+    return ok();
   }
 });

@@ -214,6 +214,9 @@ export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSave
                 <MessageSquare className="h-4 w-4 mr-1" /> Abrir conversa
               </Button>
             )}
+            {paciente?.telefone && (
+              <BotaoLigar telefone={paciente.telefone} nome={paciente.nome} pacienteId={paciente.id} className="h-9 w-9" />
+            )}
           </div>
         </DialogHeader>
 

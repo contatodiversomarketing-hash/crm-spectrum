@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { PipelineColumn } from "@/hooks/usePipelineColumns";
+import { BotaoLigar } from "@/contexts/TwilioContext";
 import { Phone, Mail, MapPin, Calendar, FileText, Eye, Pencil, StickyNote, BellRing, CheckCircle2, Bell, Baby, GripVertical, MoveRight, MessageCircle, Trash2, Megaphone } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -170,6 +171,7 @@ export function LeadCard({
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setOrigemSel(null); setOrigemDetalhe(""); setOrigemOpen(true); }} title="De onde veio o lead">
               <Megaphone className="h-3.5 w-3.5" />
             </Button>
+            <BotaoLigar telefone={lead.telefone ?? ""} nome={lead.nome} leadId={lead.id} />
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setChatOpen(true)} title="Conversar no WhatsApp">
               <MessageCircle className="h-3.5 w-3.5" />
             </Button>
