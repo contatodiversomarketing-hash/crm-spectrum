@@ -2433,17 +2433,10 @@ async function salvarMidiaStorage(base64: string, mimetype: string, tipo: string
     };
     const ext = extMap[mimeClean] || (fileName?.split(".").pop() || "bin");
     const nome = `recebidos/${tipo}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
-    const resp = await fetch(`${Deno.env.get("SUPABASE_URL")}/storage/v1/object/audio/${nome}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-        "Content-Type": mimeClean,
-        "x-upsert": "true",
-      },
-      body: bytes,
-    });
-    if (!resp.ok) {
-      console.error(`[whatsapp] Upload mídia falhou: ${resp.status}`);
+    const sbSt = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { error: upErr } = await sbSt.storage.from("audio").upload(nome, bytes, { contentType: mimeClean, upsert: true });
+    if (upErr) {
+      console.error(`[whatsapp] Upload mídia falhou: ${upErr.message}`);
       return null;
     }
     return `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/public/audio/${nome}`;
