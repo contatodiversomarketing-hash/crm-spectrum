@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
+import { ConteudoMensagem } from "@/components/ConteudoMensagem";
 import { Smile, Paperclip, Mic, Send, Square, Loader2, FileText, AudioLines } from "lucide-react";
 
 const EMOJIS = [
@@ -234,7 +235,7 @@ export function LeadChatDialog({
                 {m.mensagem_usuario && (
                   <div className="flex justify-start">
                     <div className="bg-card border px-3 py-2 rounded-2xl rounded-tl-sm max-w-[80%] text-sm whitespace-pre-wrap break-words shadow-sm">
-                      {m.mensagem_usuario}
+                      <ConteudoMensagem texto={m.mensagem_usuario} />
                       <span className="block text-[10px] text-muted-foreground mt-1">
                         {new Date(m.criado_em).toLocaleString("pt-BR")}
                       </span>
@@ -244,7 +245,7 @@ export function LeadChatDialog({
                 {(m.resposta_final || m.resposta_sugerida) && (
                   <div className="flex justify-end">
                     <div className="bg-primary text-primary-foreground px-3 py-2 rounded-2xl rounded-tr-sm max-w-[80%] text-sm whitespace-pre-wrap break-words shadow-sm">
-                      {m.resposta_final || m.resposta_sugerida}
+                      <ConteudoMensagem texto={(m.resposta_final || m.resposta_sugerida) as string} escuro />
                       <span className="block text-[10px] opacity-75 mt-1">
                         {m.atendente_humano ? m.atendente_humano : "Ana"} •{" "}
                         {new Date(m.criado_em).toLocaleString("pt-BR")}

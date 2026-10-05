@@ -2433,17 +2433,10 @@ async function salvarMidiaStorage(base64: string, mimetype: string, tipo: string
     };
     const ext = extMap[mimeClean] || (fileName?.split(".").pop() || "bin");
     const nome = `recebidos/${tipo}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
-    const resp = await fetch(`${Deno.env.get("SUPABASE_URL")}/storage/v1/object/audio/${nome}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-        "Content-Type": mimeClean,
-        "x-upsert": "true",
-      },
-      body: bytes,
-    });
-    if (!resp.ok) {
-      console.error(`[whatsapp] Upload mídia falhou: ${resp.status}`);
+    const sbSt = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { error: upErr } = await sbSt.storage.from("audio").upload(nome, bytes, { contentType: mimeClean, upsert: true });
+    if (upErr) {
+      console.error(`[whatsapp] Upload mídia falhou: ${upErr.message}`);
       return null;
     }
     return `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/public/audio/${nome}`;
@@ -2804,6 +2797,17 @@ async function normalizarPayloadCloud(raw: any): Promise<any | null> {
       (tipo !== "text"
         ? `[${tipo === "audio" || tipo === "voice" ? "áudio" : tipo === "image" ? "imagem" : tipo === "document" ? "documento" : tipo} enviado pelo WhatsApp]`
         : "");
+    let textoEco = texto;
+    if (tipo !== "text" && e[tipo]?.id) {
+      try {
+        const b = await baixarMidiaDatafy(e[tipo].id);
+        if (b) {
+          const t = tipo === "voice" ? "audio" : tipo;
+          const url = await salvarMidiaStorage(b.base64, e[tipo].mime_type || b.mimetype, t, e[tipo].filename);
+          if (url) textoEco = `${texto}\n[midia:${t}:${url}]`;
+        }
+      } catch (err) { console.warn("[whatsapp] mídia do eco falhou", err); }
+    }
     if (!destino || !texto) {
       console.warn("[whatsapp] eco ignorado por falta de destino ou conteúdo", { destino: Boolean(destino), tipo });
       return { __ignorar: true };
@@ -2812,7 +2816,7 @@ async function normalizarPayloadCloud(raw: any): Promise<any | null> {
       key: { remoteJid: `${destino}@s.whatsapp.net`, fromMe: true, senderPn: destino, id: e.id || null },
       jid: destino,
       isGroup: false,
-      message: { conversation: texto },
+      message: { conversation: textoEco },
       messageType: "conversation",
     };
   }
