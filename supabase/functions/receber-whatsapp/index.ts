@@ -1,3 +1,4 @@
+import { transcreverAudioIA, lerArquivoIA } from "../_shared/midia-ia.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { METODO_MESTRE_DAS_VENDAS } from "../_shared/metodo-vendas.ts";
@@ -2971,12 +2972,12 @@ serve(async (req) => {
         urlMidia = await salvarMidiaStorage(base64, midia.mimetype, midia.type, midia.fileName);
         if (midia.type === "audio") {
           // Transcrever áudio e usar como mensagem
-          const transcricao = await transcreverAudio(base64, midia.mimetype);
+          const transcricao = (await transcreverAudioIA(base64, midia.mimetype)) || await transcreverAudio(base64, midia.mimetype);
           mensagem = transcricao + (mensagemTexto ? `\n\n(Texto acompanhando: ${mensagemTexto})` : "");
           console.log(`[whatsapp] 🎤 Áudio processado: "${transcricao.slice(0, 80)}"`);
         } else if (midia.type === "document" && midia.mimetype.includes("pdf")) {
           // PDF: extrair texto (GPT-4o vision não suporta PDF)
-          const textoExtraido = await extrairTextoPDF(base64);
+          const textoExtraido = (await lerArquivoIA(base64, midia.mimetype, midia.fileName || "documento")) || await extrairTextoPDF(base64);
           mensagem = (midia.caption || mensagemTexto || "") + `\n\n[CONTEÚDO DO PDF ENVIADO PELO PACIENTE]:\n${textoExtraido}`;
           console.log(`[whatsapp] 📄 PDF processado: ${textoExtraido.slice(0, 80)}`);
         } else if (midia.type === "image" || midia.type === "document") {
@@ -2984,7 +2985,9 @@ serve(async (req) => {
           imagemBase64ParaIA = base64;
           imagemMimetype = midia.mimetype;
           mensagem = midia.caption || mensagemTexto || "[Paciente enviou " + (midia.type === "image" ? "uma imagem" : `um documento: ${midia.fileName || "arquivo"}`) + "]";
-          console.log(`[whatsapp] 🖼️ ${midia.type} salva para análise visual`);
+          const leitura = await lerArquivoIA(base64, midia.mimetype, midia.fileName || "imagem");
+          if (leitura) mensagem += `\n\n[CONTEÚDO DA ${midia.type === "image" ? "IMAGEM" : "ARQUIVO"} ENVIADA PELO PACIENTE]:\n${leitura}`;
+          console.log(`[whatsapp] 🖼️ ${midia.type} analisada: ${(leitura || "").slice(0, 80)}`);
         }
         if (urlMidia) mensagem = `${mensagem}\n[midia:${midia.type}:${urlMidia}]`;
       } else {
