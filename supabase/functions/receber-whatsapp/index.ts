@@ -2797,6 +2797,17 @@ async function normalizarPayloadCloud(raw: any): Promise<any | null> {
       (tipo !== "text"
         ? `[${tipo === "audio" || tipo === "voice" ? "áudio" : tipo === "image" ? "imagem" : tipo === "document" ? "documento" : tipo} enviado pelo WhatsApp]`
         : "");
+    let textoEco = texto;
+    if (tipo !== "text" && e[tipo]?.id) {
+      try {
+        const b = await baixarMidiaDatafy(e[tipo].id);
+        if (b) {
+          const t = tipo === "voice" ? "audio" : tipo;
+          const url = await salvarMidiaStorage(b.base64, e[tipo].mime_type || b.mimetype, t, e[tipo].filename);
+          if (url) textoEco = `${texto}\n[midia:${t}:${url}]`;
+        }
+      } catch (err) { console.warn("[whatsapp] mídia do eco falhou", err); }
+    }
     if (!destino || !texto) {
       console.warn("[whatsapp] eco ignorado por falta de destino ou conteúdo", { destino: Boolean(destino), tipo });
       return { __ignorar: true };
@@ -2805,7 +2816,7 @@ async function normalizarPayloadCloud(raw: any): Promise<any | null> {
       key: { remoteJid: `${destino}@s.whatsapp.net`, fromMe: true, senderPn: destino, id: e.id || null },
       jid: destino,
       isGroup: false,
-      message: { conversation: texto },
+      message: { conversation: textoEco },
       messageType: "conversation",
     };
   }
