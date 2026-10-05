@@ -6,6 +6,12 @@
 
 @layer base {
   :root {
+    --tag-ana: 133 13% 47%;
+    --tag-jose: 20 50% 53%;
+    --tag-fabiana: 210 35% 45%;
+    --tag-maria: 330 30% 48%;
+    --tag-lara: 40 55% 42%;
+    --tag-outro: 230 15% 45%;
     --background: 38 44% 96%;
     --foreground: 229 19% 22%;
 

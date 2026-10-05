@@ -95,6 +95,25 @@ function formatarTelefone(v: string) {
   return v;
 }
 
+const TAGS: { chave: string; nome: string; cor: string }[] = [
+  { chave: "zegestevanin", nome: "José", cor: "--tag-jose" },
+  { chave: "vendas02.lavitta", nome: "Fabiana", cor: "--tag-fabiana" },
+  { chave: "prospeccao02.medicmuriae", nome: "Maria Rita", cor: "--tag-maria" },
+  { chave: "prospeccao.medicmuriae", nome: "Lara", cor: "--tag-lara" },
+];
+function etiquetaAtendente(itens: Interacao[]): { nome: string; cor: string } | null {
+  for (let k = itens.length - 1; k >= 0; k--) {
+    const i = itens[k];
+    if (!i.resposta_final) continue;
+    if (!i.supervisionado) return { nome: "Ana (IA)", cor: "--tag-ana" };
+    const a = (i.atendente_humano || "").toLowerCase();
+    const t = TAGS.find((x) => a.startsWith(x.chave) || a.includes(x.nome.toLowerCase()));
+    if (t) return { nome: t.nome, cor: t.cor };
+    return { nome: a.includes("whatsapp") ? "Celular da clínica" : (i.atendente_humano || "Atendente"), cor: "--tag-outro" };
+  }
+  return null;
+}
+
 function hora(iso: string) {
   return new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
@@ -772,6 +791,11 @@ export default function Conversas() {
                       <span className="text-sm font-medium truncate">{c.nome}</span>
                       <span className="text-[10px] text-muted-foreground shrink-0">{c.ultima ? hora(c.ultima) : "novo"}</span>
                     </div>
+                    {(() => { const tg = etiquetaAtendente(c.itens); return tg ? (
+                      <span className="mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold text-primary-foreground" style={{ backgroundColor: `hsl(var(${tg.cor}))` }}>
+                        {tg.nome}
+                      </span>
+                    ) : null; })()}
                     <div className="flex items-center gap-2 mt-0.5">
                       <p className="text-xs text-muted-foreground truncate flex-1">
                         {ultimaMsg
