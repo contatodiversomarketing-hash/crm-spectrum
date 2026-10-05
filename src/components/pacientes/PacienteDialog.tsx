@@ -187,6 +187,36 @@ export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSave
     onSaved();
   };
 
+  const buscarCep = async (cep: string, pre: "" | "responsavel_") => {
+    const d = cep.replace(/\D/g, "");
+    if (d.length !== 8) return;
+    try {
+      const r = await fetch(`https://viacep.com.br/ws/${d}/json/`);
+      const j = await r.json();
+      if (j.erro) { toast.error("CEP não encontrado"); return; }
+      setForm((f) => ({
+        ...f,
+        [`${pre}logradouro`]: j.logradouro || "",
+        [`${pre}bairro`]: j.bairro || "",
+        [`${pre}cidade`]: j.localidade || "",
+        [`${pre}estado`]: j.uf || "",
+        ...(j.complemento && !f[`${pre}complemento` as keyof Form] ? { [`${pre}complemento`]: j.complemento } : {}),
+      }));
+    } catch { toast.error("Não foi possível buscar o CEP"); }
+  };
+
+  const campoCep = (label: string, k: "cep" | "responsavel_cep") => (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <Input value={String(form[k] ?? "")} placeholder="00000-000" inputMode="numeric"
+        onChange={(e) => {
+          const d = e.target.value.replace(/\D/g, "").slice(0, 8);
+          set(k, d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d);
+          if (d.length === 8) buscarCep(d, k === "cep" ? "" : "responsavel_");
+        }} />
+    </div>
+  );
+
   const campo = (label: string, k: keyof Form, type = "text", ph = "") => (
     <div className="space-y-1.5">
       <Label>{label}</Label>
@@ -251,7 +281,7 @@ export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSave
             <div>
               <p className="text-sm font-medium mb-2">Endereço</p>
               <div className="grid sm:grid-cols-3 gap-3">
-                {campo("CEP", "cep")}
+                {campoCep("CEP", "cep")}
                 <div className="sm:col-span-2">{campo("Logradouro", "logradouro")}</div>
                 {campo("Número", "numero")}
                 {campo("Complemento", "complemento")}
@@ -281,7 +311,7 @@ export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSave
 
                 {!form.responsavel_endereco_mesmo && (
                   <div className="grid sm:grid-cols-3 gap-3">
-                    {campo("CEP", "responsavel_cep")}
+                    {campoCep("CEP", "responsavel_cep")}
                     <div className="sm:col-span-2">{campo("Logradouro", "responsavel_logradouro")}</div>
                     {campo("Número", "responsavel_numero")}
                     {campo("Complemento", "responsavel_complemento")}
