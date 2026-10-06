@@ -1,4 +1,4 @@
-import { Brain, Eye, BarChart3, GraduationCap, LogOut, Users, CalendarDays, UserPlus, ShieldCheck, MessagesSquare, Wallet, PhoneCall } from "lucide-react";
+import { Brain, Eye, BarChart3, GraduationCap, LogOut, Users, CalendarDays, UserPlus, ShieldCheck, MessagesSquare, Wallet, PhoneCall, Sparkles } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +28,7 @@ const menuItems: { title: string; url: string; icon: typeof Brain; roles?: AppRo
   { title: "Financeiro", url: "/financeiro", icon: Wallet },
   { title: "Conversas", url: "/conversas", icon: MessagesSquare, roles: ["admin", "supervisao", "analista", "auxiliar"] },
   { title: "Chamadas", url: "/chamadas", icon: PhoneCall },
+  { title: "NeuroAcesso", url: "/neuroacesso", icon: Sparkles, roles: ["admin", "supervisao"] },
   { title: "Supervisão IA e Atendente", url: "/supervisao", icon: Eye, roles: ["admin", "supervisao"] },
   { title: "Dashboard IA", url: "/dashboard-ia", icon: BarChart3, roles: ["admin", "supervisao", "analista"] },
   { title: "Treinamento IA", url: "/treinamento-ia", icon: GraduationCap, roles: ["admin"] },

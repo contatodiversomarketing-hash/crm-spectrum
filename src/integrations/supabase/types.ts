@@ -1126,6 +1126,42 @@ export type Database = {
           },
         ]
       }
+      neuroacesso_respostas: {
+        Row: {
+          anexos: Json
+          criado_em: string
+          email: string | null
+          id: string
+          lido: boolean
+          nome: string
+          questionario: string
+          respostas: Json
+          telefone: string | null
+        }
+        Insert: {
+          anexos?: Json
+          criado_em?: string
+          email?: string | null
+          id?: string
+          lido?: boolean
+          nome: string
+          questionario?: string
+          respostas?: Json
+          telefone?: string | null
+        }
+        Update: {
+          anexos?: Json
+          criado_em?: string
+          email?: string | null
+          id?: string
+          lido?: boolean
+          nome?: string
+          questionario?: string
+          respostas?: Json
+          telefone?: string | null
+        }
+        Relationships: []
+      }
       pacientes: {
         Row: {
           atualizado_em: string
