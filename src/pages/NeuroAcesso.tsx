@@ -14,7 +14,7 @@ const LINK_PUBLICO = "https://crm-spectrum.lovable.app/q/neuroacesso";
 export default function NeuroAcesso() {
   const [lista, setLista] = useState<Resp[]>([]);
   const [sel, setSel] = useState<Resp | null>(null);
-  const link = window.location.hostname.includes("localhost") || window.location.hostname.includes("preview") ? LINK_PUBLICO : `${window.location.origin}/q/neuroacesso`;
+  const link = LINK_PUBLICO;
 
   const carregar = useCallback(async () => {
     const { data } = await supabase.from("neuroacesso_respostas").select("*").order("criado_em", { ascending: false });
