@@ -72,7 +72,7 @@ export default function QuestionarioPublico() {
             <h2 className="font-display text-2xl text-primary">Anexos</h2>
             <p className="text-sm text-muted-foreground">Documentos, planilhas ou fotos que ajudem na análise (até 20 MB cada).</p>
             <input ref={fileRef} type="file" multiple className="hidden"
-              onChange={(e) => { setArquivos((a) => [...a, ...Array.from(e.target.files ?? [])]); e.target.value = ""; }} />
+              onChange={(e) => { const fs = Array.from(e.target.files ?? []); setArquivos((a) => [...a, ...fs]); e.target.value = ""; }} />
             <Button type="button" variant="outline" onClick={() => fileRef.current?.click()}><Paperclip className="h-4 w-4 mr-2" />Anexar arquivos</Button>
             {arquivos.map((f, i) => (
               <div key={i} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
