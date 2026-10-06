@@ -57,7 +57,7 @@ export default function NeuroAcesso() {
               <code className="flex-1 min-w-0 truncate rounded-md bg-muted px-3 py-2 text-sm">{link}</code>
               <Button variant="outline" onClick={() => { navigator.clipboard.writeText(link); toast.success("Link copiado"); }}><Copy className="h-4 w-4 mr-1" />Copiar</Button>
               <Button variant="outline" asChild><a href={`https://wa.me/?text=${encodeURIComponent(`Olá! Segue o questionário do Método NeuroAcesso para preencher antes do nosso primeiro encontro: ${link}`)}`} target="_blank" rel="noreferrer"><MessageCircle className="h-4 w-4 mr-1" />WhatsApp</a></Button>
-              <Button variant="outline" asChild><a href="/q/neuroacesso" target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4 mr-1" />Ver</a></Button>
+              <Button variant="outline" asChild><a href={link} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4 mr-1" />Ver</a></Button>
             </div>
             <p className="text-xs text-muted-foreground">O mesmo link serve para todas. Cada resposta aparece separada na aba Respostas.</p>
           </div>
