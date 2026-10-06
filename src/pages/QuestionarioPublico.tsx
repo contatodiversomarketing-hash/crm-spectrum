@@ -49,7 +49,11 @@ export default function QuestionarioPublico() {
   const pct = passo < 0 ? 0 : Math.round(((passo + 1) / total) * 100);
 
   const avancar = () => {
-    if (passo === 0 && nome.trim().length < 2) { toast.error("Conte pra gente seu nome 💛"); return; }
+    if (passo === 0) {
+      if (nome.trim().length < 2) { toast.error("Conte pra gente seu nome 💛"); return; }
+      if (!/^\S+@\S+\.\S+$/.test(email.trim())) { toast.error("Informe um e-mail válido"); return; }
+      if (telefone.replace(/\D/g, "").length < 10) { toast.error("Informe seu WhatsApp com DDD"); return; }
+    }
     setPasso((p) => Math.min(p + 1, ultimo));
   };
 
@@ -171,13 +175,13 @@ export default function QuestionarioPublico() {
               <div>
                 <p className="text-xs uppercase tracking-[0.25em] text-accent">Etapa inicial</p>
                 <h2 className="font-display text-4xl mt-1">Vamos nos conhecer</h2>
-                <p className="text-muted-foreground mt-1">Assim sabemos de quem são estas respostas.</p>
+                <p className="text-muted-foreground mt-1">Não precisa criar conta nem senha. Só precisamos dos seus dados para saber de quem são estas respostas.</p>
               </div>
               <div className="grid gap-4">
                 <div className="space-y-1.5"><Label>Seu nome *</Label><Input autoFocus className="h-12 text-base" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Como você se chama?" /></div>
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5"><Label>E-mail</Label><Input className="h-12" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="voce@email.com" /></div>
-                  <div className="space-y-1.5"><Label>WhatsApp</Label><Input className="h-12" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(00) 00000-0000" /></div>
+                  <div className="space-y-1.5"><Label>E-mail *</Label><Input className="h-12" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="voce@email.com" /></div>
+                  <div className="space-y-1.5"><Label>WhatsApp *</Label><Input className="h-12" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(00) 00000-0000" /></div>
                 </div>
               </div>
             </section>
