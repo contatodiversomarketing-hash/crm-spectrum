@@ -19,6 +19,8 @@ import Usuarios from "./pages/Usuarios";
 import Conversas from "./pages/Conversas";
 import Chamadas from "./pages/Chamadas";
 import { TwilioProvider } from "@/contexts/TwilioContext";
+import NeuroAcesso from "./pages/NeuroAcesso";
+import QuestionarioPublico from "./pages/QuestionarioPublico";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +35,8 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/q/neuroacesso" element={<QuestionarioPublico />} />
+            <Route path="/neuroacesso" element={<ProtectedRoute requiredRoles={["admin", "supervisao"]}><AppLayout><NeuroAcesso /></AppLayout></ProtectedRoute>} />
             <Route path="/" element={<ProtectedRoute requiredRoles={["admin", "supervisao", "analista"]}><AppLayout><Index /></AppLayout></ProtectedRoute>} />
             <Route path="/supervisao" element={<ProtectedRoute requiredRoles={["admin", "supervisao"]}><AppLayout><SupervisaoIA /></AppLayout></ProtectedRoute>} />
             <Route path="/dashboard-ia" element={<ProtectedRoute requiredRoles={["admin", "supervisao", "analista"]}><AppLayout><DashboardInteligenciaIA /></AppLayout></ProtectedRoute>} />
