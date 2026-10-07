@@ -11,7 +11,8 @@ import { CADENCIA_FOLLOWUP } from "../_shared/followup-cadencia.ts";
 import { telCanonico } from "../_shared/dedup.ts";
 
 const ETAPAS_PARADAS = ["agendado", "consultou", "ganho", "perdido"];
-const MAX_POR_RODADA = 60;
+// Roda a cada 5 min entre 17h00 e 17h55 (Brasília), em lotes pequenos.
+const MAX_POR_RODADA = 6;
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -46,15 +47,6 @@ Deno.serve(async (req) => {
 
   const conexao = await instanciaConectada();
   if (!conexao.conectada) return json({ status: "whatsapp_desconectado" });
-
-  // Trava de execução única por dia (evita disparo duplicado do agendador).
-  const diaChave = `cadencia17h_${agoraBR.toISOString().slice(0, 10)}`;
-  if (!forcar) {
-    const { error: lockErr } = await supabase
-      .from("locks_processamento")
-      .insert({ numero: diaChave });
-    if (lockErr) return json({ status: "ja_executado_hoje" });
-  }
 
   const relatorio = {
     avaliados: 0,
@@ -159,7 +151,7 @@ Deno.serve(async (req) => {
         });
 
         relatorio.enviados++;
-        await espera(15000 + Math.floor(Math.random() * 15000));
+        await espera(3000 + Math.floor(Math.random() * 3000));
       } else {
         relatorio.erros.push(`lead ${lead.id}: ${res.status} ${res.body.slice(0, 120)}`);
       }

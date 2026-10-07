@@ -370,7 +370,7 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
 <label title="Anexar mais um recibo" className="cursor-pointer text-muted-foreground hover:text-foreground">
                   <Upload className="h-4 w-4" />
                   <input type="file" multiple accept="image/*,application/pdf" className="hidden"
-                    onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) anexarRecibo(l, f); }} />
+                    onChange={async (e) => { const fs = Array.from(e.target.files ?? []); e.target.value = ""; for (const f of fs) await anexarRecibo(l, f); }} />
                 </label>
               <button onClick={() => excluir(l.id)} className="text-destructive/70 hover:text-destructive">
                 <Trash2 className="h-4 w-4" />
