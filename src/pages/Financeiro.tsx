@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Search, Plus, Trash2, CheckCircle2, Circle, Upload, Receipt, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSearchParams } from "react-router-dom";
 
 interface Lancamento {
   id: string;
@@ -59,6 +60,8 @@ const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", curren
 export default function Financeiro() {
   const [itens, setItens] = useState<Lancamento[]>([]);
   const [pacientes, setPacientes] = useState<PacienteMin[]>([]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const pacienteFiltro = searchParams.get("paciente") || "";
   const [busca, setBusca] = useState("");
   const [filtroForma, setFiltroForma] = useState("todas");
   const [filtroStatus, setFiltroStatus] = useState("todos");
@@ -108,6 +111,7 @@ export default function Financeiro() {
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return itens.filter((i) => {
+      if (pacienteFiltro && i.paciente_id !== pacienteFiltro) return false;
       if (filtroForma !== "todas" && i.forma_pagamento !== filtroForma) return false;
       if (filtroStatus === "pago" && !i.pago) return false;
       if (filtroStatus === "aberto" && i.pago) return false;
@@ -115,7 +119,8 @@ export default function Financeiro() {
       return [nomePaciente(i.paciente_id), i.descricao, i.forma_pagamento ?? ""]
         .some((v) => v.toLowerCase().includes(q));
     });
-  }, [itens, busca, filtroForma, filtroStatus, nomePaciente]);
+  }, [itens, busca, filtroForma, filtroStatus, nomePaciente, pacienteFiltro]);
+  useEffect(() => { if (pacienteFiltro) setPacienteId(pacienteFiltro); }, [pacienteFiltro]);
 
   const total = filtrados.reduce((s, i) => s + Number(i.valor), 0);
   const recebido = filtrados.filter((i) => i.pago).reduce((s, i) => s + Number(i.valor), 0);
@@ -164,11 +169,12 @@ export default function Financeiro() {
     return path;
   };
 
-  const anexarRecibo = async (l: Lancamento, file: File) => {
-    const path = await enviarRecibo(l.paciente_id, file);
-    if (!path) return;
-    await supabase.from("financeiro_lancamentos").update({ comprovante_path: l.comprovante_path ?? path, comprovantes: [...listaRecibos(l), path] }).eq("id", l.id);
-    toast.success("Recibo anexado");
+  const anexarRecibo = async (l: Lancamento, files: File[]) => {
+    const paths: string[] = [];
+    for (const file of files) { const path = await enviarRecibo(l.paciente_id, file); if (path) paths.push(path); }
+    if (!paths.length) return;
+    await supabase.from("financeiro_lancamentos").update({ comprovante_path: l.comprovante_path ?? paths[0], comprovantes: [...listaRecibos(l), ...paths] }).eq("id", l.id);
+    toast.success(paths.length > 1 ? `${paths.length} recibos anexados` : "Recibo anexado");
     carregar();
   };
 
@@ -501,6 +507,12 @@ export default function Financeiro() {
         </div>
 
         {loading && <p className="text-sm text-muted-foreground">Carregando...</p>}
+        {pacienteFiltro && (
+          <div className="flex items-center gap-2 text-sm">
+            <span className="rounded-full bg-primary/10 text-primary px-3 py-1">Mostrando só: {nomePaciente(pacienteFiltro)}</span>
+            <Button variant="ghost" size="sm" onClick={() => setSearchParams({})}><X className="h-3.5 w-3.5 mr-1" />Ver todos</Button>
+          </div>
+        )}
         {!loading && filtrados.length === 0 && (
           <p className="text-sm text-muted-foreground">Nenhuma venda registrada ainda.</p>
         )}
@@ -538,7 +550,7 @@ export default function Financeiro() {
 <label title="Anexar mais um recibo" className="cursor-pointer text-muted-foreground hover:text-foreground">
                       <Upload className="h-4 w-4" />
                       <input type="file" multiple accept="image/*,application/pdf" className="hidden"
-                        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) anexarRecibo(l, f); }} />
+                        onChange={async (e) => { const fs = Array.from(e.target.files ?? []); e.target.value = ""; if (fs.length) await anexarRecibo(l, fs); }} />
                     </label>
                   <button onClick={() => excluir(l.id)} className="text-destructive/70 hover:text-destructive">
                     <Trash2 className="h-4 w-4" />

@@ -179,7 +179,8 @@ Deno.serve(async (req) => {
     );
   }
 
-  const MAX_POR_RODADA = restanteHoje;
+  // Lotes pequenos por rodada (roda de hora em hora) para não estourar o tempo limite.
+  const MAX_POR_RODADA = Math.min(restanteHoje, oficial ? 5 : 1);
 
   const relatorio = {
     avaliados: 0,
@@ -298,8 +299,8 @@ Deno.serve(async (req) => {
             // Oficial: 20-50s entre mensagens. MegaAPI (não oficial): 3-6 min.
             await espera(
               oficial
-                ? 20000 + Math.floor(Math.random() * 30000)
-                : 180000 + Math.floor(Math.random() * 180000),
+                ? 4000 + Math.floor(Math.random() * 4000)
+                : 8000 + Math.floor(Math.random() * 4000),
             );
           }
         } else {

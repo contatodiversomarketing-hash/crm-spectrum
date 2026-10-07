@@ -99,11 +99,12 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
     return path;
   };
 
-  const anexarRecibo = async (l: Lancamento, file: File) => {
-    const path = await enviarRecibo(file);
-    if (!path) return;
-    await supabase.from("financeiro_lancamentos").update({ comprovante_path: l.comprovante_path ?? path, comprovantes: [...listaRecibos(l), path] }).eq("id", l.id);
-    toast.success("Recibo anexado");
+  const anexarRecibo = async (l: Lancamento, files: File[]) => {
+    const paths: string[] = [];
+    for (const file of files) { const path = await enviarRecibo(file); if (path) paths.push(path); }
+    if (!paths.length) return;
+    await supabase.from("financeiro_lancamentos").update({ comprovante_path: l.comprovante_path ?? paths[0], comprovantes: [...listaRecibos(l), ...paths] }).eq("id", l.id);
+    toast.success(paths.length > 1 ? `${paths.length} recibos anexados` : "Recibo anexado");
     carregar();
   };
 
@@ -370,7 +371,7 @@ export function FinanceiroTab({ pacienteId }: { pacienteId: string }) {
 <label title="Anexar mais um recibo" className="cursor-pointer text-muted-foreground hover:text-foreground">
                   <Upload className="h-4 w-4" />
                   <input type="file" multiple accept="image/*,application/pdf" className="hidden"
-                    onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) anexarRecibo(l, f); }} />
+                    onChange={async (e) => { const fs = Array.from(e.target.files ?? []); e.target.value = ""; if (fs.length) await anexarRecibo(l, fs); }} />
                 </label>
               <button onClick={() => excluir(l.id)} className="text-destructive/70 hover:text-destructive">
                 <Trash2 className="h-4 w-4" />

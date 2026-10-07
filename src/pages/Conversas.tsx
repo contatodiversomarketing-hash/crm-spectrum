@@ -521,11 +521,12 @@ export default function Conversas() {
   const iniciarGravacao = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const rec = new MediaRecorder(stream);
+      const tipoRec = ["audio/ogg;codecs=opus", "audio/mp4", "audio/webm;codecs=opus"].find((t) => MediaRecorder.isTypeSupported(t)) || "";
+      const rec = tipoRec ? new MediaRecorder(stream, { mimeType: tipoRec }) : new MediaRecorder(stream);
       chunksRef.current = [];
       rec.ondataavailable = (e) => e.data.size > 0 && chunksRef.current.push(e.data);
       rec.onstop = () => {
-        setAudioBlob(new Blob(chunksRef.current, { type: "audio/webm" }));
+        setAudioBlob(new Blob(chunksRef.current, { type: (rec.mimeType || "audio/webm").split(";")[0] }));
         stream.getTracks().forEach((t) => t.stop());
       };
       rec.start();
@@ -544,7 +545,7 @@ export default function Conversas() {
   const enviarAudio = async (numero: string) => {
     if (!audioBlob) return;
     const base64 = await blobParaBase64(audioBlob);
-    await enviarMidia(numero, { tipo: "audio", base64, fileName: "audio.webm", mimeType: "audio/webm" });
+    await enviarMidia(numero, { tipo: "audio", base64, fileName: `audio.${audioBlob!.type.includes("ogg") ? "ogg" : audioBlob!.type.includes("mp4") ? "m4a" : "webm"}`, mimeType: audioBlob!.type || "audio/webm" });
     setAudioBlob(null);
   };
 
