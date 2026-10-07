@@ -352,16 +352,15 @@ export default function Conversas() {
   }
 
   async function apagarMensagem(item: Interacao, campo: "mensagem_usuario" | "resposta_final") {
-    const outro = campo === "mensagem_usuario" ? item.resposta_final : item.mensagem_usuario;
-    const query = outro
-      ? supabase.from("interacoes_ia").update({ [campo]: null }).eq("id", item.id)
-      : supabase.from("interacoes_ia").delete().eq("id", item.id);
-    const { error } = await query;
+    if (!confirm("Apagar esta mensagem só aqui na plataforma?\n\nAtenção: ela NÃO é apagada do WhatsApp — o paciente continua vendo.")) return;
+    const { error } = await supabase.from("interacoes_ia")
+      .update({ [campo]: "🚫 Mensagem apagada apenas da plataforma — continua visível no WhatsApp do paciente." })
+      .eq("id", item.id);
     if (error) {
       toast({ title: "Erro ao apagar", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Mensagem apagada", description: "Removida apenas aqui na plataforma." });
+    toast({ title: "Apagada só na plataforma", description: "No WhatsApp do paciente a mensagem continua aparecendo." });
     carregar();
   }
 
@@ -702,7 +701,11 @@ export default function Conversas() {
   );
 
 
-  const ativa = conversas.find((c) => c.telefone === selecionada) || conversas[0];
+  // Nunca troca sozinha de conversa: a primeira é fixada e só muda quando alguém clica em outra.
+  useEffect(() => {
+    if (!selecionada && conversas[0]) setSelecionada(conversas[0].telefone);
+  }, [selecionada, conversas]);
+  const ativa = conversas.find((c) => c.telefone === selecionada) || (selecionada ? undefined : conversas[0]);
 
   const titulo = "Conversas";
   const subtitulo = "Espelho do WhatsApp — pacientes, Ana e atendentes no mesmo chat";
