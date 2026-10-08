@@ -1,3 +1,4 @@
+import { converterParaMp3 } from "@/lib/audioMp3";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -186,8 +187,9 @@ export function LeadChatDialog({
     if (!audioBlob) return;
     setSending(true);
     try {
-      const base64 = await blobToBase64(audioBlob);
-      await invokeSend({ tipo: "audio", base64, fileName: `audio.${audioBlob!.type.includes("ogg") ? "ogg" : audioBlob!.type.includes("mp4") ? "m4a" : "webm"}`, mimeType: audioBlob!.type || "audio/webm" });
+      const mp3 = await converterParaMp3(audioBlob);
+      const base64 = await blobToBase64(mp3);
+      await invokeSend({ tipo: "audio", base64, fileName: "audio.mp3", mimeType: "audio/mpeg" });
       setAudioBlob(null);
       await fetchMessages();
     } catch (e: any) {
