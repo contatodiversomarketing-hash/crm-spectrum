@@ -260,14 +260,14 @@ export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSave
 
           <TabsContent value="dados" className="space-y-5 pt-4">
             <div className="space-y-1.5">
-              <Label>Tipo de paciente</Label>
-              <Select value={form.tipo} onValueChange={(v) => set("tipo", v)}>
-                <SelectTrigger className="max-w-xs"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-popover z-50">
-                  <SelectItem value="adulto">Adulto</SelectItem>
-                  <SelectItem value="crianca">Criança / adolescente</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>O paciente é menor de idade?</Label>
+              <div className="flex gap-2">
+                {[{ v: "crianca", t: "Sim" }, { v: "adulto", t: "Não" }].map((o) => (
+                  <Button key={o.v} type="button" variant={form.tipo === o.v ? "default" : "outline"} className="w-24"
+                    onClick={() => set("tipo", o.v)}>{o.t}</Button>
+                ))}
+              </div>
+              {form.tipo === "crianca" && <p className="text-xs text-muted-foreground">Preencha os dados do responsável mais abaixo.</p>}
             </div>
 
             <div className="grid sm:grid-cols-2 gap-3">
