@@ -45,6 +45,9 @@ Deno.serve(async (req) => {
     if (numero.length < 10) return json({ error: "Número de WhatsApp inválido" }, 400);
     if (tipo === "text" && !body.texto?.trim()) return json({ error: "Mensagem vazia" }, 400);
     if (tipo !== "text" && !body.base64) return json({ error: "Arquivo não enviado" }, 400);
+    if (tipo === "audio" && !/audio\/(mpeg|ogg|aac|amr)/i.test(body.mimeType || "")) {
+      return json({ error: "Versão antiga da plataforma: atualize a página (F5) e grave o áudio novamente para ele chegar no WhatsApp." }, 400);
+    }
 
     const canonico = telCanonico(numero) || numero;
 
