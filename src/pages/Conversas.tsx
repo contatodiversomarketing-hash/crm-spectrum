@@ -1,3 +1,4 @@
+import { converterParaMp3 } from "@/lib/audioMp3";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { BotaoLigar } from "@/contexts/TwilioContext";
@@ -543,8 +544,9 @@ export default function Conversas() {
 
   const enviarAudio = async (numero: string) => {
     if (!audioBlob) return;
-    const base64 = await blobParaBase64(audioBlob);
-    await enviarMidia(numero, { tipo: "audio", base64, fileName: `audio.${audioBlob!.type.includes("ogg") ? "ogg" : audioBlob!.type.includes("mp4") ? "m4a" : "webm"}`, mimeType: audioBlob!.type || "audio/webm" });
+    const mp3 = await converterParaMp3(audioBlob);
+    const base64 = await blobParaBase64(mp3);
+    await enviarMidia(numero, { tipo: "audio", base64, fileName: "audio.mp3", mimeType: "audio/mpeg" });
     setAudioBlob(null);
   };
 
