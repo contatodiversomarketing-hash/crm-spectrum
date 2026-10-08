@@ -101,7 +101,15 @@ export function TwilioProvider({ children }: { children: ReactNode }) {
       call.on("disconnect", finalizar);
       call.on("cancel", finalizar);
       call.on("reject", finalizar);
-      call.on("error", (e: { message?: string }) => { toast.error(`Erro na ligação: ${e.message ?? ""}`); finalizar(); });
+      call.on("error", (e: { message?: string; code?: number }) => {
+        const m = e.message ?? "";
+        if (e.code === 31005 || m.includes("31005") || m.includes("HANGUP")) {
+          toast.warning("A ligação tocou, mas não foi atendida (celular desligado, sem sinal ou chamada recusada). Tente de novo mais tarde ou chame no WhatsApp.");
+        } else {
+          toast.error(`Erro na ligação: ${m}`);
+        }
+        finalizar();
+      });
     } catch (e) {
       const msg = (e as Error).message || "";
       toast.error(msg.includes("Permission") || msg.includes("NotAllowed") ? "Permita o uso do microfone para ligar." : `Não foi possível ligar: ${msg}`);
