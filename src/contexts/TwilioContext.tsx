@@ -67,7 +67,7 @@ export function TwilioProvider({ children }: { children: ReactNode }) {
     const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     s.getTracks().forEach((t) => t.stop());
     const token = await buscarToken();
-    const d = new Device(token, { codecPreferences: [Call.Codec.PCMU, Call.Codec.Opus], closeProtection: true, logLevel: "warn" });
+    const d = new Device(token, { codecPreferences: [Call.Codec.PCMU, Call.Codec.Opus], closeProtection: true, edge: ["sao-paulo", "ashburn", "roaming"], logLevel: "warn" });
     d.on("tokenWillExpire", renovar);
     d.on("error", async (err: { code?: number; message?: string }) => {
       console.error("Twilio device", err);
@@ -91,8 +91,7 @@ export function TwilioProvider({ children }: { children: ReactNode }) {
     setNome(nome || to); setNumero(to); setEstado("chamando");
     try {
       const d = await garantirDevice();
-      const inputs = Array.from(d.audio?.availableInputDevices.keys() ?? []);
-      if (inputs[0]) await d.audio?.setInputDevice(inputs[0]).catch(() => {});
+      await d.audio?.setInputDevice("default").catch(() => {});
       const call = await d.connect({ params: {
         To: to, agentUserId: user?.id ?? "", leadId: leadId ?? "", pacienteId: pacienteId ?? "", clientName: nome ?? "",
       } });
