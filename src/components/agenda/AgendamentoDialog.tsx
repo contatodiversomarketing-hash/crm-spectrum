@@ -173,7 +173,7 @@ export function AgendamentoDialog({
     dt.setHours(h, m, 0, 0);
 
     const existente = await buscarPacienteExistente();
-    if (!agendamento && !(await sinalQuitado(existente))) {
+    if (!agendamento && tipo !== "Retorno" && !(await sinalQuitado(existente))) {
       setSaving(false);
       toast.error(
         existente
