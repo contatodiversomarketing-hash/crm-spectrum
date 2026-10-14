@@ -3085,6 +3085,57 @@ serve(async (req) => {
     }
 
 
+
+    // =============================
+    // QR CODES: Agendar/Indicar → INDICAÇÃO PALESTRA SP | NeuroAcesso → PLANO NEUROACESSO
+    // =============================
+    {
+      const norm = (mensagemTexto || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      if (norm.includes("vim pelo qr code")) {
+        const ehNeuro = norm.includes("neuroacesso");
+        const nomePipeline = ehNeuro ? "PLANO NEUROACESSO" : "INDICAÇÃO PALESTRA SP";
+        const saudacao = ehNeuro
+          ? "Olá! Que alegria seu interesse no NeuroAcesso 💚 Em breve alguém da equipe da Dra. Amélia entrará em contato."
+          : "Olá! Que bom ter você aqui 💚 Recebemos seu contato e, em breve, alguém da equipe da Dra. Amélia falará com você.";
+        try {
+          const { data: pipe } = await supabase.from("pipelines").select("id").ilike("nome", nomePipeline).limit(1).maybeSingle();
+          let colunaChave = "novo";
+          if (pipe?.id) {
+            const { data: col } = await supabase.from("pipeline_colunas").select("chave").eq("pipeline_id", pipe.id).order("ordem").limit(1).maybeSingle();
+            if (col?.chave) colunaChave = col.chave;
+          }
+          const dig = numero.replace(/\D/g, "");
+          const fim8 = dig.slice(-8);
+          const { data: existentes } = await supabase.from("leads").select("id, telefone").ilike("telefone", `%${fim8}`).limit(5);
+          const lead = (existentes || [])[0];
+          const origem = ehNeuro ? "qr_neuroacesso" : "qr_indicacao_palestra_sp";
+          if (lead) {
+            await supabase.from("leads").update({ pipeline_id: pipe?.id ?? null, status_pipeline: colunaChave, origem, ultima_interacao: new Date().toISOString() }).eq("id", lead.id);
+          } else {
+            await supabase.from("leads").insert({ telefone: dig, pipeline_id: pipe?.id ?? null, status_pipeline: colunaChave, origem, status: "novo", ultima_interacao: new Date().toISOString() });
+          }
+          const envio = await enviarTexto(numero, saudacao);
+          await supabase.from("interacoes_ia").insert({
+            paciente_externo_id: numeroCanonicoLog,
+            canal: "whatsapp",
+            sistema_origem: "whatsapp",
+            mensagem_usuario: null,
+            resposta_final: saudacao,
+            estado_conversa: "aguardando_atendente",
+            supervisionado: true,
+            whatsapp_message_id: envio?.messageId ?? null,
+            whatsapp_status: envio?.ok ? "sent" : "failed",
+          });
+          console.log(`[whatsapp] QR ${origem} → ${nomePipeline} (${colunaChave})`);
+        } catch (e) {
+          console.error("[whatsapp] erro fluxo QR:", e);
+        }
+        return new Response(JSON.stringify({ status: "qr_code_direcionado" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Verificar se o canal WhatsApp está ativo
     const { data: configCanal, error: configCanalError } = await supabase
       .from("configuracoes_sistema")

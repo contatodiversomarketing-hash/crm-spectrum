@@ -61,7 +61,7 @@ serve(async (req) => {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "openai/gpt-5-mini",
+        model: "openai/gpt-5.4-mini",
         messages: [
           { role: "system", content: "Analista de dados clínica. Resumo executivo conciso (máx 5 bullets) em português. Foque: tendências, melhorias, riscos, ações. Use emojis." },
           { role: "user", content: `Dados últimos 7 dias:\n${JSON.stringify(resumoDados, null, 2)}` },
