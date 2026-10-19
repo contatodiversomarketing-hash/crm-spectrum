@@ -4,6 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import type { PipelineColumn } from "@/hooks/usePipelineColumns";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { EnvioEmMassaDialog } from "./EnvioEmMassaDialog";
 
 interface KanbanBoardProps {
   leads: Lead[];
@@ -50,7 +51,10 @@ export function KanbanBoard({ leads, onRefresh, columns }: KanbanBoardProps) {
             <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border">
               <div className={`w-2.5 h-2.5 rounded-full ${col.cor}`} />
               <h3 className="text-sm font-semibold text-foreground">{col.nome}</h3>
-              <span className="ml-auto text-xs font-medium text-muted-foreground bg-background px-2 py-0.5 rounded-full">
+              <div className="ml-auto">
+                <EnvioEmMassaDialog colunaNome={col.nome} leads={colLeads} />
+              </div>
+              <span className="text-xs font-medium text-muted-foreground bg-background px-2 py-0.5 rounded-full">
                 {colLeads.length}
               </span>
             </div>
