@@ -3136,6 +3136,9 @@ serve(async (req) => {
 
 
     // =============================
+    await registrarRespostaNoCRM(supabase, numero, body.pushName || body.sender?.pushName || body.sender?.name || null);
+
+    // =============================
     // QR CODES: Agendar/Indicar → INDICAÇÃO PALESTRA SP | NeuroAcesso → PLANO NEUROACESSO
     // =============================
     {
@@ -3234,7 +3237,7 @@ serve(async (req) => {
     const numerosBusca = numeroVariacoes.length ? Array.from(new Set([...numeroVariacoes, numero])) : [numero];
 
     // Toda conversa vira card no CRM
-    await garantirLeadCRM(supabase, numero, body.pushName || body.sender?.pushName || null);
+    await garantirLeadCRM(supabase, numero, body.pushName || body.sender?.pushName || body.sender?.name || null);
 
 
     // =============================
@@ -3359,6 +3362,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     contextExtra += contextAgenda;
     if (nomeConfirmadoAtual) {
       contextExtra += `\n\nNOME INFORMADO PELA PRÓPRIA PESSOA NESTA CONVERSA: ${nomeConfirmadoAtual}.`;
+      await atualizarNomeLeadSeVazio(supabase, numero, nomeConfirmadoAtual);
     }
     contextExtra += `\nTELEFONE DO PACIENTE: ${numero}`;
     if (pacienteEncontrado?.id) {
