@@ -1,3 +1,4 @@
+import { marcarLeadComoLido } from "@/lib/marcarLido";
 import { converterParaMp3 } from "@/lib/audioMp3";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -93,6 +94,7 @@ export function LeadChatDialog({
 
   useEffect(() => {
     if (!open) return;
+    marcarLeadComoLido(telefone);
     setLoading(true);
     fetchMessages().finally(() => setLoading(false));
     const t = setInterval(fetchMessages, 6000);

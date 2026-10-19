@@ -1,3 +1,4 @@
+import { marcarLeadComoLido } from "@/lib/marcarLido";
 import { converterParaMp3 } from "@/lib/audioMp3";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -790,7 +791,7 @@ export default function Conversas() {
                 return (
                   <div key={c.telefone} className={`flex items-center border-b hover:bg-secondary/50 transition-colors ${isAtiva ? "bg-secondary" : ""}`}>
                   <button
-                    onClick={() => setSelecionada(c.telefone)}
+                    onClick={() => { setSelecionada(c.telefone); marcarLeadComoLido(c.telefone); }}
                     className="flex-1 min-w-0 text-left px-3 py-3"
                   >
                     <div className="flex items-center justify-between gap-2">

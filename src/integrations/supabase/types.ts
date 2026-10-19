@@ -896,6 +896,7 @@ export type Database = {
           id: string
           logradouro: string | null
           medico_preferido: string | null
+          nao_lidas: number
           nome: string | null
           nome_filho: string | null
           numero: string | null
@@ -907,6 +908,7 @@ export type Database = {
           status_pipeline: string
           telefone: string | null
           ultima_interacao: string | null
+          ultima_msg_recebida_em: string | null
         }
         Insert: {
           bairro?: string | null
@@ -927,6 +929,7 @@ export type Database = {
           id?: string
           logradouro?: string | null
           medico_preferido?: string | null
+          nao_lidas?: number
           nome?: string | null
           nome_filho?: string | null
           numero?: string | null
@@ -938,6 +941,7 @@ export type Database = {
           status_pipeline?: string
           telefone?: string | null
           ultima_interacao?: string | null
+          ultima_msg_recebida_em?: string | null
         }
         Update: {
           bairro?: string | null
@@ -958,6 +962,7 @@ export type Database = {
           id?: string
           logradouro?: string | null
           medico_preferido?: string | null
+          nao_lidas?: number
           nome?: string | null
           nome_filho?: string | null
           numero?: string | null
@@ -969,6 +974,7 @@ export type Database = {
           status_pipeline?: string
           telefone?: string | null
           ultima_interacao?: string | null
+          ultima_msg_recebida_em?: string | null
         }
         Relationships: [
           {

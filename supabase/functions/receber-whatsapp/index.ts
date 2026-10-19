@@ -1958,6 +1958,55 @@ async function garantirLeadCRM(
   }
 }
 
+// Quando a pessoa responde: marca não lida, completa o nome e move para "Conversa iniciada"
+const COLUNAS_INICIAIS = /^(novo|novo_dia_que_o_lead_chegou|primeiro_contato|nao_responde|nao_responde_qualquer_contato|leads_para_resgate|mensagem_inicio|aguardando_resposta|follow|folow)/;
+async function registrarRespostaNoCRM(
+  supabase: ReturnType<typeof createClient>,
+  telefone: string,
+  nomePerfil?: string | null,
+): Promise<void> {
+  try {
+    await garantirLeadCRM(supabase, telefone, nomePerfil);
+    const lead: any = await buscarLead(supabase, telefone, null, "id, nome, pipeline_id, status_pipeline, nao_lidas");
+    if (!lead?.id) return;
+    const upd: Record<string, unknown> = {
+      nao_lidas: (lead.nao_lidas || 0) + 1,
+      ultima_msg_recebida_em: new Date().toISOString(),
+    };
+    const nomeAtual = (lead.nome || "").trim();
+    const semNome = !nomeAtual || /^whatsapp\s/i.test(nomeAtual) || !/[a-zA-ZÀ-ÿ]/.test(nomeAtual);
+    if (semNome && (nomePerfil || "").trim()) upd.nome = nomePerfil!.trim();
+
+    if (lead.pipeline_id) {
+      const { data: cols } = await supabase
+        .from("pipeline_colunas").select("chave, nome, ordem").eq("pipeline_id", lead.pipeline_id).order("ordem");
+      const lista = (cols || []) as { chave: string; nome: string; ordem: number }[];
+      const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const alvo =
+        lista.find((c) => norm(c.nome).includes("conversa iniciada")) ||
+        lista.find((c) => /conversando|respondeu|respondido/.test(norm(c.nome))) ||
+        lista.find((c) => norm(c.nome) === "em contato");
+      const atual = lista.find((c) => c.chave === lead.status_pipeline);
+      const atualEhInicial = !atual || COLUNAS_INICIAIS.test(atual.chave) || (alvo && atual.ordem < alvo.ordem && /novo|primeiro|nao respond|follow|folow|aguardando resposta/.test(norm(atual.nome)));
+      if (alvo && atual?.chave !== alvo.chave && atualEhInicial) upd.status_pipeline = alvo.chave;
+    }
+    await supabase.from("leads").update(upd).eq("id", lead.id);
+  } catch (e) {
+    console.error("[whatsapp] registrarRespostaNoCRM:", e);
+  }
+}
+
+async function atualizarNomeLeadSeVazio(supabase: ReturnType<typeof createClient>, telefone: string, nome: string) {
+  try {
+    const lead: any = await buscarLead(supabase, telefone, null, "id, nome");
+    if (!lead?.id) return;
+    const n = (lead.nome || "").trim();
+    if (!n || /^whatsapp\s/i.test(n) || !/[a-zA-ZÀ-ÿ]/.test(n)) {
+      await supabase.from("leads").update({ nome }).eq("id", lead.id);
+    }
+  } catch (_) { /* ignore */ }
+}
+
 
 async function criarLeadCRM(
   supabase: ReturnType<typeof createClient>,
@@ -3087,6 +3136,9 @@ serve(async (req) => {
 
 
     // =============================
+    await registrarRespostaNoCRM(supabase, numero, body.pushName || body.sender?.pushName || body.sender?.name || null);
+
+    // =============================
     // QR CODES: Agendar/Indicar → INDICAÇÃO PALESTRA SP | NeuroAcesso → PLANO NEUROACESSO
     // =============================
     {
@@ -3185,7 +3237,7 @@ serve(async (req) => {
     const numerosBusca = numeroVariacoes.length ? Array.from(new Set([...numeroVariacoes, numero])) : [numero];
 
     // Toda conversa vira card no CRM
-    await garantirLeadCRM(supabase, numero, body.pushName || body.sender?.pushName || null);
+    await garantirLeadCRM(supabase, numero, body.pushName || body.sender?.pushName || body.sender?.name || null);
 
 
     // =============================
@@ -3310,6 +3362,7 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
     contextExtra += contextAgenda;
     if (nomeConfirmadoAtual) {
       contextExtra += `\n\nNOME INFORMADO PELA PRÓPRIA PESSOA NESTA CONVERSA: ${nomeConfirmadoAtual}.`;
+      await atualizarNomeLeadSeVazio(supabase, numero, nomeConfirmadoAtual);
     }
     contextExtra += `\nTELEFONE DO PACIENTE: ${numero}`;
     if (pacienteEncontrado?.id) {

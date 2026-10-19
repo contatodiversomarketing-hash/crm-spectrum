@@ -28,7 +28,15 @@ export function KanbanBoard({ leads, onRefresh, columns }: KanbanBoardProps) {
   return (
     <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: "calc(100vh - 280px)" }}>
       {columns.map((col) => {
-        const colLeads = leads.filter((l) => l.status_pipeline === col.chave);
+        const colLeads = leads
+          .filter((l) => l.status_pipeline === col.chave)
+          .sort((a, b) => {
+            const ua = (a.nao_lidas ?? 0) > 0 ? 1 : 0;
+            const ub = (b.nao_lidas ?? 0) > 0 ? 1 : 0;
+            if (ua !== ub) return ub - ua;
+            if (ua) return (b.ultima_msg_recebida_em || "").localeCompare(a.ultima_msg_recebida_em || "");
+            return 0;
+          });
         return (
           <div
             key={col.id}
