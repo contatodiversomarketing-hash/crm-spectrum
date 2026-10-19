@@ -50,6 +50,13 @@
       "when": 1792432058661,
       "tag": "0006_leads_nao_lidas",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792433643825,
+      "tag": "0007_avisos_espera_atendimento",
+      "breakpoints": true
     }
   ]
 }
