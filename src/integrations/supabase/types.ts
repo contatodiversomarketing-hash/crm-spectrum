@@ -324,6 +324,51 @@ export type Database = {
           },
         ]
       }
+      aviso_espera_config: {
+        Row: {
+          endpoint: string
+          id: boolean
+          token: string
+        }
+        Insert: {
+          endpoint: string
+          id?: boolean
+          token?: string
+        }
+        Update: {
+          endpoint?: string
+          id?: boolean
+          token?: string
+        }
+        Relationships: []
+      }
+      avisos_espera_atendimento: {
+        Row: {
+          destino: string
+          episodio: string
+          estado: string
+          inicio_espera: string
+          telefone: string
+          ultima_recebida: string
+        }
+        Insert: {
+          destino: string
+          episodio?: string
+          estado?: string
+          inicio_espera: string
+          telefone: string
+          ultima_recebida: string
+        }
+        Update: {
+          destino?: string
+          episodio?: string
+          estado?: string
+          inicio_espera?: string
+          telefone?: string
+          ultima_recebida?: string
+        }
+        Relationships: []
+      }
       call_events: {
         Row: {
           call_id: string | null
@@ -1864,6 +1909,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      armar_avisos_espera: { Args: never; Returns: undefined }
+      desarmar_avisos_espera: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1872,6 +1919,23 @@ export type Database = {
         Returns: boolean
       }
       limpar_locks_antigos: { Args: never; Returns: undefined }
+      reservar_avisos_espera: {
+        Args: never
+        Returns: {
+          destino: string
+          episodio: string
+          estado: string
+          inicio_espera: string
+          telefone: string
+          ultima_recebida: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "avisos_espera_atendimento"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
     }
     Enums: {
       app_role: "admin" | "supervisao" | "analista" | "auxiliar"
