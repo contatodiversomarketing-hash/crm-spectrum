@@ -35,7 +35,10 @@ export default function CRMPage() {
   }, [pipelines, activePipelineId]);
 
   useEffect(() => {
-    if (activePipelineId) fetchLeads();
+    if (!activePipelineId) return;
+    fetchLeads();
+    const t = setInterval(() => fetchLeads(true), 15000);
+    return () => clearInterval(t);
   }, [activePipelineId]);
 
   // Chave canônica: últimos 8 dígitos do telefone (ignora DDI/9º dígito)
@@ -51,9 +54,9 @@ export default function CRMPage() {
     return n.replace(/\D/g, "").length >= 8 && !/[a-zA-ZÀ-ÿ]/.test(n);
   };
 
-  const fetchLeads = async () => {
+  const fetchLeads = async (silencioso = false) => {
     if (!activePipelineId) return;
-    setLoading(true);
+    if (!silencioso) setLoading(true);
     const { data, error } = await supabase
       .from("leads")
       .select("*")

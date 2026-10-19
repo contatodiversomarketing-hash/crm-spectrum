@@ -51,6 +51,8 @@ export interface Lead {
   nome_filho?: string | null;
   documentos?: any;
   etiquetas?: string[] | null;
+  nao_lidas?: number | null;
+  ultima_msg_recebida_em?: string | null;
 }
 
 const ETAPA_LABEL: Record<number, { texto: string; tom: string }> = {
@@ -138,13 +140,22 @@ export function LeadCard({
 
   return (
     <>
-      <div className="bg-card border border-border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing w-full min-w-0 max-w-full overflow-hidden">
+      <div className={`bg-card border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing w-full min-w-0 max-w-full overflow-hidden ${(lead.nao_lidas ?? 0) > 0 ? "border-primary ring-1 ring-primary/40" : "border-border"}`}>
         <div className="flex items-start justify-between gap-1 mb-2">
           <div className="flex items-start gap-1 flex-1 min-w-0">
             <GripVertical className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground" />
             <p className="font-semibold text-sm text-foreground truncate flex-1">
-              {lead.nome || "Sem nome"}
+              {(() => {
+                const n = (lead.nome || "").trim();
+                const valido = n && !/^whatsapp\s/i.test(n) && /[a-zA-ZÀ-ÿ]/.test(n);
+                return valido ? n : "Sem nome";
+              })()}
             </p>
+            {(lead.nao_lidas ?? 0) > 0 && (
+              <span className="shrink-0 rounded-full bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5" title="Mensagens não lidas">
+                {lead.nao_lidas} nova{(lead.nao_lidas ?? 0) > 1 ? "s" : ""}
+              </span>
+            )}
           </div>
           <div className="flex gap-0.5 shrink-0">
             {onMove && columns.length > 0 && (
