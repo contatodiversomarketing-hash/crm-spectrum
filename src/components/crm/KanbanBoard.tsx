@@ -5,6 +5,7 @@ import type { PipelineColumn } from "@/hooks/usePipelineColumns";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { EnvioEmMassaDialog } from "./EnvioEmMassaDialog";
+import { compareConversationLeads } from "@/lib/crmLeadOrder";
 
 interface KanbanBoardProps {
   leads: Lead[];
@@ -30,13 +31,7 @@ export function KanbanBoard({ leads, onRefresh, columns }: KanbanBoardProps) {
       {columns.map((col) => {
         const colLeads = leads
           .filter((l) => l.status_pipeline === col.chave)
-          .sort((a, b) => {
-            const ua = (a.nao_lidas ?? 0) > 0 ? 1 : 0;
-            const ub = (b.nao_lidas ?? 0) > 0 ? 1 : 0;
-            if (ua !== ub) return ub - ua;
-            if (ua) return (b.ultima_msg_recebida_em || "").localeCompare(a.ultima_msg_recebida_em || "");
-            return 0;
-          });
+          .sort(compareConversationLeads);
         return (
           <div
             key={col.id}
