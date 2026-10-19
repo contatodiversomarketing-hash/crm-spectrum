@@ -29,10 +29,10 @@ Deno.serve(async (req) => {
     if (atual?.estado !== "enviando" || atual.episodio !== item.episodio) continue;
     let estado = "falhou";
     try {
-      const envio = await enviarTextoMega(item.telefone, TEXTO_AVISO_ESPERA);
+      const envio = await enviarTextoMega(item.destino, TEXTO_AVISO_ESPERA);
       estado = envio.ok ? "enviado" : "falhou";
       const { error: logError } = await db.from("interacoes_ia").insert({
-        paciente_externo_id: item.telefone, canal: "whatsapp", sistema_origem: "ana_aviso_espera",
+        paciente_externo_id: item.destino, canal: "whatsapp", sistema_origem: "ana_aviso_espera",
         mensagem_usuario: null, resposta_final: TEXTO_AVISO_ESPERA,
         estado_conversa: "aviso_espera_atendente", intencao_detectada: "aviso_demora_2h",
         supervisionado: false, whatsapp_message_id: envio.messageId ?? null,
