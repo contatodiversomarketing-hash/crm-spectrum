@@ -1,3 +1,4 @@
+import { marcarLeadComoLido } from "@/lib/marcarLido";
 import { converterParaMp3 } from "@/lib/audioMp3";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
