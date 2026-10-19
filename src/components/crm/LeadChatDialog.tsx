@@ -93,6 +93,7 @@ export function LeadChatDialog({
 
   useEffect(() => {
     if (!open) return;
+    marcarLeadComoLido(telefone);
     setLoading(true);
     fetchMessages().finally(() => setLoading(false));
     const t = setInterval(fetchMessages, 6000);
