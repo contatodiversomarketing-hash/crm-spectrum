@@ -616,6 +616,27 @@ export type Database = {
           },
         ]
       }
+      crm_etiquetas: {
+        Row: {
+          cor: string
+          criado_em: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          cor?: string
+          criado_em?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          cor?: string
+          criado_em?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
       desempenho_vendedoras: {
         Row: {
           atualizado_em: string
@@ -949,6 +970,7 @@ export type Database = {
           origem: string | null
           origem_externa_id: string | null
           pipeline_id: string | null
+          reuniao_em: string | null
           status: string
           status_pipeline: string
           telefone: string | null
@@ -982,6 +1004,7 @@ export type Database = {
           origem?: string | null
           origem_externa_id?: string | null
           pipeline_id?: string | null
+          reuniao_em?: string | null
           status?: string
           status_pipeline?: string
           telefone?: string | null
@@ -1015,6 +1038,7 @@ export type Database = {
           origem?: string | null
           origem_externa_id?: string | null
           pipeline_id?: string | null
+          reuniao_em?: string | null
           status?: string
           status_pipeline?: string
           telefone?: string | null
