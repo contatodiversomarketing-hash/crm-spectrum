@@ -118,7 +118,7 @@ export default function CRMPage() {
           <p className="text-sm text-muted-foreground">Gerencie múltiplas pipelines de leads</p>
         </div>
         <div className="flex items-center gap-2">
-          <NewLeadDialog pipelineId={activePipelineId} columns={columns} onCreated={fetchLeads} />
+          <NewLeadDialog pipelineId={activePipelineId} columns={columns} onCreated={fetchLeads} pipelineName={pipelines.find((pipeline) => pipeline.id === activePipelineId)?.nome ?? ""} />
           <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)} disabled={!activePipelineId}>
             <Settings className="h-4 w-4 mr-1.5" />
             Colunas

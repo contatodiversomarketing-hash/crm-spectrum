@@ -10,11 +10,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Upload, X, FileText, BellPlus } from "lucide-react";
 import type { PipelineColumn } from "@/hooks/usePipelineColumns";
+import { isNeuroMeetingStage, meetingTimestamp } from "@/lib/crmMeeting";
 
 interface Props {
   pipelineId: string | null;
   columns: PipelineColumn[];
   onCreated: () => void;
+  pipelineName?: string;
 }
 
 interface DocMeta {
@@ -23,7 +25,8 @@ interface DocMeta {
   size: number;
 }
 
-export function NewLeadDialog({ pipelineId, columns, onCreated }: Props) {
+export function NewLeadDialog({ pipelineId, columns, onCreated, pipelineName = "" }: Props) {
+  const [meeting, setMeeting] = useState("");
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -43,6 +46,7 @@ export function NewLeadDialog({ pipelineId, columns, onCreated }: Props) {
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
   const reset = () => {
+    setMeeting("");
     setForm({ nome: "", telefone: "", email: "", nome_filho: "", observacoes: "", status_pipeline: columns[0]?.chave || "novo" });
     setAlerta({ titulo: "", lembrar_em: "" });
     setDocs([]);
@@ -72,6 +76,9 @@ export function NewLeadDialog({ pipelineId, columns, onCreated }: Props) {
   };
 
   const handleSave = async () => {
+    if (isNeuroMeetingStage(pipelineName, columns.find((column) => column.chave === form.status_pipeline)?.nome ?? "") && !meetingTimestamp(meeting)) {
+      toast({ title: "Informe a data e hora da reunião", variant: "destructive" }); return;
+    }
     if (!form.nome && !form.telefone) {
       toast({ title: "Informe ao menos nome ou telefone", variant: "destructive" });
       return;
@@ -88,6 +95,7 @@ export function NewLeadDialog({ pipelineId, columns, onCreated }: Props) {
         status_pipeline: form.status_pipeline,
         pipeline_id: pipelineId,
         origem: "manual",
+        reuniao_em: meetingTimestamp(meeting),
         status: "novo",
         documentos: docs as any,
         ultima_interacao: new Date().toISOString(),
@@ -161,6 +169,10 @@ export function NewLeadDialog({ pipelineId, columns, onCreated }: Props) {
             </div>
 
             {/* Documentos */}
+            {isNeuroMeetingStage(pipelineName, columns.find((column) => column.chave === form.status_pipeline)?.nome ?? "") && <div className="space-y-1.5">
+              <Label htmlFor="new-meeting-date">Data e hora da reunião (Brasília)</Label>
+              <Input id="new-meeting-date" type="datetime-local" value={meeting} onChange={(event) => setMeeting(event.target.value)} />
+            </div>}
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5"><FileText className="h-3.5 w-3.5" /> Documentos anexados</Label>
               <input

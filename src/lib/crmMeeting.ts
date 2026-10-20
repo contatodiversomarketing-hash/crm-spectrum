@@ -12,6 +12,7 @@ export function meetingInput(value?: string | null) {
 }
 
 export function meetingTimestamp(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return null;
   const parsed = new Date(`${value}:00-03:00`);
   return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : null;
 }
