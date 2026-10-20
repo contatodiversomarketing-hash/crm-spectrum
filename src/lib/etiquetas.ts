@@ -1,7 +1,7 @@
 export interface EtiquetaDef {
   chave: string;
   nome: string;
-  grupo: "Para quem" | "Condição" | "Interesse";
+  grupo: "Para quem" | "Condição" | "Interesse" | "Personalizadas";
   classe: string;
 }
 

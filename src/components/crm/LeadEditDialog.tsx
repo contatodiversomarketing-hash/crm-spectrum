@@ -10,7 +10,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
 import type { Lead } from "./LeadCard";
 import { usePipelines } from "@/hooks/usePipelines";
-import { ETIQUETAS, GRUPOS_ETIQUETAS } from "@/lib/etiquetas";
+import { EtiquetasPicker } from "./EtiquetasPicker";
+import { isNeuroMeetingStage, meetingInput, meetingTimestamp } from "@/lib/crmMeeting";
 import { usePipelineColumns, type PipelineColumn } from "@/hooks/usePipelineColumns";
 
 interface LeadEditDialogProps {
@@ -25,6 +26,7 @@ export function LeadEditDialog({ lead, open, onOpenChange, onSaved, columns }: L
   const [saving, setSaving] = useState(false);
   const [pipelineId, setPipelineId] = useState<string | null>(lead.pipeline_id || null);
   const [etiquetas, setEtiquetas] = useState<string[]>(lead.etiquetas || []);
+  const [meeting, setMeeting] = useState(meetingInput(lead.reuniao_em));
   const { pipelines } = usePipelines();
   const { columns: pipelineColumns } = usePipelineColumns(pipelineId);
 
@@ -58,6 +60,7 @@ export function LeadEditDialog({ lead, open, onOpenChange, onSaved, columns }: L
     if (open) {
       setPipelineId(lead.pipeline_id || null);
       setEtiquetas(lead.etiquetas || []);
+      setMeeting(meetingInput(lead.reuniao_em));
       setForm({
         nome: lead.nome || "",
         telefone: lead.telefone || "",
@@ -90,7 +93,13 @@ export function LeadEditDialog({ lead, open, onOpenChange, onSaved, columns }: L
     }
   }, [pipelineColumns]);
 
+  const meetingStage = isNeuroMeetingStage(pipelines.find((pipeline) => pipeline.id === pipelineId)?.nome ?? "", availableColumns.find((column) => column.chave === form.status_pipeline)?.nome ?? "");
+
   const handleSave = async () => {
+    if (meetingStage && !meetingTimestamp(meeting)) {
+      toast({ title: "Informe a data e hora da reunião", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     const { error } = await supabase
       .from("leads")
@@ -112,6 +121,7 @@ export function LeadEditDialog({ lead, open, onOpenChange, onSaved, columns }: L
         status_pipeline: form.status_pipeline,
         pipeline_id: pipelineId,
         etiquetas,
+        reuniao_em: meeting ? meetingTimestamp(meeting) : null,
       })
       .eq("id", lead.id);
 
@@ -161,6 +171,10 @@ export function LeadEditDialog({ lead, open, onOpenChange, onSaved, columns }: L
             </div>
 
             {/* Dados pessoais */}
+            {meetingStage && <div className="space-y-1.5">
+              <Label htmlFor="edit-meeting-date">Data e hora da reunião (Brasília)</Label>
+              <Input id="edit-meeting-date" type="datetime-local" value={meeting} onChange={(event) => setMeeting(event.target.value)} />
+            </div>}
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2 space-y-1.5">
                 <Label>Nome Completo</Label>
@@ -226,28 +240,7 @@ export function LeadEditDialog({ lead, open, onOpenChange, onSaved, columns }: L
             {/* Etiquetas */}
             <div className="space-y-2">
               <Label>Etiquetas</Label>
-              {GRUPOS_ETIQUETAS.map((grupo) => (
-                <div key={grupo} className="space-y-1">
-                  <p className="text-xs text-muted-foreground">{grupo}</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {ETIQUETAS.filter((e) => e.grupo === grupo).map((e) => {
-                      const ativa = etiquetas.includes(e.chave);
-                      return (
-                        <button
-                          key={e.chave}
-                          type="button"
-                          onClick={() => toggleEtiqueta(e.chave)}
-                          className={`text-xs px-2 py-1 rounded-full border transition-colors ${
-                            ativa ? e.classe : "bg-background text-muted-foreground border-border hover:bg-muted"
-                          }`}
-                        >
-                          {e.nome}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
+              <EtiquetasPicker value={etiquetas} onChange={setEtiquetas} />
             </div>
 
             {/* Observações */}

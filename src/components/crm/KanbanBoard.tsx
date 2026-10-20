@@ -6,17 +6,25 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { EnvioEmMassaDialog } from "./EnvioEmMassaDialog";
 import { compareConversationLeads } from "@/lib/crmLeadOrder";
+import { isNeuroMeetingStage } from "@/lib/crmMeeting";
+import { MeetingDialog } from "./MeetingDialog";
 
 interface KanbanBoardProps {
   leads: Lead[];
   onRefresh: () => void;
   columns: PipelineColumn[];
+  pipelineName: string;
 }
 
-export function KanbanBoard({ leads, onRefresh, columns }: KanbanBoardProps) {
+export function KanbanBoard({ leads, onRefresh, columns, pipelineName }: KanbanBoardProps) {
   const [dragOver, setDragOver] = useState<string | null>(null);
+  const [pendingMeeting, setPendingMeeting] = useState<{ leadId: string; chave: string } | null>(null);
 
   const moveLead = async (leadId: string, chave: string) => {
+    if (isNeuroMeetingStage(pipelineName, columns.find((column) => column.chave === chave)?.nome ?? "")) {
+      setPendingMeeting({ leadId, chave });
+      return;
+    }
     const { error } = await supabase.from("leads").update({ status_pipeline: chave }).eq("id", leadId);
     if (error) {
       toast({ title: "Erro ao mover lead", description: error.message, variant: "destructive" });
@@ -27,6 +35,13 @@ export function KanbanBoard({ leads, onRefresh, columns }: KanbanBoardProps) {
   };
 
   return (
+    <><MeetingDialog open={pendingMeeting !== null} onOpenChange={(open) => { if (!open) setPendingMeeting(null); }} value={leads.find((lead) => lead.id === pendingMeeting?.leadId)?.reuniao_em} onSave={async (date) => {
+      if (!pendingMeeting) return false;
+      const { error } = await supabase.from("leads").update({ status_pipeline: pendingMeeting.chave, reuniao_em: date }).eq("id", pendingMeeting.leadId);
+      if (error) { toast({ title: "Erro ao agendar reunião", description: error.message, variant: "destructive" }); return false; }
+      onRefresh();
+      return true;
+    }} />
     <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: "calc(100vh - 280px)" }}>
       {columns.map((col) => {
         const colLeads = leads
@@ -79,7 +94,7 @@ export function KanbanBoard({ leads, onRefresh, columns }: KanbanBoardProps) {
                         e.dataTransfer.effectAllowed = "move";
                       }}
                     >
-                      <LeadCard lead={lead} onRefresh={onRefresh} columns={columns} onMove={moveLead} />
+                      <LeadCard lead={lead} onRefresh={onRefresh} columns={columns} onMove={moveLead} pipelineName={pipelineName} />
                     </div>
                   ))
                 )}
@@ -88,6 +103,6 @@ export function KanbanBoard({ leads, onRefresh, columns }: KanbanBoardProps) {
           </div>
         );
       })}
-    </div>
+    </div></>
   );
 }
