@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { meetingInput, meetingTimestamp } from "@/lib/crmMeeting";
 
-export function MeetingDialog({ open, onOpenChange, value, onSave }: { open: boolean; onOpenChange: (open: boolean) => void; value?: string | null; onSave: (date: string) => Promise<boolean> }) {
+export function MeetingDialog({ open, onOpenChange, value, onSave, title = "Call Agendada", label = "Data e hora da reunião (Brasília)", button = "Salvar reunião" }: { open: boolean; onOpenChange: (open: boolean) => void; value?: string | null; onSave: (date: string) => Promise<boolean>; title?: string; label?: string; button?: string }) {
   const [date, setDate] = useState("");
   const [saving, setSaving] = useState(false);
   useEffect(() => { if (open) setDate(meetingInput(value)); }, [open, value]);
@@ -15,9 +15,9 @@ export function MeetingDialog({ open, onOpenChange, value, onSave }: { open: boo
     setSaving(true);
     try { if (await onSave(timestamp)) onOpenChange(false); } finally { setSaving(false); }
   };
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-w-sm"><DialogHeader><DialogTitle>Call Agendada</DialogTitle></DialogHeader>
-    <Label htmlFor="meeting-date">Data e hora da reunião (Brasília)</Label>
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-w-sm"><DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader>
+    <Label htmlFor="meeting-date">{label}</Label>
     <Input id="meeting-date" type="datetime-local" value={date} onChange={(event) => setDate(event.target.value)} />
-    <Button onClick={save} disabled={!meetingTimestamp(date) || saving}>{saving ? "Salvando..." : "Salvar reunião"}</Button>
+    <Button onClick={save} disabled={!meetingTimestamp(date) || saving}>{saving ? "Salvando..." : button}</Button>
   </DialogContent></Dialog>;
 }

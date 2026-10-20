@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { EnvioEmMassaDialog } from "./EnvioEmMassaDialog";
 import { compareConversationLeads } from "@/lib/crmLeadOrder";
-import { isNeuroMeetingStage } from "@/lib/crmMeeting";
+import { isNeuroMeetingStage, isFollowUpStage } from "@/lib/crmMeeting";
 import { MeetingDialog } from "./MeetingDialog";
 
 interface KanbanBoardProps {
@@ -20,7 +20,12 @@ export function KanbanBoard({ leads, onRefresh, columns, pipelineName }: KanbanB
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [pendingMeeting, setPendingMeeting] = useState<{ leadId: string; chave: string } | null>(null);
 
+  const [pendingFollowUp, setPendingFollowUp] = useState<{ leadId: string; chave: string } | null>(null);
   const moveLead = async (leadId: string, chave: string) => {
+    if (isFollowUpStage(columns.find((column) => column.chave === chave)?.nome ?? "")) {
+      setPendingFollowUp({ leadId, chave });
+      return;
+    }
     if (isNeuroMeetingStage(pipelineName, columns.find((column) => column.chave === chave)?.nome ?? "")) {
       setPendingMeeting({ leadId, chave });
       return;
@@ -39,6 +44,17 @@ export function KanbanBoard({ leads, onRefresh, columns, pipelineName }: KanbanB
       if (!pendingMeeting) return false;
       const { error } = await supabase.from("leads").update({ status_pipeline: pendingMeeting.chave, reuniao_em: date }).eq("id", pendingMeeting.leadId);
       if (error) { toast({ title: "Erro ao agendar reunião", description: error.message, variant: "destructive" }); return false; }
+      onRefresh();
+      return true;
+    }} />
+    <MeetingDialog open={pendingFollowUp !== null} onOpenChange={(open) => { if (!open) setPendingFollowUp(null); }} title="Follow-up" label="Quando entrar em contato novamente? (Brasília)" button="Salvar e mover" onSave={async (date) => {
+      if (!pendingFollowUp) return false;
+      const col = columns.find((c) => c.chave === pendingFollowUp.chave);
+      const { error } = await supabase.from("leads").update({ status_pipeline: pendingFollowUp.chave }).eq("id", pendingFollowUp.leadId);
+      if (error) { toast({ title: "Erro ao mover lead", description: error.message, variant: "destructive" }); return false; }
+      const { error: e2 } = await supabase.from("lead_alertas").insert({ lead_id: pendingFollowUp.leadId, titulo: `Retomar contato (${col?.nome ?? "Follow-up"})`, lembrar_em: date });
+      if (e2) { toast({ title: "Lead movido, mas o lembrete não foi salvo", description: e2.message, variant: "destructive" }); }
+      else toast({ title: "Follow-up agendado", description: "Vamos avisar quando chegar a hora." });
       onRefresh();
       return true;
     }} />

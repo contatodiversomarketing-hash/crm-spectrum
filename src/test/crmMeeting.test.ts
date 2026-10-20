@@ -13,3 +13,12 @@ describe("NeuroAcesso meetings", () => {
   });
   it("does not accept an empty meeting time", () => { expect(meetingTimestamp("")).toBeNull(); });
 });
+import { isFollowUpStage } from "../lib/crmMeeting";
+describe("Follow-up columns", () => {
+  it("asks for a return date in any column named follow-up", () => {
+    expect(isFollowUpStage("Follow-up")).toBe(true);
+    expect(isFollowUpStage("Follow up 2")).toBe(true);
+    expect(isFollowUpStage("1º FOLLOWUP")).toBe(true);
+    expect(isFollowUpStage("Conversa Iniciada")).toBe(false);
+  });
+});
