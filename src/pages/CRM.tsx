@@ -193,7 +193,7 @@ export default function CRMPage() {
       {loading || colsLoading || pipelinesLoading ? (
         <p className="text-center text-muted-foreground py-12">Carregando...</p>
       ) : (
-        <KanbanBoard leads={filteredLeads} onRefresh={fetchLeads} columns={columns} />
+        <KanbanBoard leads={filteredLeads} onRefresh={fetchLeads} columns={columns} pipelineName={pipelines.find((pipeline) => pipeline.id === activePipelineId)?.nome ?? ""} />
       )}
 
       <ColumnSettingsDialog

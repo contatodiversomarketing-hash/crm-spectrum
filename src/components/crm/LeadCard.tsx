@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { PipelineColumn } from "@/hooks/usePipelineColumns";
 import { BotaoLigar } from "@/contexts/TwilioContext";
-import { Phone, Mail, MapPin, Calendar, FileText, Eye, Pencil, StickyNote, BellRing, CheckCircle2, Bell, Baby, GripVertical, MoveRight, MessageCircle, Trash2, Megaphone } from "lucide-react";
+import { Phone, Mail, MapPin, Calendar, FileText, Eye, Pencil, StickyNote, BellRing, CheckCircle2, Bell, Baby, GripVertical, MoveRight, MessageCircle, Trash2, Megaphone, Tags } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +23,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { ETIQUETAS, getEtiqueta } from "@/lib/etiquetas";
+import { getEtiqueta } from "@/lib/etiquetas";
+import { useCrmEtiquetas } from "@/hooks/useCrmEtiquetas";
+import { EtiquetasPicker } from "./EtiquetasPicker";
+import { MeetingDialog } from "./MeetingDialog";
+import { isNeuroMeetingStage, meetingLabel } from "@/lib/crmMeeting";
 
 export interface Lead {
   id: string;
@@ -53,6 +57,7 @@ export interface Lead {
   etiquetas?: string[] | null;
   nao_lidas?: number | null;
   ultima_msg_recebida_em?: string | null;
+  reuniao_em?: string | null;
 }
 
 const ETAPA_LABEL: Record<number, { texto: string; tom: string }> = {
@@ -89,13 +94,21 @@ export function LeadCard({
   onRefresh,
   columns = [],
   onMove,
+  pipelineName = "",
 }: {
   lead: Lead;
   onRefresh: () => void;
   columns?: PipelineColumn[];
   onMove?: (leadId: string, chave: string) => void;
+  pipelineName?: string;
 }) {
   const [editOpen, setEditOpen] = useState(false);
+  const [labelsOpen, setLabelsOpen] = useState(false);
+  const [labelSelection, setLabelSelection] = useState<string[]>([]);
+  const [savingLabels, setSavingLabels] = useState(false);
+  const [meetingOpen, setMeetingOpen] = useState(false);
+  const { catalog } = useCrmEtiquetas();
+  const meetingStage = isNeuroMeetingStage(pipelineName, columns.find((column) => column.chave === lead.status_pipeline)?.nome ?? "");
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -158,6 +171,7 @@ export function LeadCard({
             )}
           </div>
           <div className="flex flex-wrap justify-end gap-0.5 shrink-0">
+            <Button variant="ghost" size="icon" className="h-6 w-6" title="Etiquetas" onClick={() => { setLabelSelection(lead.etiquetas ?? []); setLabelsOpen(true); }}><Tags className="h-3.5 w-3.5" /></Button>
             {onMove && columns.length > 0 && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -318,10 +332,16 @@ export function LeadCard({
         </div>
 
         {/* Etiquetas */}
+        {meetingStage && <div className="mt-2 border-t border-primary/30 pt-2">
+          <Button variant="outline" className="w-full h-auto justify-start gap-2 whitespace-normal text-left border-primary/30 bg-primary/10 text-primary" onClick={() => setMeetingOpen(true)} title="Editar data e hora da reunião">
+            <Calendar className="h-4 w-4 shrink-0" />
+            <span className="min-w-0"><span className="block text-xs font-semibold">Reunião agendada</span><span className="block text-xs">{lead.reuniao_em ? meetingLabel(lead.reuniao_em) : "Definir data e hora"}</span></span>
+          </Button>
+        </div>}
         {Array.isArray(lead.etiquetas) && lead.etiquetas.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-2">
             {lead.etiquetas.map((chave) => {
-              const et = getEtiqueta(chave);
+              const et = catalog.find((item) => item.chave === chave) ?? getEtiqueta(chave);
               return (
                 <span
                   key={chave}
@@ -383,6 +403,21 @@ export function LeadCard({
       </div>
 
       <LeadEditDialog lead={lead} open={editOpen} onOpenChange={setEditOpen} onSaved={onRefresh} columns={columns} />
+      <MeetingDialog open={meetingOpen} onOpenChange={setMeetingOpen} value={lead.reuniao_em} onSave={async (date) => {
+        const { error } = await supabase.from("leads").update({ reuniao_em: date }).eq("id", lead.id);
+        if (error) { toast({ title: "Erro ao salvar reunião", description: error.message, variant: "destructive" }); return false; }
+        onRefresh(); return true;
+      }} />
+      <Dialog open={labelsOpen} onOpenChange={setLabelsOpen}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>Etiquetas — {lead.nome || "Sem nome"}</DialogTitle></DialogHeader>
+        <EtiquetasPicker value={labelSelection} onChange={setLabelSelection} />
+        <Button disabled={savingLabels} onClick={async () => {
+          setSavingLabels(true);
+          const { error } = await supabase.from("leads").update({ etiquetas: labelSelection }).eq("id", lead.id);
+          setSavingLabels(false);
+          if (error) { toast({ title: "Erro ao salvar etiquetas", description: error.message, variant: "destructive" }); return; }
+          setLabelsOpen(false); onRefresh();
+        }}>{savingLabels ? "Salvando..." : "Salvar etiquetas"}</Button>
+      </DialogContent></Dialog>
       <LeadAlertsDialog leadId={lead.id} leadName={lead.nome || "Sem nome"} open={alertsOpen} onOpenChange={setAlertsOpen} />
       <LeadChatDialog
         open={chatOpen}
