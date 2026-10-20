@@ -27,7 +27,7 @@ import { getEtiqueta } from "@/lib/etiquetas";
 import { useCrmEtiquetas } from "@/hooks/useCrmEtiquetas";
 import { EtiquetasPicker } from "./EtiquetasPicker";
 import { MeetingDialog } from "./MeetingDialog";
-import { isNeuroMeetingStage, meetingLabel } from "@/lib/crmMeeting";
+import { isNeuroMeetingStage, isFollowUpStage, meetingLabel } from "@/lib/crmMeeting";
 
 export interface Lead {
   id: string;
@@ -95,7 +95,11 @@ export function LeadCard({
   columns = [],
   onMove,
   pipelineName = "",
+  followUpAt,
+  onEditFollowUp,
 }: {
+  followUpAt?: string;
+  onEditFollowUp?: () => void;
   lead: Lead;
   onRefresh: () => void;
   columns?: PipelineColumn[];
@@ -336,6 +340,12 @@ export function LeadCard({
           <Button variant="outline" className="w-full h-auto justify-start gap-2 whitespace-normal text-left border-primary/30 bg-primary/10 text-primary" onClick={() => setMeetingOpen(true)} title="Editar data e hora da reunião">
             <Calendar className="h-4 w-4 shrink-0" />
             <span className="min-w-0"><span className="block text-xs font-semibold">Reunião agendada</span><span className="block text-xs">{lead.reuniao_em ? meetingLabel(lead.reuniao_em) : "Definir data e hora"}</span></span>
+          </Button>
+        </div>}
+        {onEditFollowUp && isFollowUpStage(columns.find((c) => c.chave === lead.status_pipeline)?.nome ?? "") && <div className="mt-2 border-t border-primary/30 pt-2">
+          <Button variant="outline" className={`w-full h-auto justify-start gap-2 whitespace-normal text-left ${followUpAt && Date.parse(followUpAt) <= Date.now() ? "border-destructive/40 bg-destructive/10 text-destructive" : "border-primary/30 bg-primary/10 text-primary"}`} onClick={onEditFollowUp} title="Editar data e hora do próximo contato">
+            <BellRing className="h-4 w-4 shrink-0" />
+            <span className="min-w-0"><span className="block text-xs font-semibold">{followUpAt && Date.parse(followUpAt) <= Date.now() ? "Retomar contato agora" : "Próximo contato"}</span><span className="block text-xs">{followUpAt ? meetingLabel(followUpAt) : "Definir data e hora"}</span></span>
           </Button>
         </div>}
         {Array.isArray(lead.etiquetas) && lead.etiquetas.length > 0 && (
