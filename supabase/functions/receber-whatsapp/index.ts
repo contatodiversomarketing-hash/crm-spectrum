@@ -6,6 +6,7 @@ import { PROMPT_COMERCIAL_ANA } from "../_shared/prompt-comercial-ana.ts";
 import { interpretarTriagem, TRIAGENS_CONTEXTO } from "../_shared/triagens.ts";
 import { enviarDocumentoMega, NEUROACESSO_PDF_URL, PIX_QRCODE_PDF_URL, baixarMidiaDatafy, enviarTextoMega, datafyConfig } from "../_shared/mega.ts";
 import { buscarLead, buscarPaciente, upsertPaciente, telCanonico, telVariacoes, cpfLimpo as limparCpf } from "../_shared/dedup.ts";
+import { replyStage } from "../_shared/crm-stages.ts";
 
 
 const corsHeaders = {
@@ -1959,7 +1960,6 @@ async function garantirLeadCRM(
 }
 
 // Quando a pessoa responde: marca não lida, completa o nome e move para "Conversa iniciada"
-const COLUNAS_INICIAIS = /^(novo|novo_dia_que_o_lead_chegou|primeiro_contato|nao_responde|nao_responde_qualquer_contato|leads_para_resgate|mensagem_inicio|aguardando_resposta|follow|folow)/;
 async function registrarRespostaNoCRM(
   supabase: ReturnType<typeof createClient>,
   telefone: string,
@@ -1975,22 +1975,22 @@ async function registrarRespostaNoCRM(
     };
     const nomeAtual = (lead.nome || "").trim();
     const semNome = !nomeAtual || /^whatsapp\s/i.test(nomeAtual) || !/[a-zA-ZÀ-ÿ]/.test(nomeAtual);
-    if (semNome && (nomePerfil || "").trim()) upd.nome = nomePerfil!.trim();
+    const nomeRecebido = nomePerfil?.trim();
+    if (semNome && nomeRecebido) upd.nome = nomeRecebido;
 
-    if (lead.pipeline_id) {
-      const { data: cols } = await supabase
-        .from("pipeline_colunas").select("chave, nome, ordem").eq("pipeline_id", lead.pipeline_id).order("ordem");
-      const lista = (cols || []) as { chave: string; nome: string; ordem: number }[];
-      const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      const alvo =
-        lista.find((c) => norm(c.nome).includes("conversa iniciada")) ||
-        lista.find((c) => /conversando|respondeu|respondido/.test(norm(c.nome))) ||
-        lista.find((c) => norm(c.nome) === "em contato");
-      const atual = lista.find((c) => c.chave === lead.status_pipeline);
-      const atualEhInicial = !atual || COLUNAS_INICIAIS.test(atual.chave) || (alvo && atual.ordem < alvo.ordem && /novo|primeiro|nao respond|follow|folow|aguardando resposta/.test(norm(atual.nome)));
-      if (alvo && atual?.chave !== alvo.chave && atualEhInicial) upd.status_pipeline = alvo.chave;
+    const pipelineId = lead.pipeline_id || await obterPipelinePacientesId(supabase);
+    if (pipelineId) {
+      const { data: cols, error } = await supabase
+        .from("pipeline_colunas").select("chave, nome, ordem").eq("pipeline_id", pipelineId).order("ordem");
+      if (error) throw error;
+      const stage = replyStage(lead.status_pipeline, cols || []);
+      if (stage) {
+        upd.pipeline_id = pipelineId;
+        upd.status_pipeline = stage;
+      }
     }
-    await supabase.from("leads").update(upd).eq("id", lead.id);
+    const { error } = await supabase.from("leads").update(upd).eq("id", lead.id);
+    if (error) throw error;
   } catch (e) {
     console.error("[whatsapp] registrarRespostaNoCRM:", e);
   }

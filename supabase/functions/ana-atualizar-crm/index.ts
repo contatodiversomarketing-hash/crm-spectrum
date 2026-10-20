@@ -1,4 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buscarLead, telCanonico } from "../_shared/dedup.ts";
+import { extractedStage } from "../_shared/crm-stages.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -166,29 +168,26 @@ Deno.serve(async (req) => {
     }
 
     // Localizar lead existente por telefone
-    const variacoes = variacoesTelefone(numero);
-    const { data: candidatos } = await supabase
-      .from("leads")
-      .select("id, nome, email, cpf, data_nascimento, nome_filho, cidade, status_pipeline, observacoes, dados_triagem, pipeline_id, followup_etapa, etiquetas")
-      .in("telefone", variacoes)
-      .order("criado_em", { ascending: false })
-      .limit(1);
-
-    const lead = candidatos?.[0] ?? null;
-
-    const ordem = (s: string) => {
-      const i = ETAPAS_VALIDAS.indexOf(s);
-      return i === -1 ? 0 : i;
-    };
+    const lead = await buscarLead(supabase, numero, null,
+      "id, nome, email, cpf, data_nascimento, nome_filho, cidade, status_pipeline, observacoes, dados_triagem, pipeline_id, followup_etapa, etiquetas");
+    let pipelineId: string | null = lead?.pipeline_id ?? null;
+    if (!pipelineId) {
+      const { data: pipeline } = await supabase.from("pipelines").select("id")
+        .order("criado_em", { ascending: true }).limit(1).maybeSingle();
+      pipelineId = pipeline?.id ?? null;
+    }
+    const { data: columns, error: columnsError } = pipelineId
+      ? await supabase.from("pipeline_colunas").select("chave, nome, ordem")
+        .eq("pipeline_id", pipelineId).order("ordem")
+      : { data: null, error: null };
+    if (columnsError || !columns?.length) throw new Error("Pipeline sem colunas válidas; card preservado");
 
     const novaEtapa = ETAPAS_VALIDAS.includes(String(extraido.status_pipeline))
       ? String(extraido.status_pipeline)
       : "em_contato";
 
     const etapaAtual = lead?.status_pipeline || "novo";
-    // Nunca regride a etapa, exceto para "perdido"
-    const etapaFinal =
-      novaEtapa === "perdido" || ordem(novaEtapa) > ordem(etapaAtual) ? novaEtapa : etapaAtual;
+    const etapaFinal = extractedStage(etapaAtual, novaEtapa, columns);
 
     const triagem = {
       ...(lead?.dados_triagem as Record<string, unknown> | null ?? {}),
@@ -218,6 +217,7 @@ Deno.serve(async (req) => {
       nome_filho: (extraido.nome_filho as string) || lead?.nome_filho || null,
       cidade: (extraido.cidade as string) || lead?.cidade || null,
       status_pipeline: etapaFinal,
+      pipeline_id: pipelineId,
       etiquetas: etiquetasFinais,
       dados_triagem: triagem,
       observacoes: extraido.resumo
@@ -233,26 +233,21 @@ Deno.serve(async (req) => {
     let leadId = lead?.id ?? null;
 
     if (lead) {
-      await supabase.from("leads").update(payload).eq("id", lead.id);
+      const { error } = await supabase.from("leads").update(payload).eq("id", lead.id);
+      if (error) throw error;
     } else {
-      const { data: pipeline } = await supabase
-        .from("pipelines")
-        .select("id")
-        .order("criado_em", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      const { data: novo } = await supabase
+      const { data: novo, error } = await supabase
         .from("leads")
         .insert({
           ...payload,
-          telefone: so(numero),
+          telefone: telCanonico(numero),
           origem: "whatsapp_ana",
           status: "ativo",
-          pipeline_id: pipeline?.id ?? null,
+          pipeline_id: pipelineId,
         })
         .select("id")
         .maybeSingle();
+      if (error) throw error;
       leadId = novo?.id ?? null;
     }
 

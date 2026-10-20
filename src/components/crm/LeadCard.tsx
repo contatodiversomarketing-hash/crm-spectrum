@@ -141,10 +141,10 @@ export function LeadCard({
   return (
     <>
       <div className={`bg-card border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing w-full min-w-0 max-w-full overflow-hidden ${(lead.nao_lidas ?? 0) > 0 ? "border-primary ring-1 ring-primary/40" : "border-border"}`}>
-        <div className="flex items-start justify-between gap-1 mb-2">
+        <div className="flex flex-col items-stretch gap-1 mb-2">
           <div className="flex items-start gap-1 flex-1 min-w-0">
             <GripVertical className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground" />
-            <p className="font-semibold text-sm text-foreground truncate flex-1">
+            <p className="font-semibold text-sm text-foreground break-words flex-1 min-w-0">
               {(() => {
                 const n = (lead.nome || "").trim();
                 const valido = n && !/^whatsapp\s/i.test(n) && /[a-zA-ZÀ-ÿ]/.test(n);
@@ -157,7 +157,7 @@ export function LeadCard({
               </span>
             )}
           </div>
-          <div className="flex gap-0.5 shrink-0">
+          <div className="flex flex-wrap justify-end gap-0.5 shrink-0">
             {onMove && columns.length > 0 && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
