@@ -709,6 +709,10 @@ export default function Conversas() {
     if (!selecionada && conversas[0]) setSelecionada(conversas[0].telefone);
   }, [selecionada, conversas]);
   const ativa = conversas.find((c) => c.telefone === selecionada) || (selecionada ? undefined : conversas[0]);
+  const chatScroll = useChatScroll(
+    ativa ? `${ativa.itens.length}:${ativa.itens[ativa.itens.length - 1]?.id ?? ""}` : "",
+    ativa?.telefone ?? "",
+  );
 
   const titulo = "Conversas";
   const subtitulo = "Espelho do WhatsApp — pacientes, Ana e atendentes no mesmo chat";
@@ -862,7 +866,8 @@ export default function Conversas() {
                   <span className="text-xs text-muted-foreground">{ativa.itens.length} mensagens</span>
                 </div>
               </div>
-              <ScrollArea className="flex-1 px-5 py-4">
+              <div className="relative flex-1 min-h-0">
+              <div ref={chatScroll.ref} onScroll={chatScroll.onScroll} className="h-full overflow-y-auto px-5 py-4">
                 <div className="space-y-3 max-w-3xl mx-auto">
                   {ativa.itens.map((i) => (
                     <div key={i.id} className="space-y-2">
@@ -962,7 +967,20 @@ export default function Conversas() {
                     </div>
                   ))}
                 </div>
-              </ScrollArea>
+              </div>
+              {chatScroll.showJump && (
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className="absolute bottom-4 right-6 h-10 w-10 rounded-full shadow-md border"
+                  title="Ir para a última mensagem"
+                  aria-label="Ir para a última mensagem"
+                  onClick={() => chatScroll.toBottom(true)}
+                >
+                  <ArrowDown className="h-5 w-5" />
+                </Button>
+              )}
+              </div>
               <div className="border-t bg-card p-3">
                 <div className="max-w-3xl mx-auto space-y-2">
                   {respondendo && (
