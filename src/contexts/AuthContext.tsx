@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 
@@ -23,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const userIdRef = useRef<string | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [profile, setProfile] = useState<{ nome: string; email: string; ativo: boolean } | null>(null);
 
@@ -47,10 +48,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      // Keep the same user object on token refresh / tab focus so open screens don't reload.
+      const nextId = session?.user?.id ?? null;
+      const mudouUsuario = userIdRef.current !== nextId;
+      userIdRef.current = nextId;
+      if (mudouUsuario) setUser(session?.user ?? null);
 
       if (session?.user) {
-        setTimeout(() => fetchUserData(session.user.id), 0);
+        if (mudouUsuario) setTimeout(() => fetchUserData(session.user.id), 0);
       } else {
         setRoles([]);
         setProfile(null);
@@ -60,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      userIdRef.current = session?.user?.id ?? null;
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchUserData(session.user.id);
