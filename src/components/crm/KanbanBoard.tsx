@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { LeadCard, Lead } from "./LeadCard";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { PipelineColumn } from "@/hooks/usePipelineColumns";
@@ -17,6 +18,7 @@ interface KanbanBoardProps {
 }
 
 export function KanbanBoard({ leads, onRefresh, columns, pipelineName }: KanbanBoardProps) {
+  const boardRef = useRef<HTMLDivElement>(null);
   const [visibleLeads, setVisibleLeads] = useState(leads);
   const [editingIds, setEditingIds] = useState<Set<string>>(new Set());
   const handleInteraction = useCallback((id: string, active: boolean) => {
@@ -81,7 +83,14 @@ export function KanbanBoard({ leads, onRefresh, columns, pipelineName }: KanbanB
       onRefresh(); loadFollowUps();
       return true;
     }} />
-    <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: "calc(100vh - 280px)" }}>
+    <div className="relative">
+    <button type="button" aria-label="Colunas à esquerda" onClick={() => boardRef.current?.scrollBy({ left: -300, behavior: "smooth" })} className="absolute left-1 top-24 z-30 -translate-y-1/2 rounded-full border border-border bg-background/95 p-2 shadow-md hover:bg-muted">
+      <ChevronLeft className="h-5 w-5 text-foreground" />
+    </button>
+    <button type="button" aria-label="Colunas à direita" onClick={() => boardRef.current?.scrollBy({ left: 300, behavior: "smooth" })} className="absolute right-1 top-24 z-30 -translate-y-1/2 rounded-full border border-border bg-background/95 p-2 shadow-md hover:bg-muted">
+      <ChevronRight className="h-5 w-5 text-foreground" />
+    </button>
+    <div ref={boardRef} className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: "calc(100vh - 280px)" }}>
       {columns.map((col) => {
         const colLeads = visibleLeads
           .filter((l) => l.status_pipeline === col.chave)
@@ -142,6 +151,6 @@ export function KanbanBoard({ leads, onRefresh, columns, pipelineName }: KanbanB
           </div>
         );
       })}
-    </div></>
+    </div></div></>
   );
 }
