@@ -1,4 +1,6 @@
 # Tasks
+- [ ] Prevent CRM observation/message drafts from disappearing during background updates; verify in the signed-in UI.
+- [ ] Diagnose silent/dropped Twilio calls, correct confirmed defects, and verify available call signals.
 - [x] Allow team-created CRM labels shared across cards.
 - [x] Capture and display meeting date/time in Plano NeuroAcesso / Call Agendada; verify saved data.
 - [x] Add Ana's one-time apology after more than two hours without a human response.
