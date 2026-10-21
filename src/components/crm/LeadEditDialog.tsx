@@ -79,7 +79,9 @@ export function LeadEditDialog({ lead, open, onOpenChange, onSaved, columns }: L
         status_pipeline: lead.status_pipeline || "novo",
       });
     }
-  }, [open, lead]);
+    // Only reset when the dialog opens or another lead is chosen — background refreshes must not wipe unsaved edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, lead.id]);
 
   // When switching pipeline, snap status to a valid column of that pipeline
   const handlePipelineChange = (newId: string) => {

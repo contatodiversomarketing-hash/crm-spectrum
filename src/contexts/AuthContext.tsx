@@ -47,10 +47,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      // Keep the same user object on token refresh / tab focus so open screens don't reload.
+      let mudouUsuario = false;
+      setUser((prev) => {
+        const next = session?.user ?? null;
+        if (prev?.id === next?.id) return prev;
+        mudouUsuario = true;
+        return next;
+      });
 
       if (session?.user) {
-        setTimeout(() => fetchUserData(session.user.id), 0);
+        if (mudouUsuario) setTimeout(() => fetchUserData(session.user.id), 0);
       } else {
         setRoles([]);
         setProfile(null);

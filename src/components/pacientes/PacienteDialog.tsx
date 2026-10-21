@@ -130,7 +130,7 @@ export function PacienteDialog({ open, onOpenChange, paciente, autorNome, onSave
       setForm({ ...vazio, ...(valoresIniciais ?? {}) });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, paciente]);
+  }, [open, paciente?.id]);
 
   const set = (k: keyof Form, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }));
 
