@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff, PhoneOff, Phone, Pause, Play } from "lucide-react";
+import { prepareCallAudio } from "@/lib/callAudio";
 
 export function normalizarTelefoneBR(raw?: string | null): string | null {
   let d = (raw ?? "").replace(/\D/g, "");
@@ -31,6 +32,8 @@ export function TwilioProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const deviceRef = useRef<Device | null>(null);
   const callRef = useRef<Call | null>(null);
+  const startingRef = useRef(false);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [estado, setEstado] = useState<Estado>("idle");
   const [nome, setNome] = useState("");
   const [numero, setNumero] = useState("");
@@ -46,6 +49,10 @@ export function TwilioProvider({ children }: { children: ReactNode }) {
   }, [estado]);
 
   useEffect(() => () => {
+    if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+    startingRef.current = false;
+    callRef.current?.disconnect();
+    callRef.current = null;
     deviceRef.current?.unregister().catch(() => {});
     deviceRef.current?.destroy();
     deviceRef.current = null;
@@ -64,6 +71,8 @@ export function TwilioProvider({ children }: { children: ReactNode }) {
 
   const garantirDevice = useCallback(async () => {
     if (deviceRef.current && deviceRef.current.state === "registered") return deviceRef.current;
+    deviceRef.current?.destroy();
+    deviceRef.current = null;
     const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     s.getTracks().forEach((t) => t.stop());
     const token = await buscarToken();
@@ -79,40 +88,56 @@ export function TwilioProvider({ children }: { children: ReactNode }) {
   }, [renovar]);
 
   const finalizar = useCallback(() => {
+    if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+    startingRef.current = false;
     setEstado("encerrada");
     callRef.current = null;
-    setTimeout(() => { setEstado("idle"); setInicio(null); setMudo(false); setEspera(false); }, 2500);
+    deviceRef.current?.audio?.unsetInputDevice().catch((error) => console.warn("Microfone: liberação falhou", error));
+    resetTimerRef.current = setTimeout(() => { setEstado("idle"); setInicio(null); setMudo(false); setEspera(false); resetTimerRef.current = null; }, 2500);
   }, []);
 
   const ligar = useCallback(async ({ telefone, nome, leadId, pacienteId }: LigarParams) => {
     const to = normalizarTelefoneBR(telefone);
     if (!to) { toast.error("Telefone inválido. Use DDD + número."); return; }
-    if (callRef.current) { toast.error("Já existe uma ligação em andamento."); return; }
+    if (startingRef.current || callRef.current) { toast.error("Já existe uma ligação em andamento."); return; }
+    startingRef.current = true;
+    if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+    setInicio(null); setMudo(false); setEspera(false);
     setNome(nome || to); setNumero(to); setEstado("chamando");
     try {
       const d = await garantirDevice();
-      await d.audio?.setInputDevice("default").catch(() => {});
+      if (!d.audio) throw new Error("Não foi possível preparar o áudio do computador.");
+      await prepareCallAudio(d.audio);
       const call = await d.connect({ params: {
         To: to, agentUserId: user?.id ?? "", leadId: leadId ?? "", pacienteId: pacienteId ?? "", clientName: nome ?? "",
       } });
       callRef.current = call;
-      call.on("accept", () => { setEstado("em_chamada"); setInicio(Date.now()); });
-      call.on("disconnect", finalizar);
-      call.on("cancel", finalizar);
-      call.on("reject", finalizar);
+      startingRef.current = false;
+      const finishThisCall = () => { if (callRef.current === call) finalizar(); };
+      call.on("accept", () => { if (callRef.current === call) { setEstado("em_chamada"); setAgora(Date.now()); setInicio(Date.now()); } });
+      call.on("disconnect", finishThisCall);
+      call.on("cancel", finishThisCall);
+      call.on("reject", finishThisCall);
+      call.on("warning", (warning: string) => {
+        console.warn("Twilio áudio", warning);
+        if (["constant-audio-input-level", "constant-audio-output-level", "low-mos", "high-packet-loss"].includes(warning)) {
+          toast.warning("O áudio da ligação está instável ou sem som. Confira o microfone, a saída de som e a internet.", { id: "call-audio-warning" });
+        }
+      });
       call.on("error", (e: { message?: string; code?: number }) => {
         const m = e.message ?? "";
         if (e.code === 31005 || m.includes("31005") || m.includes("HANGUP")) {
-          toast.warning("A ligação tocou, mas não foi atendida (celular desligado, sem sinal ou chamada recusada). Tente de novo mais tarde ou chame no WhatsApp.");
+          toast.warning("A conexão da ligação foi interrompida. Não é possível confirmar se a pessoa atendeu; tente novamente.");
         } else {
           toast.error(`Erro na ligação: ${m}`);
         }
-        finalizar();
+        call.disconnect();
+        finishThisCall();
       });
     } catch (e) {
       const msg = (e as Error).message || "";
       toast.error(msg.includes("Permission") || msg.includes("NotAllowed") ? "Permita o uso do microfone para ligar." : `Não foi possível ligar: ${msg}`);
-      setEstado("idle");
+      finalizar();
     }
   }, [garantirDevice, finalizar, user?.id]);
 
