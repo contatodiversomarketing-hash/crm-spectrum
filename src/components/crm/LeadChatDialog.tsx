@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
 import { ConteudoMensagem } from "@/components/ConteudoMensagem";
-import { Smile, Paperclip, Mic, Send, Square, Loader2, FileText, AudioLines } from "lucide-react";
+import { Smile, Paperclip, Mic, Send, Square, Loader2, FileText, AudioLines, ArrowDown } from "lucide-react";
+import { useChatScroll } from "@/hooks/useChatScroll";
 
 const EMOJIS = [
   "😀","😄","😊","🙂","😉","😍","🥰","😘","🤗","🤔","😅","😂","🥲","😌","😴","🙏","👍","👏","💪","🙌",
@@ -105,9 +106,11 @@ export function LeadChatDialog({
     if (open) setTimeout(() => textareaRef.current?.focus(), 100);
   }, [open]);
 
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages, open]);
+  const chatScroll = useChatScroll(
+    `${messages.length}:${messages[messages.length - 1]?.id ?? ""}`,
+    `${open}:${leadId}:${loading}`,
+  );
+  const scrollRef = chatScroll.ref;
 
   const blobToBase64 = (blob: Blob) =>
     new Promise<string>((resolve, reject) => {
@@ -229,7 +232,20 @@ export function LeadChatDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-muted/30">
+        <div className="relative flex-1 min-h-0">
+        {chatScroll.showJump && (
+          <Button
+            size="icon"
+            variant="secondary"
+            className="absolute bottom-3 right-4 z-10 h-9 w-9 rounded-full shadow-md border"
+            title="Ir para a última mensagem"
+            aria-label="Ir para a última mensagem"
+            onClick={() => chatScroll.toBottom(true)}
+          >
+            <ArrowDown className="h-4 w-4" />
+          </Button>
+        )}
+        <div ref={scrollRef} onScroll={chatScroll.onScroll} className="h-full overflow-y-auto px-4 py-4 space-y-3 bg-muted/30">
           {loading ? (
             <p className="text-center text-sm text-muted-foreground py-6">Carregando conversa...</p>
           ) : messages.length === 0 ? (
@@ -261,6 +277,7 @@ export function LeadChatDialog({
               </div>
             ))
           )}
+        </div>
         </div>
 
         <div className="border-t p-3 space-y-2 bg-background">
