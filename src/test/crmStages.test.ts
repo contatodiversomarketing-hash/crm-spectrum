@@ -25,8 +25,11 @@ describe("CRM pipeline-safe reply stages", () => {
   it("preserves an already scheduled call on reply", () => {
     expect(replyStage("call_agendada", columns)).toBe("call_agendada");
   });
-  it("moves waiting replies even after the conversation column", () => {
-    expect(replyStage("aguardando_resposta", columns)).toBe("conversa_iniciada");
+  it("keeps Aguardando resposta on reply (manual moves only)", () => {
+    expect(replyStage("aguardando_resposta", columns)).toBe("aguardando_resposta");
+  });
+  it("keeps Aguardando resposta when Ana extracts a later stage", () => {
+    expect(extractedStage("aguardando_resposta", "agendado", columns)).toBe("aguardando_resposta");
   });
   it("uses a valid first column when there is no conversation stage", () => {
     expect(replyStage("em_contato", [{ chave: "outubro", nome: "Outubro", ordem: 0 }])).toBe("outubro");
