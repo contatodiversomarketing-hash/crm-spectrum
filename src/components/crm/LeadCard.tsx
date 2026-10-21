@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { PipelineColumn } from "@/hooks/usePipelineColumns";
 import { BotaoLigar } from "@/contexts/TwilioContext";
 import { Phone, Mail, MapPin, Calendar, FileText, Eye, Pencil, StickyNote, BellRing, CheckCircle2, Bell, Baby, GripVertical, MoveRight, MessageCircle, Trash2, Megaphone, Tags } from "lucide-react";
@@ -97,9 +97,11 @@ export function LeadCard({
   pipelineName = "",
   followUpAt,
   onEditFollowUp,
+  onInteractionChange,
 }: {
   followUpAt?: string;
   onEditFollowUp?: () => void;
+  onInteractionChange?: (id: string, active: boolean) => void;
   lead: Lead;
   onRefresh: () => void;
   columns?: PipelineColumn[];
@@ -121,6 +123,11 @@ export function LeadCard({
   const [origemSel, setOrigemSel] = useState<string | null>(null);
   const [origemDetalhe, setOrigemDetalhe] = useState("");
   const [salvandoOrigem, setSalvandoOrigem] = useState(false);
+  const interacting = editOpen || chatOpen || labelsOpen || meetingOpen || alertsOpen || origemOpen || deleteOpen;
+  useEffect(() => {
+    onInteractionChange?.(lead.id, interacting);
+    return () => onInteractionChange?.(lead.id, false);
+  }, [lead.id, interacting, onInteractionChange]);
 
   const salvarOrigem = async () => {
     if (!origemSel) return;

@@ -190,7 +190,7 @@ export default function CRMPage() {
       </div>
 
       {/* Kanban */}
-      {loading || colsLoading || pipelinesLoading ? (
+      {(loading || colsLoading || pipelinesLoading) && leads.length === 0 ? (
         <p className="text-center text-muted-foreground py-12">Carregando...</p>
       ) : (
         <KanbanBoard leads={filteredLeads} onRefresh={fetchLeads} columns={columns} pipelineName={pipelines.find((pipeline) => pipeline.id === activePipelineId)?.nome ?? ""} />

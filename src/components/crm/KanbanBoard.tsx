@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { LeadCard, Lead } from "./LeadCard";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { PipelineColumn } from "@/hooks/usePipelineColumns";
@@ -17,6 +17,18 @@ interface KanbanBoardProps {
 }
 
 export function KanbanBoard({ leads, onRefresh, columns, pipelineName }: KanbanBoardProps) {
+  const [visibleLeads, setVisibleLeads] = useState(leads);
+  const [editingIds, setEditingIds] = useState<Set<string>>(new Set());
+  const handleInteraction = useCallback((id: string, active: boolean) => {
+    setEditingIds((previous) => {
+      const next = new Set(previous);
+      if (active) next.add(id); else next.delete(id);
+      return next;
+    });
+  }, []);
+  useEffect(() => {
+    if (editingIds.size === 0) setVisibleLeads(leads);
+  }, [leads, editingIds]);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [pendingMeeting, setPendingMeeting] = useState<{ leadId: string; chave: string } | null>(null);
 
@@ -71,7 +83,7 @@ export function KanbanBoard({ leads, onRefresh, columns, pipelineName }: KanbanB
     }} />
     <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: "calc(100vh - 280px)" }}>
       {columns.map((col) => {
-        const colLeads = leads
+        const colLeads = visibleLeads
           .filter((l) => l.status_pipeline === col.chave)
           .sort(compareConversationLeads);
         return (
@@ -121,7 +133,7 @@ export function KanbanBoard({ leads, onRefresh, columns, pipelineName }: KanbanB
                         e.dataTransfer.effectAllowed = "move";
                       }}
                     >
-                      <LeadCard lead={lead} onRefresh={onRefresh} columns={columns} onMove={moveLead} pipelineName={pipelineName} followUpAt={followUps[lead.id]} onEditFollowUp={() => setPendingFollowUp({ leadId: lead.id, chave: lead.status_pipeline })} />
+                      <LeadCard lead={lead} onInteractionChange={handleInteraction} onRefresh={onRefresh} columns={columns} onMove={moveLead} pipelineName={pipelineName} followUpAt={followUps[lead.id]} onEditFollowUp={() => setPendingFollowUp({ leadId: lead.id, chave: lead.status_pipeline })} />
                     </div>
                   ))
                 )}
