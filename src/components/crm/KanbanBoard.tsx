@@ -84,10 +84,10 @@ export function KanbanBoard({ leads, onRefresh, columns, pipelineName }: KanbanB
       return true;
     }} />
     <div className="relative">
-    <button type="button" aria-label="Colunas à esquerda" onClick={() => boardRef.current?.scrollBy({ left: -300, behavior: "smooth" })} className="fixed left-[calc(var(--sidebar-width,16rem)+0.5rem)] md:left-auto md:ml-[-0.5rem] top-1/2 z-30 -translate-y-1/2 rounded-full border border-border bg-background/95 p-2 shadow-md hover:bg-muted">
+    <button type="button" aria-label="Colunas à esquerda" onClick={() => boardRef.current?.scrollBy({ left: -300, behavior: "smooth" })} className="absolute left-1 top-24 z-30 -translate-y-1/2 rounded-full border border-border bg-background/95 p-2 shadow-md hover:bg-muted">
       <ChevronLeft className="h-5 w-5 text-foreground" />
     </button>
-    <button type="button" aria-label="Colunas à direita" onClick={() => boardRef.current?.scrollBy({ left: 300, behavior: "smooth" })} className="fixed right-4 top-1/2 z-30 -translate-y-1/2 rounded-full border border-border bg-background/95 p-2 shadow-md hover:bg-muted">
+    <button type="button" aria-label="Colunas à direita" onClick={() => boardRef.current?.scrollBy({ left: 300, behavior: "smooth" })} className="absolute right-1 top-24 z-30 -translate-y-1/2 rounded-full border border-border bg-background/95 p-2 shadow-md hover:bg-muted">
       <ChevronRight className="h-5 w-5 text-foreground" />
     </button>
     <div ref={boardRef} className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: "calc(100vh - 280px)" }}>
