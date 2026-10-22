@@ -126,8 +126,8 @@ Deno.serve(async (req) => {
       // Erro 131000 ("Something went wrong") e 5xx da Meta são temporários: tenta de novo.
       const enviarComRetry = async (destino: string, texto: string) => {
         let r = await enviarTextoMega(destino, texto);
-        for (let t = 1; t <= 3 && !r.ok && (r.status >= 500 || /131000|something went wrong/i.test(r.body)); t++) {
-          await new Promise((res) => setTimeout(res, 1200 * t));
+        for (let t = 1; t <= 4 && !r.ok && (r.status >= 500 || /131000|something went wrong/i.test(r.body)); t++) {
+          await new Promise((res) => setTimeout(res, 2000 * t));
           r = await enviarTextoMega(destino, texto);
         }
         return r;
@@ -164,7 +164,14 @@ Deno.serve(async (req) => {
         console.error("[crm-enviar-whatsapp] texto recusado", r.status, r.body.slice(0, 400));
         const foraJanela = /131047|24 hour|re-?engagement/i.test(r.body);
         if (!foraJanela) {
-          return json({ error: "Falha ao enviar pelo WhatsApp", status: r.status, details: r.body.slice(0, 400) }, 502);
+          const instavel = /131000|something went wrong/i.test(r.body) || r.status >= 500;
+          return json({
+            error: instavel
+              ? "O WhatsApp está instável neste momento e não aceitou a mensagem. Seu texto foi mantido — aguarde alguns segundos e clique em enviar de novo."
+              : "Falha ao enviar pelo WhatsApp",
+            status: r.status,
+            details: r.body.slice(0, 400),
+          }, 502);
         }
         // Contatos novos também começam fora da janela livre. Nesse caso o
         // WhatsApp exige um template aprovado para iniciar a conversa.
