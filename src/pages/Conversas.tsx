@@ -665,7 +665,7 @@ export default function Conversas() {
       .filter(({ p, tel }) => {
         if (!tel || comConversa.has(tel)) return false;
         if (selecionada === tel) return true;
-        if (!termo) return filtro === "todas";
+        if (!termo) return false;
         const d = soDigitos(termo);
         return (p.nome || "").toLowerCase().includes(termo) || (!!d && soDigitos(tel).includes(d));
       })
