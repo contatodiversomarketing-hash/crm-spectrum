@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Copy, ExternalLink, FileText, Trash2, ArrowLeft, MessageCircle } from "lucide-react";
+import { Copy, ExternalLink, FileText, Trash2, ArrowLeft, MessageCircle, Download } from "lucide-react";
 import { QUESTIONARIO_MENTORADA } from "@/lib/neuroacessoQuestionario";
 import { QuestionarioView } from "@/components/neuroacesso/QuestionarioView";
 
@@ -69,9 +69,9 @@ export default function NeuroAcesso() {
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <Button variant="ghost" onClick={() => setSel(null)}><ArrowLeft className="h-4 w-4 mr-1" />Voltar</Button>
-                <Button variant="outline" className="text-destructive" onClick={() => excluir(sel)}><Trash2 className="h-4 w-4 mr-1" />Excluir</Button>
+                <div className="flex gap-2"><Button variant="outline" onClick={() => { const t = document.title; document.title = `NeuroAcesso - ${sel.nome}`; window.print(); document.title = t; }}><Download className="h-4 w-4 mr-1" />Baixar PDF</Button><Button variant="outline" className="text-destructive" onClick={() => excluir(sel)}><Trash2 className="h-4 w-4 mr-1" />Excluir</Button></div>
               </div>
-              <div className="rounded-2xl border bg-card p-5">
+              <div id="neuroacesso-print" className="space-y-4"><div className="rounded-2xl border bg-card p-5">
                 <h2 className="font-display text-3xl">{sel.nome}</h2>
                 <p className="text-sm text-muted-foreground">{[sel.email, sel.telefone].filter(Boolean).join(" · ")} · enviado em {dt(sel.criado_em)}</p>
                 {sel.anexos?.length > 0 && (
@@ -80,7 +80,7 @@ export default function NeuroAcesso() {
                   </div>
                 )}
               </div>
-              <QuestionarioView secoes={QUESTIONARIO_MENTORADA} valores={sel.respostas || {}} />
+              <QuestionarioView secoes={QUESTIONARIO_MENTORADA} valores={sel.respostas || {}} /></div>
             </div>
           ) : lista.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma resposta ainda. Envie o link da aba Questionário.</p>
