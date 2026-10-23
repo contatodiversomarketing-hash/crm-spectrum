@@ -258,7 +258,10 @@ export default function Conversas() {
           const d = soDigitos(l.telefone);
           existentes.add(d);
           existentes.add(d.startsWith("55") ? d.slice(2) : "55" + d);
-          if (l.nome) mapa[d] = l.nome;
+          if (l.nome) {
+            mapa[d] = l.nome;
+            mapa[d.startsWith("55") ? d.slice(2) : "55" + d] = l.nome;
+          }
         }
       }
       const listaPac = ((pacRes.data as PacienteResumo[]) || []).filter((p) => soDigitos(p.telefone || "").length >= 10);
@@ -685,10 +688,17 @@ export default function Conversas() {
 
     const termoDigitos = soDigitos(busca);
     const filtradas = base
-      .filter((c) =>
-        !termo ||
-        c.nome.toLowerCase().includes(termo) ||
-        (!!termoDigitos && soDigitos(c.telefone).includes(termoDigitos))
+      .filter((c) => {
+        if (!termo) return true;
+        if (c.nome.toLowerCase().includes(termo)) return true;
+        if (termoDigitos && soDigitos(c.telefone).includes(termoDigitos)) return true;
+        const d = soDigitos(c.telefone);
+        const alt = [d, d.startsWith("55") ? d.slice(2) : "55" + d];
+        if (alt.some((k) => (nomes[k] || "").toLowerCase().includes(termo))) return true;
+        return c.itens.some((i) =>
+          (i.mensagem_usuario || "").toLowerCase().includes(termo) ||
+          (i.resposta_final || "").toLowerCase().includes(termo));
+      }
       )
       .filter((c) => (termo ? true : filtro === "pendentes" ? c.pendente : filtro === "recebidas" ? !!c.ultimaEntrada : true))
       .sort((a, b) => {
