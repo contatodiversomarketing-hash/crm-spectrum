@@ -663,14 +663,17 @@ export default function Conversas() {
 
     const comConversa = new Set(base.map((c) => c.telefone));
     const termo = busca.trim().toLowerCase();
+    const vistos = new Set<string>();
     const novos: Conversa[] = pacientes
       .map((p) => ({ p, tel: chaveTelefone(p.telefone || "") }))
       .filter(({ p, tel }) => {
-        if (!tel || comConversa.has(tel)) return false;
-        if (selecionada === tel) return true;
-        if (!termo) return false;
+        if (!tel || soDigitos(tel).length < 10 || comConversa.has(tel) || vistos.has(tel)) return false;
         const d = soDigitos(termo);
-        return (p.nome || "").toLowerCase().includes(termo) || (!!d && soDigitos(tel).includes(d));
+        const ok = termo
+          ? (p.nome || "").toLowerCase().includes(termo) || (d.length >= 3 && soDigitos(tel).includes(d))
+          : selecionada === tel;
+        if (ok) vistos.add(tel);
+        return ok;
       })
       .map(({ p, tel }) => ({
         telefone: tel,
