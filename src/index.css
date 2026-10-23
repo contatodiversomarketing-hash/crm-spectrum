@@ -118,3 +118,12 @@
     font-family: 'JetBrains Mono', monospace;
   }
 }
+
+@media print {
+  @page { size: A4; margin: 12mm; }
+  body * { visibility: hidden; }
+  #neuroacesso-print, #neuroacesso-print * { visibility: visible; }
+  #neuroacesso-print { position: absolute; inset: 0 auto auto 0; width: 100%; }
+  #neuroacesso-print section, #neuroacesso-print tr { break-inside: avoid; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
