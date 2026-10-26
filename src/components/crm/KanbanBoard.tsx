@@ -6,7 +6,7 @@ import type { PipelineColumn } from "@/hooks/usePipelineColumns";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { EnvioEmMassaDialog } from "./EnvioEmMassaDialog";
-import { compareConversationLeads } from "@/lib/crmLeadOrder";
+import { compareColumnLeads } from "@/lib/crmLeadOrder";
 import { isNeuroMeetingStage, isFollowUpStage } from "@/lib/crmMeeting";
 import { MeetingDialog } from "./MeetingDialog";
 
@@ -94,7 +94,7 @@ export function KanbanBoard({ leads, onRefresh, columns, pipelineName }: KanbanB
       {columns.map((col) => {
         const colLeads = visibleLeads
           .filter((l) => l.status_pipeline === col.chave)
-          .sort(compareConversationLeads);
+          .sort((a, b) => compareColumnLeads(col.nome, a, b));
         return (
           <div
             key={col.id}
