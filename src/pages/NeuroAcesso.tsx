@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Copy, ExternalLink, FileText, Trash2, ArrowLeft, MessageCircle, Download } from "lucide-react";
 import { QUESTIONARIO_MENTORADA } from "@/lib/neuroacessoQuestionario";
 import { QuestionarioView } from "@/components/neuroacesso/QuestionarioView";
+import { AnaliseIA } from "@/components/neuroacesso/AnaliseIA";
 
 interface Resp { id: string; nome: string; email: string | null; telefone: string | null; respostas: Record<string, unknown>; anexos: { nome: string; path: string }[]; lido: boolean; criado_em: string }
 
@@ -48,6 +49,13 @@ export default function NeuroAcesso() {
         <TabsList>
           <TabsTrigger value="respostas">Respostas {lista.filter((r) => !r.lido).length > 0 && `(${lista.filter((r) => !r.lido).length} novas)`}</TabsTrigger>
           <TabsTrigger value="questionario">Questionário</TabsTrigger>
+          <TabsTrigger value="analise">IA de Análise</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="analise" className="pt-4">
+          <AnaliseIA respostas={lista} />
+        </TabsContent>
+        <TabsList className="hidden">
         </TabsList>
 
         <TabsContent value="questionario" className="space-y-4 pt-4">
