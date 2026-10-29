@@ -55,8 +55,6 @@ export default function NeuroAcesso() {
         <TabsContent value="analise" className="pt-4">
           <AnaliseIA respostas={lista} />
         </TabsContent>
-        <TabsList className="hidden">
-        </TabsList>
 
         <TabsContent value="questionario" className="space-y-4 pt-4">
           <div className="rounded-2xl border bg-card p-5 space-y-3">
