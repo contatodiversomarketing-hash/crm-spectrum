@@ -1,12 +1,13 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import logo from "@/assets/logo-amelia.png";
 
 const escapeHtml = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 
 /** Opens the print dialog with a branded report; the user chooses "Salvar como PDF". */
 export function baixarRelatorioPdf(conteudo: string, opts: { titulo: string; data: string }) {
-  const corpo = renderToStaticMarkup(<ReactMarkdown>{conteudo}</ReactMarkdown>);
+  const corpo = renderToStaticMarkup(<ReactMarkdown remarkPlugins={[remarkGfm]}>{conteudo}</ReactMarkdown>);
   const logoUrl = new URL(logo, window.location.origin).href;
   const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escapeHtml(opts.titulo)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">

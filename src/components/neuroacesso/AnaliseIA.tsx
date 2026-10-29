@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -149,8 +150,8 @@ export function AnaliseIA({ respostas }: { respostas: RespLite[] }) {
           <div key={m.id} className="flex gap-3">
             <div className="h-8 w-8 shrink-0 rounded-full bg-accent/20 text-accent flex items-center justify-center"><Brain className="h-4 w-4" /></div>
             <div className="min-w-0 flex-1">
-              <div className="prose prose-sm max-w-none text-foreground">
-                <ReactMarkdown>{m.conteudo}</ReactMarkdown>
+              <div className="prose prose-sm max-w-none text-foreground overflow-x-auto [&_table]:text-xs [&_th]:border [&_td]:border [&_th]:px-2 [&_td]:px-2 [&_th]:bg-muted">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.conteudo}</ReactMarkdown>
               </div>
               <div className="flex items-center gap-2 mt-1">
                 <p className="text-[10px] text-muted-foreground">{hora(m.criado_em)}</p>

@@ -48,7 +48,7 @@ Regras: português brasileiro, tom profissional e acolhedor. Nunca invente dados
 
 const RESEARCH = `Você é pesquisadora de mercado da equipe da Dra. Amélia Carvalho (Método NeuroAcesso: mentoria para médicas/clínicas de neurodesenvolvimento, TEA e TDAH).
 Leia o pedido da equipe e, se ele envolver uma mentorada/região, pesquise na internet em fontes confiáveis (IBGE, DATASUS/CNES, órgãos oficiais, conselhos, sites institucionais) dados úteis para o relatório: população e faixa infantil da cidade/região, renda, prevalência estimada de TEA/TDAH, oferta de serviços (clínicas, neuropediatras, terapias), concorrência, planos de saúde e legislação relevante.
-Entregue NOTAS objetivas em tópicos, cada dado com o link da fonte. Seja rápida: no máximo 6 buscas.
+Entregue NOTAS objetivas em tópicos, cada dado com o link da fonte. Seja rápida: no máximo 10 buscas.
 Se o pedido não exigir pesquisa na internet, responda apenas: SEM_PESQUISA`;
 
 type Admin = SupabaseClient;
@@ -121,9 +121,9 @@ async function rodarEtapa(admin: Admin, url: string, key: string, jobId: string)
         instructions: RESEARCH,
         input: [{ role: "user", content: msg.conteudo.slice(0, 20000) }],
         tools: [{ type: "web_search" }],
-        max_tool_calls: 6,
+        max_tool_calls: 10,
         reasoning: { effort: "low" },
-      } as OpenAIAstraResponsesFields, 95_000);
+      } as OpenAIAstraResponsesFields, 110_000);
       const notas = r.text.includes("SEM_PESQUISA") ? "" : r.text.trim();
       await upd({ status: "redigindo", pesquisa: notas, etapa: "Escrevendo o relatório…" });
       await kick(url, key, jobId);
