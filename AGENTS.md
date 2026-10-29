@@ -1,5 +1,7 @@
 # Project rules
 
+- Read NeuroAcesso chat photo/PDF attachments server-side without public uploads; persist extracted material in the message content so permanent teachings never depend on temporary URLs.
+
 - Keep CRM column ordering, including column-specific meeting ordering, in the pure `crmLeadOrder` comparators so ordering rules are tested independently of rendering.
 - Track delayed human-response apologies from interaction inserts in a service-only queue; arm its scheduler only while pending work exists and keep one notice per waiting episode, independently of the main AI toggle.
 - Resolve reply and AI-extracted CRM stages through the shared crm-stages helpers against the lead's own pipeline columns; use buscarLead in both paths so phone variants update the same card and invalid stage keys cannot hide it.
