@@ -1,4 +1,5 @@
 # Tasks
+- [ ] Fix NeuroAcesso idle timeout with streamed progress during attachment reading and analysis; verify completion and failure recovery.
 - [x] Add photos and PDFs to NeuroAcesso analysis chat; verified signed-in upload of both formats and extracted codes in the reply, with teaching persistence tests passing.
 - [x] Prevent CRM observation/message drafts from disappearing during background updates; verified signed-in with simulated external column changes.
 - [x] Diagnose silent/dropped Twilio calls; prevent overlapping setup, reacquire/release audio and expose failures. Audio tests pass and Twilio configuration verified.
