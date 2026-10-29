@@ -45,20 +45,33 @@ export function AnaliseIA({ respostas }: { respostas: RespLite[] }) {
   const fimRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  const [job, setJob] = useState<Job | null>(null);
   const carregar = useCallback(async () => {
     const { data } = await supabase.from("neuroacesso_ia_mensagens").select("*").order("criado_em");
     setMsgs((data as Msg[]) || []);
   }, []);
-  useEffect(() => { carregar(); inputRef.current?.focus(); }, [carregar]);
+  const carregarJob = useCallback(async () => {
+    const { data } = await supabase.from("neuroacesso_ia_jobs").select("id, status, etapa, erro, atualizado_em, criado_em")
+      .order("criado_em", { ascending: false }).limit(1).maybeSingle();
+    setJob((prev) => {
+      const novo = (data as Job | null) ?? null;
+      if (prev && novo && prev.id === novo.id && prev.status !== novo.status && (novo.status === "concluido" || novo.status === "erro")) void carregar();
+      return novo;
+    });
+  }, [carregar]);
+  useEffect(() => { carregar(); carregarJob(); inputRef.current?.focus(); }, [carregar, carregarJob]);
   useEffect(() => { fimRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs.length, enviando]);
-  // Última mensagem da equipe ainda sem resposta (ex.: página recarregou durante a análise): acompanha até chegar.
-  const ultima = msgs[msgs.length - 1];
-  const aguardando = !enviando && ultima?.role === "user" && ultima.id !== "tmp" && Date.now() - new Date(ultima.criado_em).getTime() < 15 * 60 * 1000;
+  // A análise roda no servidor em etapas; a tela só acompanha (sobrevive a recarregar a página).
+  const jobAtivo = !!job && (job.status === "pesquisando" || job.status === "redigindo") && !isStaleJob(job);
+  const jobParou = !!job && (job.status === "erro" || ((job.status === "pesquisando" || job.status === "redigindo") && isStaleJob(job)))
+    && Date.now() - new Date(job.criado_em).getTime() < 60 * 60 * 1000;
+  const aguardando = !enviando && jobAtivo;
   useEffect(() => {
-    if (!aguardando) return;
-    const t = setInterval(carregar, 5000);
+    if (!jobAtivo) return;
+    const t = setInterval(carregarJob, 4000);
     return () => clearInterval(t);
-  }, [aguardando, carregar]);
+  }, [jobAtivo, carregarJob]);
+  const nomeDaResposta = (id: string | null | undefined) => respostas.find((r) => r.id === id)?.nome;
 
   const enviar = async (mensagem: string, extra?: { resposta_id: string; questionario_texto: string }) => {
     if ((!mensagem.trim() && !arquivos.length) || enviando) return;
