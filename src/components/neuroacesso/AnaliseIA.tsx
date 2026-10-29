@@ -5,12 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Brain, GraduationCap, Loader2, Send, FileSearch, Paperclip, X, FileText, Image as ImageIcon } from "lucide-react";
+import { Brain, GraduationCap, Loader2, Send, FileSearch, Paperclip, X, FileText, Image as ImageIcon, Download } from "lucide-react";
 import { QUESTIONARIO_MENTORADA } from "@/lib/neuroacessoQuestionario";
 import { attachmentError, MATERIAL_MARKER, withMaterial } from "../../../supabase/functions/_shared/neuroacesso-attachments";
+import { isStaleJob } from "../../../supabase/functions/_shared/analysis-steps";
 import { readAnalysisStream } from "@/lib/neuroacessoStream";
+import { baixarRelatorioPdf } from "@/lib/relatorioPdf";
 
-interface Msg { id: string; role: "user" | "assistant"; conteudo: string; ensinamento: boolean; autor_nome: string | null; criado_em: string }
+interface Msg { id: string; role: "user" | "assistant"; conteudo: string; ensinamento: boolean; autor_nome: string | null; criado_em: string; resposta_id?: string | null }
+interface Job { id: string; status: string; etapa: string; erro: string | null; atualizado_em: string; criado_em: string }
 interface RespLite { id: string; nome: string; email: string | null; telefone: string | null; respostas: Record<string, unknown>; criado_em: string }
 
 function valorTexto(v: unknown): string {
@@ -101,7 +104,7 @@ export function AnaliseIA({ respostas }: { respostas: RespLite[] }) {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível enviar os materiais.");
     } finally {
-      await carregar();
+      await Promise.all([carregar(), carregarJob()]);
       setEnviando(false);
       inputRef.current?.focus();
     }
@@ -123,7 +126,7 @@ export function AnaliseIA({ respostas }: { respostas: RespLite[] }) {
           <option value="">Escolha um questionário para analisar…</option>
           {respostas.map((r) => <option key={r.id} value={r.id}>{r.nome} — {hora(r.criado_em)}</option>)}
         </select>
-        <Button onClick={analisar} disabled={!respSel || enviando}>Gerar relatório</Button>
+        <Button onClick={analisar} disabled={!respSel || enviando || jobAtivo}>Gerar relatório</Button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -145,13 +148,24 @@ export function AnaliseIA({ respostas }: { respostas: RespLite[] }) {
         ) : (
           <div key={m.id} className="flex gap-3">
             <div className="h-8 w-8 shrink-0 rounded-full bg-accent/20 text-accent flex items-center justify-center"><Brain className="h-4 w-4" /></div>
-            <div className="prose prose-sm max-w-none text-foreground">
-              <ReactMarkdown>{m.conteudo}</ReactMarkdown>
-              <p className="text-[10px] text-muted-foreground">{hora(m.criado_em)}</p>
+            <div className="min-w-0 flex-1">
+              <div className="prose prose-sm max-w-none text-foreground">
+                <ReactMarkdown>{m.conteudo}</ReactMarkdown>
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-[10px] text-muted-foreground">{hora(m.criado_em)}</p>
+                {m.conteudo.length > 600 && (
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
+                    const nome = nomeDaResposta(m.resposta_id);
+                    baixarRelatorioPdf(m.conteudo, { titulo: `Relatório NeuroAcesso${nome ? ` - ${nome}` : ""}`, data: hora(m.criado_em) });
+                  }}><Download className="h-3.5 w-3.5 mr-1" />Baixar PDF</Button>
+                )}
+              </div>
             </div>
           </div>
         ))}
-        {(enviando || aguardando) && <div role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />{enviando ? progresso : "A IA ainda está preparando a resposta… ela aparecerá aqui sozinha."}</div>}
+        {(enviando || aguardando) && <div role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />{enviando ? progresso : `${job?.etapa || "A IA está preparando a resposta…"} Pode sair desta tela: o relatório aparecerá aqui sozinho.`}</div>}
+        {!enviando && !aguardando && jobParou && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">{job?.erro || "A análise parou antes de terminar. Clique em Gerar relatório novamente."}</div>}
         <div ref={fimRef} />
       </div>
 
