@@ -7,6 +7,7 @@ import { Copy, ExternalLink, FileText, Trash2, ArrowLeft, MessageCircle, Downloa
 import { QUESTIONARIO_MENTORADA } from "@/lib/neuroacessoQuestionario";
 import { QuestionarioView } from "@/components/neuroacesso/QuestionarioView";
 import { AnaliseIA } from "@/components/neuroacesso/AnaliseIA";
+import { RelatoriosSalvos } from "@/components/neuroacesso/RelatoriosSalvos";
 
 interface Resp { id: string; nome: string; email: string | null; telefone: string | null; respostas: Record<string, unknown>; anexos: { nome: string; path: string }[]; lido: boolean; criado_em: string }
 
@@ -77,6 +78,10 @@ export default function NeuroAcesso() {
                 <Button variant="ghost" onClick={() => setSel(null)}><ArrowLeft className="h-4 w-4 mr-1" />Voltar</Button>
                 <div className="flex gap-2"><Button variant="outline" onClick={() => { const t = document.title; document.title = `NeuroAcesso - ${sel.nome}`; window.print(); document.title = t; }}><Download className="h-4 w-4 mr-1" />Baixar PDF</Button><Button variant="outline" className="text-destructive" onClick={() => excluir(sel)}><Trash2 className="h-4 w-4 mr-1" />Excluir</Button></div>
               </div>
+              <Tabs defaultValue="q">
+                <TabsList><TabsTrigger value="q">Questionário</TabsTrigger><TabsTrigger value="r">Relatórios da IA</TabsTrigger></TabsList>
+                <TabsContent value="r" className="pt-4"><RelatoriosSalvos respostaId={sel.id} nome={sel.nome} /></TabsContent>
+                <TabsContent value="q" className="pt-4">
               <div id="neuroacesso-print" className="space-y-4"><div className="rounded-2xl border bg-card p-5">
                 <h2 className="font-display text-3xl">{sel.nome}</h2>
                 <p className="text-sm text-muted-foreground">{[sel.email, sel.telefone].filter(Boolean).join(" · ")} · enviado em {dt(sel.criado_em)}</p>
@@ -87,6 +92,8 @@ export default function NeuroAcesso() {
                 )}
               </div>
               <QuestionarioView secoes={QUESTIONARIO_MENTORADA} valores={sel.respostas || {}} /></div>
+                </TabsContent>
+              </Tabs>
             </div>
           ) : lista.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma resposta ainda. Envie o link da aba Questionário.</p>
