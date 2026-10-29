@@ -1201,6 +1201,47 @@ export type Database = {
           },
         ]
       }
+      neuroacesso_ia_mensagens: {
+        Row: {
+          autor_id: string | null
+          autor_nome: string | null
+          conteudo: string
+          criado_em: string
+          ensinamento: boolean
+          id: string
+          resposta_id: string | null
+          role: string
+        }
+        Insert: {
+          autor_id?: string | null
+          autor_nome?: string | null
+          conteudo: string
+          criado_em?: string
+          ensinamento?: boolean
+          id?: string
+          resposta_id?: string | null
+          role: string
+        }
+        Update: {
+          autor_id?: string | null
+          autor_nome?: string | null
+          conteudo?: string
+          criado_em?: string
+          ensinamento?: boolean
+          id?: string
+          resposta_id?: string | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "neuroacesso_ia_mensagens_resposta_id_fkey"
+            columns: ["resposta_id"]
+            isOneToOne: false
+            referencedRelation: "neuroacesso_respostas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       neuroacesso_respostas: {
         Row: {
           anexos: Json
