@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Brain, GraduationCap, Loader2, Send, FileSearch, Paperclip, X, FileText, Image as ImageIcon } from "lucide-react";
+import { Brain, GraduationCap, Loader2, Send, FileSearch, Paperclip, X, FileText, Image as ImageIcon, Download } from "lucide-react";
 import { QUESTIONARIO_MENTORADA } from "@/lib/neuroacessoQuestionario";
 import { attachmentError, MATERIAL_MARKER, withMaterial } from "../../../supabase/functions/_shared/neuroacesso-attachments";
+import { isStaleJob } from "../../../supabase/functions/_shared/analysis-steps";
 import { readAnalysisStream } from "@/lib/neuroacessoStream";
+import { baixarRelatorioPdf } from "@/lib/relatorioPdf";
 
-interface Msg { id: string; role: "user" | "assistant"; conteudo: string; ensinamento: boolean; autor_nome: string | null; criado_em: string }
+interface Msg { id: string; role: "user" | "assistant"; conteudo: string; ensinamento: boolean; autor_nome: string | null; criado_em: string; resposta_id?: string | null }
+interface Job { id: string; status: string; etapa: string; erro: string | null; atualizado_em: string; criado_em: string }
 interface RespLite { id: string; nome: string; email: string | null; telefone: string | null; respostas: Record<string, unknown>; criado_em: string }
 
 function valorTexto(v: unknown): string {
@@ -45,20 +49,33 @@ export function AnaliseIA({ respostas }: { respostas: RespLite[] }) {
   const fimRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  const [job, setJob] = useState<Job | null>(null);
   const carregar = useCallback(async () => {
     const { data } = await supabase.from("neuroacesso_ia_mensagens").select("*").order("criado_em");
     setMsgs((data as Msg[]) || []);
   }, []);
-  useEffect(() => { carregar(); inputRef.current?.focus(); }, [carregar]);
+  const carregarJob = useCallback(async () => {
+    const { data } = await supabase.from("neuroacesso_ia_jobs").select("id, status, etapa, erro, atualizado_em, criado_em")
+      .order("criado_em", { ascending: false }).limit(1).maybeSingle();
+    setJob((prev) => {
+      const novo = (data as Job | null) ?? null;
+      if (prev && novo && prev.id === novo.id && prev.status !== novo.status && (novo.status === "concluido" || novo.status === "erro")) void carregar();
+      return novo;
+    });
+  }, [carregar]);
+  useEffect(() => { carregar(); carregarJob(); inputRef.current?.focus(); }, [carregar, carregarJob]);
   useEffect(() => { fimRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs.length, enviando]);
-  // Última mensagem da equipe ainda sem resposta (ex.: página recarregou durante a análise): acompanha até chegar.
-  const ultima = msgs[msgs.length - 1];
-  const aguardando = !enviando && ultima?.role === "user" && ultima.id !== "tmp" && Date.now() - new Date(ultima.criado_em).getTime() < 15 * 60 * 1000;
+  // A análise roda no servidor em etapas; a tela só acompanha (sobrevive a recarregar a página).
+  const jobAtivo = !!job && (job.status === "pesquisando" || job.status === "redigindo") && !isStaleJob(job);
+  const jobParou = !!job && (job.status === "erro" || ((job.status === "pesquisando" || job.status === "redigindo") && isStaleJob(job)))
+    && Date.now() - new Date(job.criado_em).getTime() < 60 * 60 * 1000;
+  const aguardando = !enviando && jobAtivo;
   useEffect(() => {
-    if (!aguardando) return;
-    const t = setInterval(carregar, 5000);
+    if (!jobAtivo) return;
+    const t = setInterval(carregarJob, 4000);
     return () => clearInterval(t);
-  }, [aguardando, carregar]);
+  }, [jobAtivo, carregarJob]);
+  const nomeDaResposta = (id: string | null | undefined) => respostas.find((r) => r.id === id)?.nome;
 
   const enviar = async (mensagem: string, extra?: { resposta_id: string; questionario_texto: string }) => {
     if ((!mensagem.trim() && !arquivos.length) || enviando) return;
@@ -88,7 +105,7 @@ export function AnaliseIA({ respostas }: { respostas: RespLite[] }) {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível enviar os materiais.");
     } finally {
-      await carregar();
+      await Promise.all([carregar(), carregarJob()]);
       setEnviando(false);
       inputRef.current?.focus();
     }
@@ -110,7 +127,7 @@ export function AnaliseIA({ respostas }: { respostas: RespLite[] }) {
           <option value="">Escolha um questionário para analisar…</option>
           {respostas.map((r) => <option key={r.id} value={r.id}>{r.nome} — {hora(r.criado_em)}</option>)}
         </select>
-        <Button onClick={analisar} disabled={!respSel || enviando}>Gerar relatório</Button>
+        <Button onClick={analisar} disabled={!respSel || enviando || jobAtivo}>Gerar relatório</Button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -132,13 +149,24 @@ export function AnaliseIA({ respostas }: { respostas: RespLite[] }) {
         ) : (
           <div key={m.id} className="flex gap-3">
             <div className="h-8 w-8 shrink-0 rounded-full bg-accent/20 text-accent flex items-center justify-center"><Brain className="h-4 w-4" /></div>
-            <div className="prose prose-sm max-w-none text-foreground">
-              <ReactMarkdown>{m.conteudo}</ReactMarkdown>
-              <p className="text-[10px] text-muted-foreground">{hora(m.criado_em)}</p>
+            <div className="min-w-0 flex-1">
+              <div className="prose prose-sm max-w-none text-foreground overflow-x-auto [&_table]:text-xs [&_th]:border [&_td]:border [&_th]:px-2 [&_td]:px-2 [&_th]:bg-muted">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.conteudo}</ReactMarkdown>
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-[10px] text-muted-foreground">{hora(m.criado_em)}</p>
+                {m.conteudo.length > 600 && (
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
+                    const nome = nomeDaResposta(m.resposta_id);
+                    baixarRelatorioPdf(m.conteudo, { titulo: `Relatório NeuroAcesso${nome ? ` - ${nome}` : ""}`, data: hora(m.criado_em) });
+                  }}><Download className="h-3.5 w-3.5 mr-1" />Baixar PDF</Button>
+                )}
+              </div>
             </div>
           </div>
         ))}
-        {(enviando || aguardando) && <div role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />{enviando ? progresso : "A IA ainda está preparando a resposta… ela aparecerá aqui sozinha."}</div>}
+        {(enviando || aguardando) && <div role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />{enviando ? progresso : `${job?.etapa || "A IA está preparando a resposta…"} Pode sair desta tela: o relatório aparecerá aqui sozinho.`}</div>}
+        {!enviando && !aguardando && jobParou && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">{job?.erro || "A análise parou antes de terminar. Clique em Gerar relatório novamente."}</div>}
         <div ref={fimRef} />
       </div>
 
