@@ -51,6 +51,14 @@ export function AnaliseIA({ respostas }: { respostas: RespLite[] }) {
   }, []);
   useEffect(() => { carregar(); inputRef.current?.focus(); }, [carregar]);
   useEffect(() => { fimRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs.length, enviando]);
+  // Última mensagem da equipe ainda sem resposta (ex.: página recarregou durante a análise): acompanha até chegar.
+  const ultima = msgs[msgs.length - 1];
+  const aguardando = !enviando && ultima?.role === "user" && ultima.id !== "tmp" && Date.now() - new Date(ultima.criado_em).getTime() < 15 * 60 * 1000;
+  useEffect(() => {
+    if (!aguardando) return;
+    const t = setInterval(carregar, 5000);
+    return () => clearInterval(t);
+  }, [aguardando, carregar]);
 
   const enviar = async (mensagem: string, extra?: { resposta_id: string; questionario_texto: string }) => {
     if ((!mensagem.trim() && !arquivos.length) || enviando) return;
@@ -130,7 +138,7 @@ export function AnaliseIA({ respostas }: { respostas: RespLite[] }) {
             </div>
           </div>
         ))}
-        {enviando && <div role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />{progresso}</div>}
+        {(enviando || aguardando) && <div role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />{enviando ? progresso : "A IA ainda está preparando a resposta… ela aparecerá aqui sozinha."}</div>}
         <div ref={fimRef} />
       </div>
 
