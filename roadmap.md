@@ -1,4 +1,5 @@
 # Tasks
+- [ ] Add photos and PDFs to NeuroAcesso analysis chat, preserving extracted content in permanent teachings; verify upload and learning.
 - [x] Prevent CRM observation/message drafts from disappearing during background updates; verified signed-in with simulated external column changes.
 - [x] Diagnose silent/dropped Twilio calls; prevent overlapping setup, reacquire/release audio and expose failures. Audio tests pass and Twilio configuration verified.
 - [ ] Verify two-way sound in a real answered call after publication — requires an available person and the team's microphone/speakers.
