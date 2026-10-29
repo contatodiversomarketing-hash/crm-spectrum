@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Brain, GraduationCap, Loader2, Send, FileSearch, Paperclip, X, FileText, Image as ImageIcon } from "lucide-react";
 import { QUESTIONARIO_MENTORADA } from "@/lib/neuroacessoQuestionario";
 import { attachmentError, MATERIAL_MARKER, withMaterial } from "../../../supabase/functions/_shared/neuroacesso-attachments";
+import { readAnalysisStream } from "@/lib/neuroacessoStream";
 
 interface Msg { id: string; role: "user" | "assistant"; conteudo: string; ensinamento: boolean; autor_nome: string | null; criado_em: string }
 interface RespLite { id: string; nome: string; email: string | null; telefone: string | null; respostas: Record<string, unknown>; criado_em: string }
@@ -39,6 +40,7 @@ export function AnaliseIA({ respostas }: { respostas: RespLite[] }) {
   const [respSel, setRespSel] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [arquivos, setArquivos] = useState<File[]>([]);
+  const [progresso, setProgresso] = useState("Analisando…");
   const fileRef = useRef<HTMLInputElement>(null);
   const fimRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -57,6 +59,7 @@ export function AnaliseIA({ respostas }: { respostas: RespLite[] }) {
     if (aviso) { toast.error(aviso); return; }
     const mensagemFinal = mensagem.trim() || "Aprenda sobre o método com os materiais anexados.";
     setEnviando(true);
+    setProgresso("Preparando análise…");
     const otimista: Msg = { id: "tmp", role: "user", conteudo: withMaterial(mensagemFinal, selecionados.map((f) => f.name), ""), ensinamento: ensinar && !extra, autor_nome: "Você", criado_em: new Date().toISOString() };
     setMsgs((m) => [...m, otimista]);
     try {
@@ -70,6 +73,7 @@ export function AnaliseIA({ respostas }: { respostas: RespLite[] }) {
         body: { mensagem: mensagemFinal, ensinamento: ensinar && !extra, anexos, ...extra },
       });
       if (error || data?.error) throw new Error(data?.error || "Não foi possível falar com a IA agora.");
+      if (data instanceof Response) await readAnalysisStream(data, setProgresso);
       if (!extra) { setTexto(""); setArquivos([]); }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível enviar os materiais.");
@@ -124,7 +128,7 @@ export function AnaliseIA({ respostas }: { respostas: RespLite[] }) {
             </div>
           </div>
         ))}
-        {enviando && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Analisando…</div>}
+        {enviando && <div role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />{progresso}</div>}
         <div ref={fimRef} />
       </div>
 
