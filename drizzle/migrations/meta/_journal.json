@@ -71,6 +71,13 @@
       "when": 1793292940871,
       "tag": "0009_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793297287961,
+      "tag": "0010_neuroacesso_ia_jobs",
+      "breakpoints": true
     }
   ]
 }

@@ -1201,6 +1201,51 @@ export type Database = {
           },
         ]
       }
+      neuroacesso_ia_jobs: {
+        Row: {
+          atualizado_em: string
+          autor_id: string | null
+          criado_em: string
+          erro: string | null
+          etapa: string
+          hops: number
+          id: string
+          mensagem_id: string | null
+          parcial: string
+          pesquisa: string
+          resposta_id: string | null
+          status: string
+        }
+        Insert: {
+          atualizado_em?: string
+          autor_id?: string | null
+          criado_em?: string
+          erro?: string | null
+          etapa?: string
+          hops?: number
+          id?: string
+          mensagem_id?: string | null
+          parcial?: string
+          pesquisa?: string
+          resposta_id?: string | null
+          status?: string
+        }
+        Update: {
+          atualizado_em?: string
+          autor_id?: string | null
+          criado_em?: string
+          erro?: string | null
+          etapa?: string
+          hops?: number
+          id?: string
+          mensagem_id?: string | null
+          parcial?: string
+          pesquisa?: string
+          resposta_id?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       neuroacesso_ia_mensagens: {
         Row: {
           autor_id: string | null
