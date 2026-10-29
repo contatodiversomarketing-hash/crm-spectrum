@@ -1,6 +1,7 @@
 # Project rules
 
 - Read NeuroAcesso chat photo/PDF attachments server-side without public uploads; persist extracted material in the message content so permanent teachings never depend on temporary URLs.
+- Stream NeuroAcesso analysis progress with keepalive frames during both attachment extraction and replies; the client clears drafts only after a persisted completion event, not HTTP success alone.
 
 - Keep CRM column ordering, including column-specific meeting ordering, in the pure `crmLeadOrder` comparators so ordering rules are tested independently of rendering.
 - Track delayed human-response apologies from interaction inserts in a service-only queue; arm its scheduler only while pending work exists and keep one notice per waiting episode, independently of the main AI toggle.
