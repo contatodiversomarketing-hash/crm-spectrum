@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Brain, GraduationCap, Loader2, Send, FileSearch } from "lucide-react";
+import { Brain, GraduationCap, Loader2, Send, FileSearch, Paperclip, X, FileText, Image as ImageIcon } from "lucide-react";
 import { QUESTIONARIO_MENTORADA } from "@/lib/neuroacessoQuestionario";
+import { attachmentError, MATERIAL_MARKER, withMaterial } from "../../../supabase/functions/_shared/neuroacesso-attachments";
 
 interface Msg { id: string; role: "user" | "assistant"; conteudo: string; ensinamento: boolean; autor_nome: string | null; criado_em: string }
 interface RespLite { id: string; nome: string; email: string | null; telefone: string | null; respostas: Record<string, unknown>; criado_em: string }
@@ -37,6 +38,8 @@ export function AnaliseIA({ respostas }: { respostas: RespLite[] }) {
   const [ensinar, setEnsinar] = useState(false);
   const [respSel, setRespSel] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [arquivos, setArquivos] = useState<File[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
   const fimRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -48,18 +51,33 @@ export function AnaliseIA({ respostas }: { respostas: RespLite[] }) {
   useEffect(() => { fimRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs.length, enviando]);
 
   const enviar = async (mensagem: string, extra?: { resposta_id: string; questionario_texto: string }) => {
-    if (!mensagem.trim() || enviando) return;
+    if ((!mensagem.trim() && !arquivos.length) || enviando) return;
+    const selecionados = extra ? [] : arquivos;
+    const aviso = attachmentError(selecionados);
+    if (aviso) { toast.error(aviso); return; }
+    const mensagemFinal = mensagem.trim() || "Aprenda sobre o método com os materiais anexados.";
     setEnviando(true);
-    const otimista: Msg = { id: "tmp", role: "user", conteudo: mensagem, ensinamento: ensinar, autor_nome: "Você", criado_em: new Date().toISOString() };
+    const otimista: Msg = { id: "tmp", role: "user", conteudo: withMaterial(mensagemFinal, selecionados.map((f) => f.name), ""), ensinamento: ensinar && !extra, autor_nome: "Você", criado_em: new Date().toISOString() };
     setMsgs((m) => [...m, otimista]);
-    setTexto("");
-    const { data, error } = await supabase.functions.invoke("neuroacesso-analise-ia", {
-      body: { mensagem, ensinamento: ensinar && !extra, ...extra },
-    });
-    if (error || data?.error) { toast.error(data?.error || "Não foi possível falar com a IA agora."); setTexto(mensagem); }
-    await carregar();
-    setEnviando(false);
-    inputRef.current?.focus();
+    try {
+      const anexos = await Promise.all(selecionados.map((file) => new Promise<{ nome: string; type: string; data: string }>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => typeof reader.result === "string" ? resolve({ nome: file.name, type: file.type, data: reader.result }) : reject(new Error("Falha ao ler anexo"));
+        reader.onerror = () => reject(new Error("Falha ao ler anexo"));
+        reader.readAsDataURL(file);
+      })));
+      const { data, error } = await supabase.functions.invoke("neuroacesso-analise-ia", {
+        body: { mensagem: mensagemFinal, ensinamento: ensinar && !extra, anexos, ...extra },
+      });
+      if (error || data?.error) throw new Error(data?.error || "Não foi possível falar com a IA agora.");
+      if (!extra) { setTexto(""); setArquivos([]); }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível enviar os materiais.");
+    } finally {
+      await carregar();
+      setEnviando(false);
+      inputRef.current?.focus();
+    }
   };
 
   const analisar = () => {
@@ -93,7 +111,7 @@ export function AnaliseIA({ respostas }: { respostas: RespLite[] }) {
           <div key={m.id} className="flex justify-end">
             <div className="max-w-[80%] rounded-2xl bg-primary text-primary-foreground px-4 py-2 text-sm">
               {m.ensinamento && <p className="text-[11px] uppercase tracking-wider opacity-80 flex items-center gap-1 mb-1"><GraduationCap className="h-3 w-3" />Ensinamento</p>}
-              <p className="whitespace-pre-wrap">{m.conteudo.split("\n\n---\nRESPOSTAS DO QUESTIONÁRIO:")[0]}</p>
+              <p className="whitespace-pre-wrap">{m.conteudo.split("\n\n---\nRESPOSTAS DO QUESTIONÁRIO:")[0].split(MATERIAL_MARKER)[0]}</p>
               <p className="text-[10px] opacity-70 mt-1 text-right">{m.autor_nome} · {hora(m.criado_em)}</p>
             </div>
           </div>
@@ -112,14 +130,29 @@ export function AnaliseIA({ respostas }: { respostas: RespLite[] }) {
 
       <div className="border-t p-3 space-y-2">
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Switch checked={ensinar} onCheckedChange={setEnsinar} />
+          <Switch checked={ensinar} onCheckedChange={setEnsinar} disabled={enviando} />
           <GraduationCap className="h-3.5 w-3.5" />Guardar esta mensagem como ensinamento permanente
         </label>
+        <input ref={fileRef} type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" aria-label="Anexar fotos e PDFs" onChange={(e) => {
+          const novos = [...arquivos, ...Array.from(e.target.files || [])];
+          const aviso = attachmentError(novos);
+          if (aviso) toast.error(aviso); else setArquivos(novos);
+          e.target.value = "";
+        }} />
+        {arquivos.length > 0 && <div className="flex flex-wrap gap-2">
+          {arquivos.map((file, i) => <div key={`${file.name}-${i}`} className="flex items-center gap-1 rounded-md border px-2 py-1 text-xs min-w-0 max-w-full">
+            {file.type === "application/pdf" ? <FileText className="h-4 w-4 shrink-0" /> : <ImageIcon className="h-4 w-4 shrink-0" />}
+            <span className="truncate">{file.name}</span>
+            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" title={`Remover ${file.name}`} aria-label={`Remover ${file.name}`} disabled={enviando} onClick={() => setArquivos((a) => a.filter((_, j) => j !== i))}><X className="h-3 w-3" /></Button>
+          </div>)}
+        </div>}
         <div className="flex gap-2 items-end">
+          <Button variant="outline" size="icon" title="Anexar fotos e PDFs" aria-label="Anexar fotos e PDFs" disabled={enviando} onClick={() => fileRef.current?.click()}><Paperclip className="h-4 w-4" /></Button>
           <Textarea ref={inputRef} value={texto} onChange={(e) => setTexto(e.target.value)} rows={2}
+            disabled={enviando}
             placeholder={ensinar ? "Ensine algo sobre o método ou a forma de analisar…" : "Converse com a IA de análise…"}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(texto); } }} className="resize-none" />
-          <Button size="icon" onClick={() => enviar(texto)} disabled={!texto.trim() || enviando}><Send className="h-4 w-4" /></Button>
+          <Button size="icon" aria-label="Enviar mensagem" onClick={() => enviar(texto)} disabled={(!texto.trim() && !arquivos.length) || enviando}><Send className="h-4 w-4" /></Button>
         </div>
       </div>
     </div>
