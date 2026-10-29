@@ -69,8 +69,10 @@ export function AnaliseIA({ respostas }: { respostas: RespLite[] }) {
         reader.onerror = () => reject(new Error("Falha ao ler anexo"));
         reader.readAsDataURL(file);
       })));
+      const sel = !extra ? respostas.find((x) => x.id === respSel) : undefined;
+      const ctx = extra ?? (sel ? { resposta_id: sel.id, questionario_texto: formatarQuestionario(sel) } : {});
       const { data, error } = await supabase.functions.invoke("neuroacesso-analise-ia", {
-        body: { mensagem: mensagemFinal, ensinamento: ensinar && !extra, anexos, ...extra },
+        body: { mensagem: mensagemFinal, ensinamento: ensinar && !extra, anexos, ...ctx },
       });
       if (error || data?.error) throw new Error(data?.error || "Não foi possível falar com a IA agora.");
       if (data instanceof Response) await readAnalysisStream(data, setProgresso);

@@ -33,7 +33,10 @@ Papéis:
    - Próximos passos na mentoria
 3. Responder dúvidas da equipe sobre análises já feitas.
 
-Regras: português brasileiro, tom profissional e acolhedor. Nunca invente dados que a mentorada não respondeu; aponte lacunas. Use markdown com títulos e listas.`;
+Regras: português brasileiro, tom profissional e acolhedor. Nunca invente dados que a mentorada não respondeu; aponte lacunas. Use markdown com títulos e listas.
+- Quando houver "RESPOSTAS DO QUESTIONÁRIO" na conversa, você TEM acesso a elas: use-as diretamente, nunca diga que não tem acesso.
+- Você TEM a ferramenta de pesquisa na internet: quando pedirem dados regionais, populacionais, concorrência, legislação ou serviços, pesquise em fontes confiáveis (IBGE, DATASUS, órgãos oficiais, sites institucionais) e cite os links das fontes.
+- Os ENSINAMENTOS DA EQUIPE incluem o conteúdo integral dos materiais (PDFs/fotos) do método: baseie as análises neles.`;
 
 async function gerarTexto(fields: OpenAIAstraResponsesFields, signal: AbortSignal): Promise<string> {
   let text = "";
@@ -98,7 +101,7 @@ Deno.serve(async (req) => {
     }
 
     const { error: insErr } = await admin.from("neuroacesso_ia_mensagens").insert({
-      role: "user", conteudo, ensinamento: !!ensinamento, resposta_id: resposta_id || null,
+      role: "user", conteudo, ensinamento: !!ensinamento || anexos.length > 0, resposta_id: resposta_id || null,
       autor_id: u.user.id, autor_nome: perfil?.nome || u.user.email,
     });
     if (insErr) throw insErr;
@@ -115,8 +118,8 @@ Deno.serve(async (req) => {
       content: m.conteudo,
     }));
 
-    send({ type: "progress", message: "Preparando a resposta com os ensinamentos do método…" });
-    const texto = await gerarTexto({ instructions, input }, signal);
+    send({ type: "progress", message: "Preparando a resposta (pode pesquisar na internet)…" });
+    const texto = await gerarTexto({ instructions, input, tools: [{ type: "web_search" }] } as OpenAIAstraResponsesFields, signal);
 
     const { error: e2 } = await admin.from("neuroacesso_ia_mensagens").insert({
       role: "assistant", conteudo: texto, resposta_id: resposta_id || null,
