@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Copy, ExternalLink, FileText, Trash2, ArrowLeft, MessageCircle, Download } from "lucide-react";
 import { QUESTIONARIO_MENTORADA } from "@/lib/neuroacessoQuestionario";
 import { QuestionarioView } from "@/components/neuroacesso/QuestionarioView";
-import { AnaliseIA } from "@/components/neuroacesso/AnaliseIA";
+import { AnaliseIA, questionarioMarkdown } from "@/components/neuroacesso/AnaliseIA";
 import { RelatoriosSalvos } from "@/components/neuroacesso/RelatoriosSalvos";
 
 interface Resp { id: string; nome: string; email: string | null; telefone: string | null; respostas: Record<string, unknown>; anexos: { nome: string; path: string }[]; lido: boolean; criado_em: string }
