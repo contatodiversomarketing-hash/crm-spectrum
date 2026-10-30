@@ -25,6 +25,19 @@ function valorTexto(v: unknown): string {
   return String(v);
 }
 
+export function questionarioMarkdown(r: RespLite): string {
+  const md: string[] = [`**E-mail:** ${r.email || "—"}  \n**WhatsApp:** ${r.telefone || "—"}`];
+  for (const s of QUESTIONARIO_MENTORADA) {
+    md.push(`\n## ${s.titulo}`);
+    if (s.subtitulo) md.push(`*${s.subtitulo}*`);
+    for (const p of s.perguntas) {
+      if (p.tipo === "aviso") continue;
+      md.push(`### ${p.label || p.id}`, valorTexto(r.respostas?.[p.id]).replace(/\n/g, "  \n"));
+    }
+  }
+  return md.join("\n\n");
+}
+
 export function formatarQuestionario(r: RespLite): string {
   const linhas = [`Nome: ${r.nome}`, `Email: ${r.email || "—"}`, `WhatsApp: ${r.telefone || "—"}`];
   for (const s of QUESTIONARIO_MENTORADA) {
@@ -158,7 +171,7 @@ export function AnaliseIA({ respostas }: { respostas: RespLite[] }) {
                 {m.conteudo.length > 600 && (
                   <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
                     const nome = nomeDaResposta(m.resposta_id);
-                    baixarRelatorioPdf(m.conteudo, { titulo: `Relatório NeuroAcesso${nome ? ` - ${nome}` : ""}`, data: hora(m.criado_em) });
+                    baixarRelatorioPdf(m.conteudo, { titulo: `Relatório NeuroAcesso${nome ? ` - ${nome}` : ""}`, data: hora(m.criado_em), pessoa: nome || undefined, tipo: "Relatório de análise" });
                   }}><Download className="h-3.5 w-3.5 mr-1" />Baixar PDF</Button>
                 )}
               </div>

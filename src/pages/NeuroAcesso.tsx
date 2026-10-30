@@ -1,3 +1,4 @@
+import { baixarRelatorioPdf } from "@/lib/relatorioPdf";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -76,7 +77,7 @@ export default function NeuroAcesso() {
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <Button variant="ghost" onClick={() => setSel(null)}><ArrowLeft className="h-4 w-4 mr-1" />Voltar</Button>
-                <div className="flex gap-2"><Button variant="outline" onClick={() => { const t = document.title; document.title = `NeuroAcesso - ${sel.nome}`; window.print(); document.title = t; }}><Download className="h-4 w-4 mr-1" />Baixar PDF</Button><Button variant="outline" className="text-destructive" onClick={() => excluir(sel)}><Trash2 className="h-4 w-4 mr-1" />Excluir</Button></div>
+                <div className="flex gap-2"><Button variant="outline" onClick={() => baixarRelatorioPdf(questionarioMarkdown(sel), { titulo: `Questionário NeuroAcesso — ${sel.nome}`, data: `Enviado em ${dt(sel.criado_em)}`, pessoa: sel.nome, tipo: "Questionário da mentorada" })}><Download className="h-4 w-4 mr-1" />Baixar PDF</Button><Button variant="outline" className="text-destructive" onClick={() => excluir(sel)}><Trash2 className="h-4 w-4 mr-1" />Excluir</Button></div>
               </div>
               <Tabs defaultValue="q">
                 <TabsList><TabsTrigger value="q">Questionário</TabsTrigger><TabsTrigger value="r">Relatórios da IA</TabsTrigger></TabsList>
