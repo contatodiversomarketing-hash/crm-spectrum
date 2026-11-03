@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import type { Lead } from "./LeadCard";
 import { Checkbox } from "@/components/ui/checkbox";
-import { BLACK_FRIDAY_NAME, BLACK_FRIDAY_TEXT, campaignCanSend } from "../../../supabase/functions/_shared/black-friday-neuroacesso";
+import { BLACK_FRIDAY_NAME, BLACK_FRIDAY_TEXT, campaignCanSend, isCampaignExcludedColumn } from "../../../supabase/functions/_shared/black-friday-neuroacesso";
 
 interface Props {
   colunaNome: string;
@@ -22,9 +22,10 @@ export function EnvioEmMassaDialog({ colunaNome, leads }: Props) {
   const [consent, setConsent] = useState(false);
   const [checking, setChecking] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [ignorados, setIgnorados] = useState(0);
   const [progresso, setProgresso] = useState({ feitos: 0, ok: 0, falhas: 0, templates: 0 });
 
-  const comTelefone = leads.filter((l) => (l.telefone || "").replace(/\D/g, "").length >= 10);
+  const comTelefone = leads.filter((l) => (l.telefone || "").replace(/\D/g, "").length >= 10 && (!blackFriday || (!isCampaignExcludedColumn(colunaNome) && !isCampaignExcludedColumn(l.status_pipeline))));
 
   const verificar = async (criar = false) => {
     setChecking(true);
@@ -47,6 +48,8 @@ export function EnvioEmMassaDialog({ colunaNome, leads }: Props) {
     if (!texto.trim() || comTelefone.length === 0) return;
     if (blackFriday && !campaignCanSend(status, consent)) return;
     setEnviando(true);
+    setIgnorados(0);
+    let skipped = 0;
     let ok = 0, falhas = 0, templates = 0;
     for (let i = 0; i < comTelefone.length; i++) {
       const lead = comTelefone[i];
@@ -66,6 +69,7 @@ export function EnvioEmMassaDialog({ colunaNome, leads }: Props) {
             break;
           }
         }
+        else if (data?.skipped) { skipped++; setIgnorados(skipped); }
         else { ok++; if (data?.aviso) templates++; }
       } catch {
         falhas++;
@@ -76,7 +80,7 @@ export function EnvioEmMassaDialog({ colunaNome, leads }: Props) {
     setEnviando(false);
     toast({
       title: "Envio concluído",
-      description: `${ok} enviadas, ${falhas} com falha${templates ? `. ${templates} estavam fora das 24h e receberam a mensagem de reabordagem aprovada.` : "."}`,
+      description: `${ok} enviadas, ${falhas} com falha, ${skipped} ignoradas${templates ? `. ${templates} estavam fora das 24h e receberam a mensagem de reabordagem aprovada.` : "."}`,
       variant: falhas && !ok ? "destructive" : undefined,
     });
     if (!falhas) { setOpen(false); setTexto(""); }
@@ -116,6 +120,7 @@ export function EnvioEmMassaDialog({ colunaNome, leads }: Props) {
             aria-label="Mensagem do disparo"
           />
           {blackFriday ? <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">Compra concluída e Aguardando resposta não recebem esta campanha; os cards permanecem onde estão.</p>
             <p className="text-sm">Meta: {({ APPROVED: "Aprovado", PENDING: "Em análise", REJECTED: "Recusado", NOT_CREATED: "Ainda não solicitado", TEXT_MISMATCH: "Texto diferente do padrão", UNKNOWN: "Não verificado", PAUSED: "Pausado", DISABLED: "Desativado" } as Record<string, string>)[status] || status}</p>
             <div className="flex gap-2">
               <Button variant="outline" disabled={checking || enviando} onClick={() => void verificar()}>Verificar aprovação</Button>
@@ -128,7 +133,7 @@ export function EnvioEmMassaDialog({ colunaNome, leads }: Props) {
           </p>}
           {progresso.feitos > 0 && (
             <p className="text-sm">
-              {progresso.feitos}/{comTelefone.length} — {progresso.ok} enviadas, {progresso.falhas} falhas
+              {progresso.feitos}/{comTelefone.length} — {progresso.ok} enviadas, {progresso.falhas} falhas, {ignorados} ignoradas
             </p>
           )}
           <DialogFooter>

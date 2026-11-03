@@ -1,6 +1,11 @@
 export const BLACK_FRIDAY_NAME = "black_friday_neuroacesso_2026";
 export const BLACK_FRIDAY_PIPELINE = "PLANO NEUROACESSO";
+export function isCampaignExcludedColumn(column?: string | null): boolean {
+  const normalized = (column || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[_\s-]+/g, " ").trim();
+  return normalized === "compra concluida" || normalized === "aguardando resposta";
+}
 export function campaignPlacement(existing: { pipeline_id?: string; status_pipeline?: string } | null, pipelineId: string) {
+  if (existing && isCampaignExcludedColumn(existing.status_pipeline)) return { pipeline_id: existing.pipeline_id, status_pipeline: existing.status_pipeline };
   return { pipeline_id: pipelineId, status_pipeline: existing?.pipeline_id === pipelineId ? (existing.status_pipeline || "novo") : "novo" };
 }
 export const BLACK_FRIDAY_TEXT = `BLACK FRIDAY NEUROACESSO — APENAS 15 VAGAS

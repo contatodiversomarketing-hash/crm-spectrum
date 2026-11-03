@@ -1,8 +1,8 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enviarTextoMega, enviarTemplateMega, enviarMidiaMega, enviarTemplateNomeado, datafyConfig } from "../_shared/mega.ts";
-import { telCanonico } from "../_shared/dedup.ts";
-import { BLACK_FRIDAY_NAME, BLACK_FRIDAY_TEXT, campaignCanSend, findBlackFridayTemplate } from "../_shared/black-friday-neuroacesso.ts";
+import { telCanonico, telVariacoes } from "../_shared/dedup.ts";
+import { BLACK_FRIDAY_NAME, BLACK_FRIDAY_TEXT, campaignCanSend, findBlackFridayTemplate, isCampaignExcludedColumn } from "../_shared/black-friday-neuroacesso.ts";
 
 type Body = {
   numero?: string;
@@ -59,6 +59,16 @@ Deno.serve(async (req) => {
       if (body.consentimentoConfirmado !== true) return json({ error: "Confirme a autorização do contato para receber campanhas pelo WhatsApp." }, 400);
       const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userData.user.id);
       if (!roles?.some((r) => r.role === "admin" || r.role === "auxiliar")) return json({ error: "Acesso não autorizado" }, 403);
+      // Recheck the current card immediately before each send, including phone variants.
+      const { data: cards, error: cardsError } = await supabase.from("leads").select("id,pipeline_id,status_pipeline").in("telefone", telVariacoes(numero));
+      if (cardsError) return json({ error: "Não foi possível verificar a coluna do contato" }, 500);
+      for (const card of cards || []) {
+        const { data: column, error: columnError } = await supabase.from("pipeline_colunas").select("nome").eq("pipeline_id", card.pipeline_id).eq("chave", card.status_pipeline).maybeSingle();
+        if (columnError) return json({ error: "Não foi possível verificar a coluna do contato" }, 500);
+        if (isCampaignExcludedColumn(card.status_pipeline) || isCampaignExcludedColumn(column?.nome)) {
+          return json({ ok: true, skipped: true, motivo: "Contato em Compra concluída ou Aguardando resposta; nenhuma mensagem enviada." });
+        }
+      }
       const { base, token, configurado } = datafyConfig();
       if (!configurado) return json({ error: "Conexão oficial do WhatsApp indisponível" }, 400);
       const waba = Deno.env.get("DATAFY_WABA_ID") || "1135674689542545";
