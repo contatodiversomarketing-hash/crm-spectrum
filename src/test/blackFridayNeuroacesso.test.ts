@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { campaignCanSend, findBlackFridayTemplate, BLACK_FRIDAY_NAME, BLACK_FRIDAY_TEXT } from "../../supabase/functions/_shared/black-friday-neuroacesso";
+import { campaignCanSend, campaignPlacement, findBlackFridayTemplate, BLACK_FRIDAY_NAME, BLACK_FRIDAY_TEXT, BLACK_FRIDAY_PIPELINE } from "../../supabase/functions/_shared/black-friday-neuroacesso";
 
 describe("Black Friday campaign safeguards", () => {
+  it("places contacts in PLANO NEUROACESSO while preserving stages already in that pipeline", () => {
+    expect(BLACK_FRIDAY_PIPELINE).toBe("PLANO NEUROACESSO");
+    expect(campaignPlacement({ pipeline_id: "other", status_pipeline: "old" }, "neuro")).toEqual({ pipeline_id: "neuro", status_pipeline: "novo" });
+    expect(campaignPlacement({ pipeline_id: "neuro", status_pipeline: "aguardando_resposta" }, "neuro")).toEqual({ pipeline_id: "neuro", status_pipeline: "aguardando_resposta" });
+  });
   it("requires approved status", () => {
     expect(campaignCanSend("PENDING", true)).toBe(false);
     expect(campaignCanSend("REJECTED", true)).toBe(false);
