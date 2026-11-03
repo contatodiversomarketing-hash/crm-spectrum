@@ -11,6 +11,7 @@ import { usePipelineColumns } from "@/hooks/usePipelineColumns";
 import { usePipelines } from "@/hooks/usePipelines";
 import { NewLeadDialog } from "@/components/crm/NewLeadDialog";
 import type { Lead } from "@/components/crm/LeadCard";
+import { collectCrmLeadPages } from "@/lib/crmLeadPages";
 
 export default function CRMPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -57,15 +58,15 @@ export default function CRMPage() {
   const fetchLeads = async (silencioso = false) => {
     if (!activePipelineId) return;
     if (!silencioso) setLoading(true);
-    const { data, error } = await supabase
-      .from("leads")
-      .select("*")
-      .eq("pipeline_id", activePipelineId)
-      .order("criado_em", { ascending: false })
-      .limit(500);
-
-    if (!error && data) {
-      const listaLeads = data as Lead[];
+    try {
+      const listaLeads = await collectCrmLeadPages<Lead>(async (from, to) => {
+        const { data, error } = await supabase.from("leads").select("*")
+          .eq("pipeline_id", activePipelineId)
+          .order("criado_em", { ascending: false }).order("id", { ascending: false })
+          .range(from, to);
+        if (error) throw error;
+        return (data || []) as Lead[];
+      });
 
       // Completa o nome com o cadastro do paciente, quando existir
       const { data: pacientes } = await supabase
@@ -87,8 +88,11 @@ export default function CRMPage() {
             : l
         )
       );
+    } catch (error) {
+      console.error("Não foi possível carregar todos os cards", error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
 
