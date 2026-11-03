@@ -2,7 +2,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enviarTextoMega, enviarTemplateMega, enviarMidiaMega, enviarTemplateNomeado, datafyConfig } from "../_shared/mega.ts";
 import { telCanonico, telVariacoes } from "../_shared/dedup.ts";
-import { BLACK_FRIDAY_NAME, BLACK_FRIDAY_TEXT, campaignCanSend, findBlackFridayTemplate, isCampaignExcludedColumn } from "../_shared/black-friday-neuroacesso.ts";
+import { BLACK_FRIDAY_NAME, BLACK_FRIDAY_TEXT, campaignCanSend, classifyCampaignError, findBlackFridayTemplate, isCampaignExcludedColumn } from "../_shared/black-friday-neuroacesso.ts";
 
 type Body = {
   numero?: string;
@@ -69,16 +69,49 @@ Deno.serve(async (req) => {
           return json({ ok: true, skipped: true, motivo: "Contato em Compra concluída ou Aguardando resposta; nenhuma mensagem enviada." });
         }
       }
+      // Idempotent re-runs: never send the campaign twice to the same contact.
+      const { data: jaEnviado } = await supabase.from("interacoes_ia").select("id")
+        .in("paciente_externo_id", telVariacoes(numero)).eq("intencao_detectada", "black_friday_neuroacesso")
+        .neq("whatsapp_status", "failed").limit(1);
+      if (jaEnviado?.length) return json({ ok: true, skipped: true, motivo: "Contato já recebeu esta campanha." });
       const { base, token, configurado } = datafyConfig();
-      if (!configurado) return json({ error: "Conexão oficial do WhatsApp indisponível" }, 400);
+      if (!configurado) return json({ error: "Conexão oficial do WhatsApp indisponível", stop: true }, 400);
       const waba = Deno.env.get("DATAFY_WABA_ID") || "1135674689542545";
       const check = await fetch(`${base}/${waba}/message_templates?name=${BLACK_FRIDAY_NAME}&limit=100`, { headers: { Authorization: `Bearer ${token}` } });
       const details = await check.text();
-      if (!check.ok) return json({ error: "Não foi possível verificar a aprovação da campanha.", status: check.status, details }, check.status);
+      if (!check.ok) return json({ error: "Não foi possível verificar a aprovação da campanha.", status: check.status, details, stop: true }, check.status);
       const status = findBlackFridayTemplate(JSON.parse(details));
-      if (!campaignCanSend(status, body.consentimentoConfirmado)) return json({ error: "A campanha precisa estar aprovada pela Meta com o texto original.", status }, 409);
-      const sent = await enviarTemplateNomeado(numero, BLACK_FRIDAY_NAME);
-      if (!sent.ok) return json({ error: "A Meta recusou o envio da campanha.", status: sent.status, details: sent.body }, 502);
+      if (!campaignCanSend(status, body.consentimentoConfirmado)) return json({ error: status === "PENDING" ? "A Meta ainda está analisando a campanha. Nenhuma mensagem foi enviada." : "A campanha precisa estar aprovada pela Meta com o texto original.", status, stop: true }, 409);
+
+      const local = numero.startsWith("55") ? numero.slice(2) : numero;
+      const alternativo = local.length === 10 ? `55${local.slice(0, 2)}9${local.slice(2)}`
+        : local.length === 11 && local[2] === "9" ? `55${local.slice(0, 2)}${local.slice(3)}` : null;
+      const tentar = async (destino: string) => {
+        let r = await enviarTemplateNomeado(destino, BLACK_FRIDAY_NAME);
+        for (let t = 1; t <= 3 && !r.ok && classifyCampaignError(r.status, r.body) === "retry"; t++) {
+          await new Promise((res) => setTimeout(res, 2500 * t));
+          r = await enviarTemplateNomeado(destino, BLACK_FRIDAY_NAME);
+        }
+        return r;
+      };
+      let sent = await tentar(numero);
+      if (!sent.ok && alternativo && classifyCampaignError(sent.status, sent.body) === "alternate") {
+        const r2 = await tentar(alternativo);
+        if (r2.ok || classifyCampaignError(r2.status, r2.body) !== "alternate") sent = r2;
+      }
+      if (!sent.ok) {
+        const tipoFalha = classifyCampaignError(sent.status, sent.body);
+        console.error("[black-friday] recusado", numero, sent.status, sent.body.slice(0, 400));
+        await supabase.from("interacoes_ia").insert({
+          paciente_externo_id: canonico, canal: "whatsapp", sistema_origem: "crm_manual",
+          mensagem_usuario: null, resposta_final: BLACK_FRIDAY_TEXT, intencao_detectada: "black_friday_neuroacesso",
+          estado_conversa: "atendimento_humano", supervisionado: true,
+          atendente_humano: userData.user.email ?? userData.user.id,
+          whatsapp_status: "failed", whatsapp_erro: sent.body.slice(0, 400),
+        });
+        if (tipoFalha === "stop") return json({ error: "A Meta recusou o envio da campanha.", status: sent.status, details: sent.body.slice(0, 400), stop: true }, 502);
+        return json({ ok: false, falhaContato: true, motivo: tipoFalha === "alternate" ? "Número sem WhatsApp ou inválido." : "A Meta não entregou para este contato (limite por pessoa ou contato bloqueou marketing).", details: sent.body.slice(0, 300) });
+      }
       const { error: historyError } = await supabase.from("interacoes_ia").insert({
         paciente_externo_id: canonico, canal: "whatsapp", sistema_origem: "crm_manual",
         mensagem_usuario: null, resposta_final: BLACK_FRIDAY_TEXT, intencao_detectada: "black_friday_neuroacesso",
