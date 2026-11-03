@@ -50,7 +50,7 @@ export function EnvioEmMassaDialog({ colunaNome, leads }: Props) {
     setEnviando(true);
     setIgnorados(0);
     let skipped = 0;
-    let ok = 0, falhas = 0, templates = 0;
+    let ok = 0, falhas = 0, templates = 0, seguidas = 0;
     for (let i = 0; i < comTelefone.length; i++) {
       const lead = comTelefone[i];
       const primeiro = (lead.nome || "").trim().split(/\s+/)[0] || "";
@@ -63,16 +63,23 @@ export function EnvioEmMassaDialog({ colunaNome, leads }: Props) {
         });
         if (error || data?.error) {
           falhas++;
+          seguidas++;
           if (blackFriday) {
-            setProgresso({ feitos: i + 1, ok, falhas, templates });
-            toast({ title: "Campanha interrompida após falha", description: "Verifique a aprovação e a situação do WhatsApp antes de continuar.", variant: "destructive" });
-            break;
+            const details = error && "context" in error && error.context instanceof Response ? await error.context.json().catch(() => null) : null;
+            const parar = details?.stop || data?.stop || seguidas >= 5;
+            if (parar) {
+              setProgresso({ feitos: i + 1, ok, falhas, templates });
+              toast({ title: "Campanha interrompida", description: details?.error || data?.error || "Várias falhas seguidas. Verifique a situação do WhatsApp antes de continuar.", variant: "destructive" });
+              break;
+            }
           }
         }
+        else if (data?.falhaContato) { falhas++; seguidas++; if (seguidas >= 5) { setProgresso({ feitos: i + 1, ok, falhas, templates }); toast({ title: "Campanha interrompida", description: "5 contatos seguidos não receberam. Verifique a situação do WhatsApp antes de continuar.", variant: "destructive" }); break; } }
         else if (data?.skipped) { skipped++; setIgnorados(skipped); }
-        else { ok++; if (data?.aviso) templates++; }
+        else { ok++; seguidas = 0; if (data?.aviso) templates++; }
       } catch {
         falhas++;
+        seguidas++;
       }
       setProgresso({ feitos: i + 1, ok, falhas, templates });
       if (i < comTelefone.length - 1) await new Promise((r) => setTimeout(r, 1500));
