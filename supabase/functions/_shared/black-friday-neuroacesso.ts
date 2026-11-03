@@ -3,17 +3,19 @@ export const BLACK_FRIDAY_TEXT = `BLACK FRIDAY NEUROACESSO — APENAS 15 VAGAS
 
 Olá! Aqui é o Luca, da equipe da Dra. Amélia Carvalho.
 
-Quantas famílias procuram sua clínica, mas não conseguem manter o tratamento dos filhos por falta de recursos? E quanto sua operação ainda depende dos atendimentos particulares e das condições impostas pelos planos de saúde?
+Sua clínica recebe famílias que não conseguem manter o tratamento dos filhos por falta de recursos?
 
-O Método NeuroAcesso conecta essas duas necessidades: ajudar famílias de crianças com autismo e outros transtornos do neurodesenvolvimento a buscar acesso ao tratamento pela judicialização e estruturar uma nova frente de receita para sua clínica, reduzindo a dependência exclusiva de particulares e convênios.
+O Método NeuroAcesso orienta sua clínica a organizar casos de crianças com autismo e outros transtornos do neurodesenvolvimento para buscar acesso ao tratamento pela judicialização, respeitando a indicação clínica e cada processo.
 
-São 6 meses de acompanhamento, com encontros individuais com a Dra. Amélia, suporte pelo WhatsApp, modelos de laudos e relatórios, orientação para organizar os casos e treinamentos para sua equipe.
+Também ajuda a estruturar uma nova frente de receita, reduzindo a dependência exclusiva de particulares e convênios.
 
-Mais acesso para as famílias. Mais organização e possibilidades de crescimento para sua clínica, respeitando a indicação clínica e as particularidades de cada processo.
+São 6 meses de acompanhamento: encontros individuais com a Dra. Amélia, suporte pelo WhatsApp, modelos de laudos e relatórios e treinamentos para sua equipe.
 
-Nesta Black Friday, a oferta está limitada a 15 vagas.
+Nesta Black Friday, são apenas 15 vagas.
 
-Quer conhecer a condição especial e entender como o Método se aplica à sua clínica? Responda “QUERO NEUROACESSO” que eu te explico por aqui.`;
+Quer conhecer a condição especial para sua clínica? Responda “QUERO NEUROACESSO”.
+
+Para não receber novas mensagens, responda PARAR.`;
 
 export const BLACK_FRIDAY_TEMPLATE = {
   name: BLACK_FRIDAY_NAME,
