@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -43,6 +43,14 @@ export function EnvioEmMassaDialog({ colunaNome, leads }: Props) {
       }
     } finally { setChecking(false); }
   };
+
+  // Keep checking while Meta is still reviewing, so the send button unlocks on approval.
+  useEffect(() => {
+    if (!open || !blackFriday || status !== "PENDING") return;
+    const id = setInterval(() => { void verificar(); }, 60000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, blackFriday, status]);
 
   const enviar = async () => {
     if (!texto.trim() || comTelefone.length === 0) return;
