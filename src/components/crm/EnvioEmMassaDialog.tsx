@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -44,13 +44,21 @@ export function EnvioEmMassaDialog({ colunaNome, leads }: Props) {
     } finally { setChecking(false); }
   };
 
+  // Keep checking while Meta is still reviewing, so the send button unlocks on approval.
+  useEffect(() => {
+    if (!open || !blackFriday || status !== "PENDING") return;
+    const id = setInterval(() => { void verificar(); }, 60000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, blackFriday, status]);
+
   const enviar = async () => {
     if (!texto.trim() || comTelefone.length === 0) return;
     if (blackFriday && !campaignCanSend(status, consent)) return;
     setEnviando(true);
     setIgnorados(0);
     let skipped = 0;
-    let ok = 0, falhas = 0, templates = 0;
+    let ok = 0, falhas = 0, templates = 0, seguidas = 0;
     for (let i = 0; i < comTelefone.length; i++) {
       const lead = comTelefone[i];
       const primeiro = (lead.nome || "").trim().split(/\s+/)[0] || "";
@@ -63,16 +71,23 @@ export function EnvioEmMassaDialog({ colunaNome, leads }: Props) {
         });
         if (error || data?.error) {
           falhas++;
+          seguidas++;
           if (blackFriday) {
-            setProgresso({ feitos: i + 1, ok, falhas, templates });
-            toast({ title: "Campanha interrompida após falha", description: "Verifique a aprovação e a situação do WhatsApp antes de continuar.", variant: "destructive" });
-            break;
+            const details = error && "context" in error && error.context instanceof Response ? await error.context.json().catch(() => null) : null;
+            const parar = details?.stop || data?.stop || seguidas >= 5;
+            if (parar) {
+              setProgresso({ feitos: i + 1, ok, falhas, templates });
+              toast({ title: "Campanha interrompida", description: details?.error || data?.error || "Várias falhas seguidas. Verifique a situação do WhatsApp antes de continuar.", variant: "destructive" });
+              break;
+            }
           }
         }
+        else if (data?.falhaContato) { falhas++; seguidas++; if (seguidas >= 5) { setProgresso({ feitos: i + 1, ok, falhas, templates }); toast({ title: "Campanha interrompida", description: "5 contatos seguidos não receberam. Verifique a situação do WhatsApp antes de continuar.", variant: "destructive" }); break; } }
         else if (data?.skipped) { skipped++; setIgnorados(skipped); }
-        else { ok++; if (data?.aviso) templates++; }
+        else { ok++; seguidas = 0; if (data?.aviso) templates++; }
       } catch {
         falhas++;
+        seguidas++;
       }
       setProgresso({ feitos: i + 1, ok, falhas, templates });
       if (i < comTelefone.length - 1) await new Promise((r) => setTimeout(r, 1500));

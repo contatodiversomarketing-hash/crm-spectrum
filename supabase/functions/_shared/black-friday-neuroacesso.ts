@@ -43,3 +43,18 @@ export function findBlackFridayTemplate(data: { data?: Array<{ name?: string; la
   if (template.components?.find((c) => c.type === "BODY")?.text !== BLACK_FRIDAY_TEXT) return "TEXT_MISMATCH";
   return template.status || "UNKNOWN";
 }
+/**
+ * Classifies a Meta refusal for one campaign recipient.
+ * - "retry": temporary Meta problem, try again after a pause.
+ * - "alternate": number format may be wrong (Brazilian 9th digit); try the other variant.
+ * - "skip": this contact can't receive it (not on WhatsApp, opted out, per-user limit); continue with the others.
+ * - "stop": account/template-level problem; continuing would fail for everyone or risk the number.
+ */
+export type CampaignFailure = "retry" | "alternate" | "skip" | "stop";
+export function classifyCampaignError(status: number, body: string): CampaignFailure {
+  const code = Number((body.match(/"code"\s*:\s*(\d+)/) || body.match(/\(#(\d+)\)/) || [])[1] || 0);
+  if ([131000, 130429, 131016].includes(code) || (!code && status >= 500)) return "retry";
+  if ([131026, 131009, 100, 1006].includes(code)) return "alternate";
+  if ([131049, 131050, 131021, 131056, 131052, 131053].includes(code)) return "skip";
+  return "stop";
+}

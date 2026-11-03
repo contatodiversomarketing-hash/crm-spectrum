@@ -32,3 +32,19 @@ describe("Black Friday campaign safeguards", () => {
     expect(findBlackFridayTemplate({ data: [{ name: BLACK_FRIDAY_NAME, language: "pt_BR", status: "APPROVED", components: [{ type: "BODY", text: BLACK_FRIDAY_TEXT }] }] })).toBe("APPROVED");
   });
 });
+import { classifyCampaignError } from "../../supabase/functions/_shared/black-friday-neuroacesso";
+describe("Black Friday delivery failures", () => {
+  it("retries temporary Meta errors", () => {
+    expect(classifyCampaignError(500, '{"error":{"code":131000}}')).toBe("retry");
+  });
+  it("tries the other 9th-digit variant when the number has no WhatsApp", () => {
+    expect(classifyCampaignError(400, '{"error":{"code":131026}}')).toBe("alternate");
+  });
+  it("skips only that contact when Meta limits marketing to the person", () => {
+    expect(classifyCampaignError(400, '{"error":{"code":131049}}')).toBe("skip");
+  });
+  it("stops the whole campaign on template or account problems", () => {
+    expect(classifyCampaignError(400, '{"error":{"code":132001}}')).toBe("stop");
+    expect(classifyCampaignError(400, '{"error":{"code":131031}}')).toBe("stop");
+  });
+});
