@@ -58,7 +58,12 @@ Deno.serve(async (req) => {
           ...(creating ? { body: JSON.stringify(BLACK_FRIDAY_TEMPLATE) } : {}),
         });
         const details = await resp.text();
-        if (!resp.ok) return json({ error: "A Meta não aceitou a solicitação.", status: resp.status, details }, resp.status);
+        if (!resp.ok) {
+          console.error("[black-friday] Meta", resp.status, details);
+          return json({ error: /2388040|1,024 characters|Character Limit Exceeded/i.test(details)
+            ? "A Meta permite até 1.024 caracteres neste padrão. O texto original precisa ser resumido antes da aprovação."
+            : "A Meta não aceitou a solicitação.", status: resp.status, details }, resp.status);
+        }
         const result = JSON.parse(details);
         return json({ status: creating ? (result.status || "PENDING") : findBlackFridayTemplate(result) });
       }

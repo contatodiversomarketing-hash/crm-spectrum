@@ -33,9 +33,9 @@ export function EnvioEmMassaDialog({ colunaNome, leads }: Props) {
         body: { acao: criar ? "criar_black_friday" : "consultar_black_friday" },
       });
       if (error || data?.error) {
-        setStatus("UNKNOWN");
+        setStatus(criar ? "NOT_CREATED" : "UNKNOWN");
         const details = error && "context" in error && error.context instanceof Response ? await error.context.json().catch(() => null) : null;
-        toast({ title: details?.error || data?.error || "Não foi possível verificar a campanha", description: details?.details || error?.message, variant: "destructive" });
+        toast({ title: details?.error || data?.error || "Não foi possível verificar a campanha", variant: "destructive" });
       } else {
         setStatus(data.status);
         if (criar) toast({ title: "Campanha enviada para avaliação da Meta" });
