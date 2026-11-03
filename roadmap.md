@@ -1,5 +1,5 @@
 # Tasks
-- [ ] Exclude Compra concluída and Aguardando resposta from Black Friday sending and preserve their current card placement.
+- [x] Exclude Compra concluída and Aguardando resposta from Black Friday sending and preserve placement across imports; 6 tests pass, live authenticated send requests skipped for both columns, all 11 protected cards unchanged.
 - [x] Save exact Black Friday NeuroAcesso campaign in column sending with server approval/exact-text/consent guards; tests and signed-in UI verification pass.
 - [x] Submit approved shortened Black Friday text to Meta — accepted for review, status PENDING.
 - [ ] Send Black Friday campaign — blocked by Meta template review; no messages sent.
