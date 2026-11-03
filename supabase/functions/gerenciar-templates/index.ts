@@ -1,6 +1,8 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { datafyConfig, enviarTemplateMega } from "../_shared/mega.ts";
 import { TEMPLATES_CADENCIA } from "../_shared/followup-cadencia.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { BLACK_FRIDAY_NAME, BLACK_FRIDAY_TEMPLATE, findBlackFridayTemplate } from "../_shared/black-friday-neuroacesso.ts";
 
 // Gerencia templates de WhatsApp (API oficial Meta via proxy Datafy).
 // GET  -> lista templates da WABA
@@ -38,9 +40,33 @@ Deno.serve(async (req) => {
   const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
 
   try {
+    const client = createClient(Deno.env.get("SUPABASE_URL") || "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "");
+    const bearer = req.headers.get("Authorization")?.replace(/^Bearer /, "");
+    if (!bearer) return json({ error: "Não autenticado" }, 401);
+    const { data: auth, error: authError } = await client.auth.getUser(bearer);
+    if (authError || !auth.user) return json({ error: "Sessão inválida" }, 401);
+    const { data: roles } = await client.from("user_roles").select("role").eq("user_id", auth.user.id);
+    if (!roles?.some((r) => r.role === "admin" || r.role === "auxiliar")) return json({ error: "Acesso não autorizado" }, 403);
     if (req.method === "POST") {
       let payload: Record<string, unknown> = {};
       try { payload = await req.json(); } catch { /* sem corpo */ }
+
+      if (payload.acao === "consultar_black_friday" || payload.acao === "criar_black_friday") {
+        const creating = payload.acao === "criar_black_friday";
+        const resp = await fetch(creating ? url : `${url}?name=${BLACK_FRIDAY_NAME}&limit=100`, {
+          method: creating ? "POST" : "GET", headers,
+          ...(creating ? { body: JSON.stringify(BLACK_FRIDAY_TEMPLATE) } : {}),
+        });
+        const details = await resp.text();
+        if (!resp.ok) {
+          console.error("[black-friday] Meta", resp.status, details);
+          return json({ error: /2388040|1,024 characters|Character Limit Exceeded/i.test(details)
+            ? "A Meta permite até 1.024 caracteres neste padrão. O texto original precisa ser resumido antes da aprovação."
+            : "A Meta não aceitou a solicitação.", status: resp.status, details }, resp.status);
+        }
+        const result = JSON.parse(details);
+        return json({ status: creating ? (result.status || "PENDING") : findBlackFridayTemplate(result) });
+      }
 
       // Envio de teste usando o template aprovado
       if (payload?.acao === "enviar" && payload?.numero) {
