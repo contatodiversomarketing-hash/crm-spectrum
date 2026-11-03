@@ -1,7 +1,8 @@
 # Tasks
 - [x] Save exact Black Friday NeuroAcesso campaign in column sending with server approval/exact-text/consent guards; tests and signed-in UI verification pass.
-- [ ] Submit approved shortened Black Friday text to Meta; wait for provider approval before sending.
-- [ ] Import all uploaded contacts into PLANO NEUROACESSO without duplicates; user confirmed opt-in and approved shortened text.
+- [x] Submit approved shortened Black Friday text to Meta — accepted for review, status PENDING.
+- [ ] Send Black Friday campaign — blocked by Meta template review; no messages sent.
+- [x] Import all 472 uploaded contacts into PLANO NEUROACESSO (471 created, 1 existing updated); all 472 verified in target pipeline; 434 have phones and 38 need phone completion. Signed-in UI verified.
 - [x] Fix NeuroAcesso idle timeout with streamed progress; verified live photo/PDF completion, simulated 160-second silent processing and interruption recovery (8 tests pass).
 - [x] Add photos and PDFs to NeuroAcesso analysis chat; verified signed-in upload of both formats and extracted codes in the reply, with teaching persistence tests passing.
 - [x] Prevent CRM observation/message drafts from disappearing during background updates; verified signed-in with simulated external column changes.
