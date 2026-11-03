@@ -1,4 +1,5 @@
 # Project rules
+- Keep the Black Friday campaign text shared between UI and server; send it only as an approved, exact-match marketing template with explicit consent confirmation, never substitute a generic re-engagement message.
 
 - Read NeuroAcesso chat photo/PDF attachments server-side without public uploads; persist extracted material in the message content so permanent teachings never depend on temporary URLs.
 - NeuroAcesso analysis replies run as a server-side job (neuroacesso_ia_jobs) in self-chained steps that each stop before the ~150s function wall clock (research, then writing with continuation); the request stream only covers saving the message/attachments, and the client follows the job so reloads never lose a report.

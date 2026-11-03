@@ -1,7 +1,8 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { enviarTextoMega, enviarTemplateMega, enviarMidiaMega } from "../_shared/mega.ts";
+import { enviarTextoMega, enviarTemplateMega, enviarMidiaMega, enviarTemplateNomeado, datafyConfig } from "../_shared/mega.ts";
 import { telCanonico } from "../_shared/dedup.ts";
+import { BLACK_FRIDAY_NAME, BLACK_FRIDAY_TEXT, campaignCanSend, findBlackFridayTemplate } from "../_shared/black-friday-neuroacesso.ts";
 
 type Body = {
   numero?: string;
@@ -12,6 +13,8 @@ type Body = {
   mimeType?: string;
   leadId?: string;
   confirmarTemplate?: boolean;
+  campanha?: string;
+  consentimentoConfirmado?: boolean;
 };
 
 
@@ -50,6 +53,32 @@ Deno.serve(async (req) => {
     }
 
     const canonico = telCanonico(numero) || numero;
+
+    if (body.campanha) {
+      if (body.campanha !== BLACK_FRIDAY_NAME || tipo !== "text") return json({ error: "Campanha inválida" }, 400);
+      if (body.consentimentoConfirmado !== true) return json({ error: "Confirme a autorização do contato para receber campanhas pelo WhatsApp." }, 400);
+      const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userData.user.id);
+      if (!roles?.some((r) => r.role === "admin" || r.role === "auxiliar")) return json({ error: "Acesso não autorizado" }, 403);
+      const { base, token, configurado } = datafyConfig();
+      if (!configurado) return json({ error: "Conexão oficial do WhatsApp indisponível" }, 400);
+      const waba = Deno.env.get("DATAFY_WABA_ID") || "1135674689542545";
+      const check = await fetch(`${base}/${waba}/message_templates?name=${BLACK_FRIDAY_NAME}&limit=100`, { headers: { Authorization: `Bearer ${token}` } });
+      const details = await check.text();
+      if (!check.ok) return json({ error: "Não foi possível verificar a aprovação da campanha.", status: check.status, details }, check.status);
+      const status = findBlackFridayTemplate(JSON.parse(details));
+      if (!campaignCanSend(status, body.consentimentoConfirmado)) return json({ error: "A campanha precisa estar aprovada pela Meta com o texto original.", status }, 409);
+      const sent = await enviarTemplateNomeado(numero, BLACK_FRIDAY_NAME);
+      if (!sent.ok) return json({ error: "A Meta recusou o envio da campanha.", status: sent.status, details: sent.body }, 502);
+      const { error: historyError } = await supabase.from("interacoes_ia").insert({
+        paciente_externo_id: canonico, canal: "whatsapp", sistema_origem: "crm_manual",
+        mensagem_usuario: null, resposta_final: BLACK_FRIDAY_TEXT, intencao_detectada: "black_friday_neuroacesso",
+        estado_conversa: "atendimento_humano", supervisionado: true,
+        atendente_humano: userData.user.email ?? userData.user.id,
+        whatsapp_message_id: sent.messageId ?? null, whatsapp_status: "accepted", whatsapp_erro: null,
+      });
+      if (historyError) console.error("[black-friday] histórico não salvo", historyError);
+      return json({ ok: true, messageId: sent.messageId ?? null, avisoHistorico: historyError ? "Envio aceito; não foi possível salvar o histórico." : null });
+    }
 
     // Envio manual: tenta sempre o texto digitado. Para contatos novos ou fora
     // da janela livre, abre automaticamente a conversa com o template aprovado.
@@ -107,7 +136,7 @@ Deno.serve(async (req) => {
       } else {
       // O WhatsApp recusa textos com mais de 4096 caracteres: quebramos em partes.
       const partes: string[] = [];
-      const textoCompleto = body.texto!;
+      const textoCompleto = body.texto || "";
       const LIMITE = 3900;
       if (textoCompleto.length <= LIMITE) {
         partes.push(textoCompleto);
@@ -210,7 +239,7 @@ Deno.serve(async (req) => {
     const registroBase = tipo === "text"
       ? (avisoTemplate
         ? "Olá! Aqui é a Ana, consultora comercial. Trabalho com a Dra. Amélia Carvalho, especialista em neurodesenvolvimento (TEA, TDAH e cannabis medicinal). Vi que você buscou informações com a gente e queria entender como posso te ajudar hoje. Podemos conversar?"
-        : body.texto!.slice(0, 5000))
+        : (body.texto || "").slice(0, 5000))
       : `[${tipo === "audio" ? "áudio" : tipo === "image" ? "imagem" : "arquivo"}: ${body.fileName || ""}] ${body.texto || ""}`.trim();
 
 
