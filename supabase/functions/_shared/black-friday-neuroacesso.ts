@@ -1,4 +1,8 @@
 export const BLACK_FRIDAY_NAME = "black_friday_neuroacesso_2026";
+export const BLACK_FRIDAY_PIPELINE = "PLANO NEUROACESSO";
+export function campaignPlacement(existing: { pipeline_id?: string; status_pipeline?: string } | null, pipelineId: string) {
+  return { pipeline_id: pipelineId, status_pipeline: existing?.pipeline_id === pipelineId ? (existing.status_pipeline || "novo") : "novo" };
+}
 export const BLACK_FRIDAY_TEXT = `BLACK FRIDAY NEUROACESSO — APENAS 15 VAGAS
 
 Olá! Aqui é o Luca, da equipe da Dra. Amélia Carvalho.
