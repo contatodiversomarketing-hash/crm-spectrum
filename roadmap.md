@@ -1,4 +1,5 @@
 # Tasks
+- [ ] Restore visibility of older CRM cards omitted by the 500-card loading cap after the import; verify completed-purchase cards without moving data.
 - [x] Exclude Compra concluída and Aguardando resposta from Black Friday sending and preserve placement across imports; 6 tests pass, live authenticated send requests skipped for both columns, all 11 protected cards unchanged.
 - [x] Save exact Black Friday NeuroAcesso campaign in column sending with server approval/exact-text/consent guards; tests and signed-in UI verification pass.
 - [x] Submit approved shortened Black Friday text to Meta — accepted for review, status PENDING.
