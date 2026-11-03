@@ -1,7 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { buscarLead, telCanonico } from "../_shared/dedup.ts";
-import { BLACK_FRIDAY_PIPELINE, campaignPlacement } from "../_shared/black-friday-neuroacesso.ts";
+import { BLACK_FRIDAY_PIPELINE, campaignPlacement, isCampaignExcludedColumn } from "../_shared/black-friday-neuroacesso.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -28,6 +28,14 @@ Deno.serve(async (req) => {
         const { data, error: lookupError } = await client.from("leads").select("id,nome,pipeline_id,status_pipeline,observacoes,telefone").eq("origem_externa_id", source).maybeSingle();
         if (lookupError) throw lookupError;
         existing = data;
+      }
+      if (existing) {
+        const { data: column, error: columnError } = await client.from("pipeline_colunas").select("nome").eq("pipeline_id", existing.pipeline_id).eq("chave", existing.status_pipeline).maybeSingle();
+        if (columnError) throw columnError;
+        if (isCampaignExcludedColumn(existing.status_pipeline) || isCampaignExcludedColumn(column?.nome)) {
+          results.push({ id: existing.id, created: false, hasPhone: !!phone, skipped: true });
+          continue;
+        }
       }
       const note = "[Black Friday NeuroAcesso 2026 — grupo CTC; autorização confirmada pela equipe]";
       const notes = [existing?.observacoes || "", note, !phone ? "Telefone não informado na planilha; não enviar até completar." : ""].filter(Boolean).join("\n");
