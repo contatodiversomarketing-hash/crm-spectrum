@@ -3401,9 +3401,11 @@ ${especialidadesDetectadas ? `ESPECIALIDADE DETECTADA: ${especialidadesDetectada
 
 
     // Injetar treinamento do admin
-    if (treinamentos.length > 0) {
+    const { fatos: fatosOficiais, demais: demaisTreinos } = separarFatosOficiais(treinamentos);
+    contextExtra += montarBlocoFatosOficiais(fatosOficiais);
+    if (demaisTreinos.length > 0) {
       contextExtra += `\n\n## INSTRUÇÕES ADICIONAIS DO ADMINISTRADOR (SIGA TODAS COM PRIORIDADE MÁXIMA):\n`;
-      for (const t of treinamentos) {
+      for (const t of demaisTreinos) {
         contextExtra += `### ${t.titulo}\n${t.instrucao}\n\n`;
       }
     }
