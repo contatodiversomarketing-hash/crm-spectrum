@@ -14,3 +14,5 @@
 - Keep populated CRM boards mounted during refreshes and defer card replacement/reordering while a card dialog is active, so unsaved edits and chat drafts retain their owner.
 - Reserve browser call attempts synchronously and reacquire/release microphone streams per call; never hide audio setup failures or attribute generic disconnects to a carrier without evidence.- Write NeuroAcesso analysis-chat messages only through the neuroacesso-analise-ia function (service role), which rebuilds the prompt from all rows flagged as teachings, so taught rules persist for the whole team.
 - Black Friday sends classify Meta refusals with the shared classifyCampaignError (retry / alternate 9th-digit / skip contact / stop campaign) and never resend to a contact with a non-failed campaign record, so reruns are safe.
+
+- Ana answers prices/policies only from treinamento_ia rows with categoria "fatos_oficiais", injected via _shared/fatos-oficiais.ts above all other instructions, so she never invents official data.
