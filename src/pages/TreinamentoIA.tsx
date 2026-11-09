@@ -34,6 +34,7 @@ interface Treinamento {
 }
 
 const CATEGORIAS = [
+  { value: "fatos_oficiais", label: "Fatos oficiais (a Ana nunca inventa fora disso)" },
   { value: "especialidades", label: "Especialidades & Profissionais" },
   { value: "agendamento", label: "Fluxo de Agendamento" },
   { value: "vendas", label: "Técnicas de Venda" },

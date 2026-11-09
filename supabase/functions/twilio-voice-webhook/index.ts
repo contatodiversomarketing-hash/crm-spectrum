@@ -1,3 +1,4 @@
+import { separarFatosOficiais, montarBlocoFatosOficiais } from "../_shared/fatos-oficiais.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -419,9 +420,11 @@ serve(async (req) => {
   if (nomePaciente) contextExtra += `\n\nNOME DO PACIENTE: ${nomePaciente}. Use o nome dele(a).`;
   if (fromNumber) contextExtra += `\nTELEFONE DO PACIENTE: ${fromNumber}`;
 
-  if (treinamentos.length > 0) {
+  const { fatos: fatosOficiais, demais: demaisTreinos } = separarFatosOficiais(treinamentos);
+  contextExtra += montarBlocoFatosOficiais(fatosOficiais);
+  if (demaisTreinos.length > 0) {
     contextExtra += `\n\n## INSTRUÇÕES ADICIONAIS DO ADMINISTRADOR:\n`;
-    for (const t of treinamentos) {
+    for (const t of demaisTreinos) {
       contextExtra += `### ${t.titulo}\n${t.instrucao}\n\n`;
     }
   }
