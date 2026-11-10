@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarDays, Copy, ExternalLink, Plus, Trash2, RefreshCw, Check, X, Loader2 } from "lucide-react";
@@ -21,7 +21,11 @@ export function AgendaNeuroAcesso() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
-  async function carregar() {
+  const carregando = useRef(false);
+  const carregar = useCallback(async () => {
+    if (carregando.current) return;
+    carregando.current = true;
+    try {
     const [h, r] = await Promise.all([
       supabase.from("neuroacesso_horarios").select("*").order("inicio"),
       supabase.from("neuroacesso_reunioes").select("*").order("criado_em", { ascending: false }),
@@ -29,8 +33,20 @@ export function AgendaNeuroAcesso() {
     setLoading(false);
     if (h.error || r.error) { setErro("Não foi possível carregar a agenda."); return; }
     setErro(""); setHorarios(h.data || []); setReunioes(r.data || []);
-  }
-  useEffect(() => { void carregar(); }, []);
+    } finally { carregando.current = false; }
+  }, []);
+  useEffect(() => {
+    void carregar();
+    const atualizarVisivel = () => { if (document.visibilityState === "visible") void carregar(); };
+    const timer = window.setInterval(atualizarVisivel, 10000);
+    window.addEventListener("focus", atualizarVisivel);
+    document.addEventListener("visibilitychange", atualizarVisivel);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", atualizarVisivel);
+      document.removeEventListener("visibilitychange", atualizarVisivel);
+    };
+  }, [carregar]);
   async function publicar(e: React.FormEvent) {
     e.preventDefault();
     if (!data || !hora || !fim || fim <= hora) { toast.error("Escolha data, início e término válidos"); return; }
@@ -56,18 +72,18 @@ export function AgendaNeuroAcesso() {
   }
   const reservas = [...reunioes].sort((a, b) => (horarios.find(h => h.id === a.horario_id)?.inicio || "").localeCompare(horarios.find(h => h.id === b.horario_id)?.inicio || ""));
   const livres = horarios.filter(h => h.ativo && new Date(h.inicio).getTime() > Date.now() && !reunioes.some(r => r.horario_id === h.id && r.status !== "cancelada"));
-  return <div className="space-y-7 pt-5">
-    <div className="flex flex-wrap items-start justify-between gap-3">
+  return <div className="flex flex-col gap-7 pt-5">
+    <div className="order-1 flex flex-wrap items-start justify-between gap-3">
       <div><h2 className="font-display text-3xl">Agenda NeuroAcesso</h2><p className="text-sm text-muted-foreground">Reuniões · horário de Brasília</p></div>
       <Button variant="outline" size="icon" aria-label="Atualizar agenda" title="Atualizar agenda" onClick={carregar}><RefreshCw className="h-4 w-4" /></Button>
     </div>
-    <div className="flex flex-wrap gap-2 items-center border-y py-4">
+    <div className="order-2 flex flex-wrap gap-2 items-center border-y py-4">
       <span className="text-sm font-medium w-full">Link de agendamento</span>
       <code className="flex-1 min-w-0 break-all text-xs text-muted-foreground">{LINK_AGENDA_NEURO}</code>
       <Button variant="outline" onClick={async () => { try { await navigator.clipboard.writeText(LINK_AGENDA_NEURO); toast.success("Link copiado"); } catch { toast.error("Não foi possível copiar o link"); } }}><Copy className="h-4 w-4 mr-2" />Copiar</Button>
       <Button variant="outline" asChild><a href="/agendar/neuroacesso" target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4 mr-2" />Abrir</a></Button>
     </div>
-    <section className="space-y-4">
+    <section className="order-4 space-y-4">
       <h3 className="font-display text-2xl">Disponibilizar horário</h3>
       <form onSubmit={publicar} className="flex flex-wrap gap-3 items-end">
         <div className="space-y-2"><Label>Data</Label><Popover><PopoverTrigger asChild><Button variant="outline" className="w-[210px] justify-start"><CalendarDays className="mr-2 h-4 w-4" />{data ? format(data, "dd 'de' MMMM", { locale: ptBR }) : "Escolher data"}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={data} onSelect={setData} locale={ptBR} disabled={(d) => dataLocal(d) < dataLocal(new Date())} className="pointer-events-auto" /></PopoverContent></Popover></div>
@@ -78,7 +94,7 @@ export function AgendaNeuroAcesso() {
       {livres.length > 0 && <div className="flex flex-wrap gap-2">{livres.map(h => <div key={h.id} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"><span>{dataBrasilia(h.inicio)} · {horaBrasilia(h.inicio)}–{horaBrasilia(h.fim)}</span><Button size="icon" variant="ghost" aria-label={`Retirar horário ${horaBrasilia(h.inicio)}`} title="Retirar horário" onClick={() => remover(h.id)} className="h-7 w-7"><Trash2 className="h-3.5 w-3.5" /></Button></div>)}</div>}
       {!loading && !erro && !livres.length && <p className="text-sm text-muted-foreground">Nenhum horário livre publicado.</p>}
     </section>
-    <section className="space-y-4 border-t pt-5"><h3 className="font-display text-2xl">Reuniões agendadas</h3>
+    <section className="order-3 space-y-4 border-b pb-5"><h3 className="font-display text-2xl">Reuniões agendadas</h3>
       {loading ? <p className="text-muted-foreground">Carregando agenda…</p> : erro ? <p role="alert" className="text-destructive">{erro}</p> : !reservas.length ? <p className="text-sm text-muted-foreground">Nenhuma reunião agendada ainda.</p> : <div className="space-y-3">{reservas.map(r => {
         const h = horarios.find(h => h.id === r.horario_id);
         return <article key={r.id} className="rounded-lg border bg-card p-4 flex flex-wrap items-center justify-between gap-4">
