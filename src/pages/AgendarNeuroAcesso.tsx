@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import logo from "@/assets/logo-amelia.png";
-import { agendamentoNeuroSchema, diaBrasilia, horaBrasilia, dataBrasilia, dataLocal, type HorarioNeuro } from "@/lib/neuroacessoAgenda";
+import { agendamentoNeuroSchema, diaBrasilia, horaBrasilia, dataBrasilia, dataLocal, podeAgendarNeuro, type HorarioNeuro } from "@/lib/neuroacessoAgenda";
 
 export default function AgendarNeuroAcesso() {
   const [horarios, setHorarios] = useState<HorarioNeuro[]>([]);
@@ -20,6 +20,7 @@ export default function AgendarNeuroAcesso() {
   const [busy, setBusy] = useState(false);
   const [erro, setErro] = useState("");
   const [confirmado, setConfirmado] = useState<HorarioNeuro>();
+  const [agora, setAgora] = useState(Date.now());
   async function carregar() {
     setLoading(true);
     const { data, error } = await supabase.rpc("neuroacesso_disponibilidade");
@@ -28,19 +29,22 @@ export default function AgendarNeuroAcesso() {
     setHorarios(data || []);
   }
   useEffect(() => { void carregar(); }, []);
+  useEffect(() => { const timer = window.setInterval(() => setAgora(Date.now()), 30_000); return () => window.clearInterval(timer); }, []);
   async function agendar(e: React.FormEvent) {
     e.preventDefault(); setErro("");
     const result = agendamentoNeuroSchema.safeParse({ nome, telefone, email, horario_id: selecionado?.id });
     if (!result.success) { setErro(result.error.issues[0]?.message || "Confira seus dados e escolha um horário"); return; }
+    if (!selecionado || !podeAgendarNeuro(selecionado.inicio)) { setErro("Escolha um horário com pelo menos 5 horas de antecedência."); setSelecionado(undefined); return; }
     setBusy(true);
     const { error } = await supabase.rpc("neuroacesso_agendar", { p_horario_id: result.data.horario_id, p_nome: result.data.nome, p_telefone: result.data.telefone, p_email: result.data.email });
     setBusy(false);
     if (error) { setErro(error.message); setSelecionado(undefined); await carregar(); return; }
     setConfirmado(selecionado);
   }
-  const dias = new Set(horarios.map(h => diaBrasilia(h.inicio)));
-  const disponiveis = horarios.filter(h => dia && diaBrasilia(h.inicio) === dataLocal(dia));
-  const primeiro = horarios[0] ? new Date(`${diaBrasilia(horarios[0].inicio)}T12:00:00`) : new Date();
+  const horariosValidos = horarios.filter(h => podeAgendarNeuro(h.inicio, agora));
+  const dias = new Set(horariosValidos.map(h => diaBrasilia(h.inicio)));
+  const disponiveis = horariosValidos.filter(h => dia && diaBrasilia(h.inicio) === dataLocal(dia));
+  const primeiro = horariosValidos[0] ? new Date(`${diaBrasilia(horariosValidos[0].inicio)}T12:00:00`) : new Date();
   return <div className="min-h-screen bg-background">
     <header className="border-b"><div className="max-w-5xl mx-auto px-5 py-5 flex items-center gap-3"><img src={logo} alt="Dra. Amélia Carvalho" className="w-12 h-12 object-contain" /><div><p className="font-display text-2xl">Dra. Amélia Carvalho</p><p className="text-xs text-muted-foreground">Método NeuroAcesso</p></div></div></header>
     <main className="max-w-5xl mx-auto px-5 py-10 sm:py-14">
@@ -48,7 +52,7 @@ export default function AgendarNeuroAcesso() {
         <div className="mb-10 space-y-3"><p className="text-xs uppercase text-accent">Encontro com a equipe</p><h1 className="font-display text-4xl sm:text-5xl">Agenda NeuroAcesso</h1><p className="text-muted-foreground">Um encontro para conversar sobre o Método NeuroAcesso e sua clínica.</p></div>
         <form onSubmit={agendar} className="grid md:grid-cols-2 gap-8 md:gap-12">
           <section className="space-y-5 min-w-0"><h2 className="font-display text-2xl flex items-center gap-2"><CalendarDays className="h-5 w-5 text-primary" />Dia e horário</h2><p className="text-xs text-muted-foreground">Horário de Brasília (UTC−3)</p>
-            {loading ? <p className="text-muted-foreground">Consultando horários…</p> : horarios.length === 0 ? <div className="border-y py-6 space-y-3"><p className="text-muted-foreground">Nenhum horário disponível no momento.</p><Button variant="outline" type="button" onClick={() => { setErro(""); void carregar(); }}>Consultar novamente</Button></div> : <>
+            {loading ? <p className="text-muted-foreground">Consultando horários…</p> : horariosValidos.length === 0 ? <div className="border-y py-6 space-y-3"><p className="text-muted-foreground">Nenhum horário disponível no momento.</p><Button variant="outline" type="button" onClick={() => { setErro(""); void carregar(); }}>Consultar novamente</Button></div> : <>
               <Calendar key={primeiro.toISOString().slice(0, 7)} mode="single" selected={dia} defaultMonth={primeiro} onSelect={d => { setDia(d); setSelecionado(undefined); }} disabled={d => !dias.has(dataLocal(d))} locale={ptBR} className="pointer-events-auto w-fit max-w-full border rounded-lg" />
               {dia && <div className="space-y-3"><p className="text-sm font-medium">Horários disponíveis</p><div className="grid grid-cols-3 gap-2">{disponiveis.map(h => <Button key={h.id} type="button" variant={selecionado?.id === h.id ? "default" : "outline"} aria-pressed={selecionado?.id === h.id} onClick={() => setSelecionado(h)}><Clock className="mr-2 h-3.5 w-3.5" />{horaBrasilia(h.inicio)}</Button>)}</div></div>}
             </>}

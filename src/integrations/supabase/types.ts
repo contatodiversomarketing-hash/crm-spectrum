@@ -2108,6 +2108,11 @@ export type Database = {
           inicio: string
         }[]
       }
+      neuroacesso_horario_permitido: {
+        Args: { p_fim: string; p_inicio: string }
+        Returns: boolean
+      }
+      neuroacesso_renovar_horarios: { Args: never; Returns: number }
       reservar_avisos_espera: {
         Args: never
         Returns: {
