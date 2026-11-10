@@ -85,6 +85,13 @@
       "when": 1794351772265,
       "tag": "0011_neuroacesso_agenda",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794352399869,
+      "tag": "0012_neuroacesso_recorrencia_antecedencia",
+      "breakpoints": true
     }
   ]
 }
