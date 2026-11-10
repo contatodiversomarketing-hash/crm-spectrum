@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
+import { CalendarioEquipe } from "./CalendarioEquipe";
 import { LINK_AGENDA_NEURO, dataBrasilia, horaBrasilia, inicioBrasilia, dataLocal, type HorarioNeuro } from "@/lib/neuroacessoAgenda";
 
 type Reuniao = { id: string; horario_id: string; nome: string; telefone: string; email: string; status: string };
@@ -58,12 +59,6 @@ export function AgendaNeuroAcesso() {
     if (error) { toast.error(error.message); return; }
     toast.success("Horário disponibilizado"); await carregar();
   }
-  async function remover(id: string) {
-    if (!confirm("Retirar este horário do link público?")) return;
-    const { error } = await supabase.from("neuroacesso_horarios").update({ ativo: false }).eq("id", id);
-    if (error) { toast.error("Não foi possível retirar o horário"); return; }
-    await carregar();
-  }
   async function status(r: Reuniao, novo: string) {
     if (novo === "cancelada" && !confirm(`Cancelar a reunião de ${r.nome}? O horário ficará disponível novamente.`)) return;
     const { error } = await supabase.from("neuroacesso_reunioes").update({ status: novo }).eq("id", r.id);
@@ -71,7 +66,6 @@ export function AgendaNeuroAcesso() {
     toast.success(novo === "realizada" ? "Reunião concluída" : "Reunião cancelada"); await carregar();
   }
   const reservas = [...reunioes].sort((a, b) => (horarios.find(h => h.id === a.horario_id)?.inicio || "").localeCompare(horarios.find(h => h.id === b.horario_id)?.inicio || ""));
-  const livres = horarios.filter(h => h.ativo && new Date(h.inicio).getTime() > Date.now() && !reunioes.some(r => r.horario_id === h.id && r.status !== "cancelada"));
   return <div className="flex flex-col gap-7 pt-5">
     <div className="order-1 flex flex-wrap items-start justify-between gap-3">
       <div><h2 className="font-display text-3xl">Agenda NeuroAcesso</h2><p className="text-sm text-muted-foreground">Reuniões · horário de Brasília</p></div>
@@ -84,6 +78,7 @@ export function AgendaNeuroAcesso() {
       <Button variant="outline" asChild><a href="/agendar/neuroacesso" target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4 mr-2" />Abrir</a></Button>
     </div>
     <section className="order-4 space-y-4">
+      <CalendarioEquipe horarios={horarios} reunioes={reunioes} atualizar={carregar} />
       <h3 className="font-display text-2xl">Disponibilizar horário</h3>
       <form onSubmit={publicar} className="flex flex-wrap gap-3 items-end">
         <div className="space-y-2"><Label>Data</Label><Popover><PopoverTrigger asChild><Button variant="outline" className="w-[210px] justify-start"><CalendarDays className="mr-2 h-4 w-4" />{data ? format(data, "dd 'de' MMMM", { locale: ptBR }) : "Escolher data"}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={data} onSelect={setData} locale={ptBR} disabled={(d) => dataLocal(d) < dataLocal(new Date())} className="pointer-events-auto" /></PopoverContent></Popover></div>
@@ -91,8 +86,6 @@ export function AgendaNeuroAcesso() {
         <div className="space-y-2"><Label htmlFor="neuro-fim">Término</Label><Input id="neuro-fim" required type="time" value={fim} onChange={e => setFim(e.target.value)} className="w-32" /></div>
         <Button type="submit" disabled={busy}>{busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}Disponibilizar</Button>
       </form>
-      {livres.length > 0 && <div className="flex flex-wrap gap-2">{livres.map(h => <div key={h.id} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"><span>{dataBrasilia(h.inicio)} · {horaBrasilia(h.inicio)}–{horaBrasilia(h.fim)}</span><Button size="icon" variant="ghost" aria-label={`Retirar horário ${horaBrasilia(h.inicio)}`} title="Retirar horário" onClick={() => remover(h.id)} className="h-7 w-7"><Trash2 className="h-3.5 w-3.5" /></Button></div>)}</div>}
-      {!loading && !erro && !livres.length && <p className="text-sm text-muted-foreground">Nenhum horário livre publicado.</p>}
     </section>
     <section className="order-3 space-y-4 border-b pb-5"><h3 className="font-display text-2xl">Reuniões agendadas</h3>
       {loading ? <p className="text-muted-foreground">Carregando agenda…</p> : erro ? <p role="alert" className="text-destructive">{erro}</p> : !reservas.length ? <p className="text-sm text-muted-foreground">Nenhuma reunião agendada ainda.</p> : <div className="space-y-3">{reservas.map(r => {

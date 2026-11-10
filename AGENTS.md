@@ -1,5 +1,6 @@
 # Project rules
 - Refresh the NeuroAcesso team agenda in place while visible and on focus, keeping booked meetings above availability so public reservations appear without reloading or clearing form drafts.
+- The team calendar manages persisted slot activation and books through the same atomic RPC as public guests, preserving reservation conflicts and advance-notice rules.
 - NeuroAcesso public bookings use persisted slots (manual or recurring, replenished daily without restoring withdrawn times) and atomic database RPC reservations enforcing advance notice; expose only free times publicly, keeping contact details role-protected and meetings separate from clinical appointments.
 - Load CRM pipeline leads in stable paginated batches until exhausted; never cap the board at the newest records, because imports must not hide older cards.
 - Keep the Black Friday campaign text shared between UI and server; send it only as an approved, exact-match marketing template with explicit consent confirmation, never substitute a generic re-engagement message.

@@ -1,4 +1,5 @@
 # Tasks
+- [x] Add an internal NeuroAcesso calendar with day selection, reversible slot blocking and direct meeting booking; authenticated UI verified persistent blocking, release and real booking; test reservation removed and 8 agenda tests pass.
 - [x] Show newly booked NeuroAcesso meetings above available slots and refresh the agenda list without reloading the page or clearing unsaved inputs; authenticated browser verified the real reservation appearing after an initially empty list, and all 8 agenda tests pass.
 - [x] Publish recurring weekday NeuroAcesso meeting slots from 14:00 to 19:00 Brasília and enforce five-hour advance booking; 215 one-hour slots published with daily rolling renewal, 8 tests pass, public booking verified.
 - [x] Create NeuroAcesso meeting agenda, team-published slots and public booking link; anonymous booking verified in the signed-in team agenda, 5 validation/timezone tests pass.
