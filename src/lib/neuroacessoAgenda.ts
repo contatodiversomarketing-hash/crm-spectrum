@@ -13,4 +13,6 @@ export const dataBrasilia = (s: string) => new Date(s).toLocaleDateString("pt-BR
 export const dataLocal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 export const inicioBrasilia = (dia: string, hora: string) => new Date(`${dia}T${hora}:00-03:00`).toISOString();
 export type HorarioNeuro = { id: string; inicio: string; fim: string; ativo?: boolean };
+export const ANTECEDENCIA_NEURO_MS = 5 * 60 * 60 * 1000;
+export const podeAgendarNeuro = (inicio: string, agora = Date.now()) => new Date(inicio).getTime() >= agora + ANTECEDENCIA_NEURO_MS;
 export const LINK_AGENDA_NEURO = "https://crm-spectrum.lovable.app/agendar/neuroacesso";
