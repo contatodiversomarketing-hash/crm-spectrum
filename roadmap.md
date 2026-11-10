@@ -1,4 +1,5 @@
 # Tasks
+- [ ] Publish recurring weekday NeuroAcesso meeting slots from 14:00 to 19:00 Brasília and enforce five-hour advance booking.
 - [x] Create NeuroAcesso meeting agenda, team-published slots and public booking link; anonymous booking verified in the signed-in team agenda, 5 validation/timezone tests pass.
 - [x] Restore visibility of older CRM cards omitted by the 500-card loading cap after import; stable paginated loading implemented, regression test passes, Silvia/Mariana/Raissa verified visible in signed-in UI without moving cards.
 - [x] Exclude Compra concluída and Aguardando resposta from Black Friday sending and preserve placement across imports; 6 tests pass, live authenticated send requests skipped for both columns, all 11 protected cards unchanged.
