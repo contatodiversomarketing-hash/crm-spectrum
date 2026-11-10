@@ -1201,6 +1201,30 @@ export type Database = {
           },
         ]
       }
+      neuroacesso_horarios: {
+        Row: {
+          ativo: boolean
+          criado_em: string
+          fim: string
+          id: string
+          inicio: string
+        }
+        Insert: {
+          ativo?: boolean
+          criado_em?: string
+          fim: string
+          id?: string
+          inicio: string
+        }
+        Update: {
+          ativo?: boolean
+          criado_em?: string
+          fim?: string
+          id?: string
+          inicio?: string
+        }
+        Relationships: []
+      }
       neuroacesso_ia_jobs: {
         Row: {
           atualizado_em: string
@@ -1322,6 +1346,44 @@ export type Database = {
           telefone?: string | null
         }
         Relationships: []
+      }
+      neuroacesso_reunioes: {
+        Row: {
+          criado_em: string
+          email: string
+          horario_id: string
+          id: string
+          nome: string
+          status: string
+          telefone: string
+        }
+        Insert: {
+          criado_em?: string
+          email: string
+          horario_id: string
+          id?: string
+          nome: string
+          status?: string
+          telefone: string
+        }
+        Update: {
+          criado_em?: string
+          email?: string
+          horario_id?: string
+          id?: string
+          nome?: string
+          status?: string
+          telefone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "neuroacesso_reunioes_horario_id_fkey"
+            columns: ["horario_id"]
+            isOneToOne: false
+            referencedRelation: "neuroacesso_horarios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pacientes: {
         Row: {
@@ -2029,6 +2091,23 @@ export type Database = {
         Returns: boolean
       }
       limpar_locks_antigos: { Args: never; Returns: undefined }
+      neuroacesso_agendar: {
+        Args: {
+          p_email: string
+          p_horario_id: string
+          p_nome: string
+          p_telefone: string
+        }
+        Returns: string
+      }
+      neuroacesso_disponibilidade: {
+        Args: never
+        Returns: {
+          fim: string
+          id: string
+          inicio: string
+        }[]
+      }
       reservar_avisos_espera: {
         Args: never
         Returns: {

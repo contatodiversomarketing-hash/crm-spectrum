@@ -1,4 +1,5 @@
 # Project rules
+- NeuroAcesso public bookings use team-published slots and atomic database RPC reservations; expose only free times publicly, keeping contact details role-protected and meetings separate from clinical appointments.
 - Load CRM pipeline leads in stable paginated batches until exhausted; never cap the board at the newest records, because imports must not hide older cards.
 - Keep the Black Friday campaign text shared between UI and server; send it only as an approved, exact-match marketing template with explicit consent confirmation, never substitute a generic re-engagement message.
 - Campaign imports and sending use shared column-exclusion and phone-deduplication helpers; preserve excluded cards across pipelines, recheck current placement server-side before sending, and identify contacts without phones by source row for idempotent imports.

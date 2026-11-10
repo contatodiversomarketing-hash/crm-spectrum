@@ -9,6 +9,7 @@ import { QUESTIONARIO_MENTORADA } from "@/lib/neuroacessoQuestionario";
 import { QuestionarioView } from "@/components/neuroacesso/QuestionarioView";
 import { AnaliseIA, questionarioMarkdown } from "@/components/neuroacesso/AnaliseIA";
 import { RelatoriosSalvos } from "@/components/neuroacesso/RelatoriosSalvos";
+import { AgendaNeuroAcesso } from "@/components/neuroacesso/AgendaNeuroAcesso";
 
 interface Resp { id: string; nome: string; email: string | null; telefone: string | null; respostas: Record<string, unknown>; anexos: { nome: string; path: string }[]; lido: boolean; criado_em: string }
 
@@ -48,11 +49,13 @@ export default function NeuroAcesso() {
       </div>
 
       <Tabs defaultValue="respostas">
-        <TabsList>
+        <TabsList className="h-auto flex flex-wrap justify-start gap-1">
           <TabsTrigger value="respostas">Respostas {lista.filter((r) => !r.lido).length > 0 && `(${lista.filter((r) => !r.lido).length} novas)`}</TabsTrigger>
           <TabsTrigger value="questionario">Questionário</TabsTrigger>
           <TabsTrigger value="analise">IA de Análise</TabsTrigger>
+          <TabsTrigger value="agenda">Agenda NeuroAcesso</TabsTrigger>
         </TabsList>
+        <TabsContent value="agenda"><AgendaNeuroAcesso /></TabsContent>
 
         <TabsContent value="analise" className="pt-4">
           <AnaliseIA respostas={lista} />
