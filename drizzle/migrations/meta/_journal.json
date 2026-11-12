@@ -92,6 +92,13 @@
       "when": 1794352399869,
       "tag": "0012_neuroacesso_recorrencia_antecedencia",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794444954845,
+      "tag": "0013_neuroacesso_admin_horario_extra",
+      "breakpoints": true
     }
   ]
 }
