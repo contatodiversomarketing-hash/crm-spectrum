@@ -1,4 +1,7 @@
 # Tasks
+- [ ] Connect spreadsheet registrations to calendar-only public booking — awaiting how the other platform passes contact identity.
+- [x] Diagnose the newly published 17/11 11:00–12:30 slot rejected during team booking — saved and active, but rejected by the existing 14:00–19:00 booking rule.
+- [ ] Resolve manually published slots outside recurring hours — awaiting permission to allow exceptions to the existing schedule.
 - [x] Add an internal NeuroAcesso calendar with day selection, reversible slot blocking and direct meeting booking; authenticated UI verified persistent blocking, release and real booking; test reservation removed and 8 agenda tests pass.
 - [x] Show newly booked NeuroAcesso meetings above available slots and refresh the agenda list without reloading the page or clearing unsaved inputs; authenticated browser verified the real reservation appearing after an initially empty list, and all 8 agenda tests pass.
 - [x] Publish recurring weekday NeuroAcesso meeting slots from 14:00 to 19:00 Brasília and enforce five-hour advance booking; 215 one-hour slots published with daily rolling renewal, 8 tests pass, public booking verified.
