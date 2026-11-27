@@ -503,6 +503,101 @@ export type Database = {
           },
         ]
       }
+      captacao_inscricoes: {
+        Row: {
+          consentimento: boolean
+          created_at: string
+          id: string
+          lead_id: string
+          nome: string
+          oferta_id: string
+          origem: Json
+          request_id: string
+          telefone: string
+        }
+        Insert: {
+          consentimento: boolean
+          created_at?: string
+          id?: string
+          lead_id: string
+          nome: string
+          oferta_id: string
+          origem?: Json
+          request_id: string
+          telefone: string
+        }
+        Update: {
+          consentimento?: boolean
+          created_at?: string
+          id?: string
+          lead_id?: string
+          nome?: string
+          oferta_id?: string
+          origem?: Json
+          request_id?: string
+          telefone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "captacao_inscricoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "captacao_inscricoes_oferta_id_fkey"
+            columns: ["oferta_id"]
+            isOneToOne: false
+            referencedRelation: "captacao_ofertas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      captacao_ofertas: {
+        Row: {
+          ativo: boolean
+          coluna_chave: string
+          created_at: string
+          descricao: string
+          id: string
+          pipeline_id: string
+          slug: string
+          titulo: string
+          whatsapp: string
+        }
+        Insert: {
+          ativo?: boolean
+          coluna_chave: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          pipeline_id: string
+          slug: string
+          titulo: string
+          whatsapp: string
+        }
+        Update: {
+          ativo?: boolean
+          coluna_chave?: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          pipeline_id?: string
+          slug?: string
+          titulo?: string
+          whatsapp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "captacao_ofertas_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clinicas: {
         Row: {
           ativo: boolean
@@ -2082,6 +2177,19 @@ export type Database = {
     }
     Functions: {
       armar_avisos_espera: { Args: never; Returns: undefined }
+      captacao_registrar: {
+        Args: {
+          p_chave: string
+          p_existente?: string
+          p_nome: string
+          p_oferta: string
+          p_origem: Json
+          p_request: string
+          p_telefone: string
+          p_variacoes: string[]
+        }
+        Returns: string
+      }
       desarmar_avisos_espera: { Args: never; Returns: undefined }
       has_role: {
         Args: {

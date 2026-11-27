@@ -12,6 +12,7 @@ import { usePipelines } from "@/hooks/usePipelines";
 import { NewLeadDialog } from "@/components/crm/NewLeadDialog";
 import type { Lead } from "@/components/crm/LeadCard";
 import { collectCrmLeadPages } from "@/lib/crmLeadPages";
+import { CaptacaoDialog } from "@/components/crm/CaptacaoDialog";
 
 export default function CRMPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -116,12 +117,13 @@ export default function CRMPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">CRM — Pipeline</h1>
           <p className="text-sm text-muted-foreground">Gerencie múltiplas pipelines de leads</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <CaptacaoDialog />
           <NewLeadDialog pipelineId={activePipelineId} columns={columns} onCreated={fetchLeads} pipelineName={pipelines.find((pipeline) => pipeline.id === activePipelineId)?.nome ?? ""} />
           <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)} disabled={!activePipelineId}>
             <Settings className="h-4 w-4 mr-1.5" />

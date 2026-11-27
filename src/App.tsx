@@ -23,6 +23,7 @@ import NeuroAcesso from "./pages/NeuroAcesso";
 import QuestionarioPublico from "./pages/QuestionarioPublico";
 import AgendarNeuroAcesso from "./pages/AgendarNeuroAcesso";
 import NotFound from "./pages/NotFound";
+import CadastroOferta from "./pages/CadastroOferta";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/cadastro/:slug" element={<CadastroOferta />} />
             <Route path="/q/neuroacesso" element={<QuestionarioPublico />} />
             <Route path="/agendar/neuroacesso" element={<AgendarNeuroAcesso />} />
             <Route path="/neuroacesso" element={<ProtectedRoute requiredRoles={["admin", "supervisao"]}><AppLayout><NeuroAcesso /></AppLayout></ProtectedRoute>} />

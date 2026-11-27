@@ -1,4 +1,5 @@
 # Tasks
+- [x] Replace ad forms/spreadsheets with configurable public capture links; Consulta, NeuroAcesso and Endocannabis Academy configured with confirmed WhatsApp, anonymous submissions verified in signed-in team UI, phone deduplication and six tests pass. Publish latest app before using links in ads.
 - [ ] Connect spreadsheet registrations to calendar-only public booking — deferred by user; external contact identification is not to be changed now.
 - [x] Diagnose the newly published 17/11 11:00–12:30 slot rejected during team booking — saved and active, but rejected by the existing 14:00–19:00 booking rule.
 - [x] Resolve manually published slots outside recurring hours — admin booking of 17/11 11:00–12:30 verified in team UI; nine agenda tests pass; test reservation removed.
