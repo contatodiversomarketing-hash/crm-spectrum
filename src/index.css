@@ -146,3 +146,23 @@
   font-family: 'Playfair Display', Georgia, serif;
   letter-spacing: 0;
 }
+
+.endocannabis-capture {
+  --background: 140 27% 10%;
+  --foreground: 42 38% 95%;
+  --primary: 43 66% 62%;
+  --primary-foreground: 140 27% 10%;
+  --accent: 43 66% 62%;
+  --accent-foreground: 140 27% 10%;
+  --muted: 140 22% 17%;
+  --muted-foreground: 42 18% 77%;
+  --border: 140 16% 32%;
+  --input: 140 16% 32%;
+  --ring: 43 66% 62%;
+  --destructive: 0 80% 76%;
+  font-family: 'Montserrat', system-ui, sans-serif;
+}
+.endocannabis-capture .font-display {
+  font-family: 'Playfair Display', Georgia, serif;
+  letter-spacing: 0;
+}

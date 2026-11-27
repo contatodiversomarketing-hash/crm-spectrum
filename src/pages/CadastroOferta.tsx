@@ -9,11 +9,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowRight, CheckCircle2, Loader2, MessageCircle, ShieldCheck } from "lucide-react";
 import logo from "@/assets/logo-amelia.png";
 import neuroLogo from "@/assets/neuroacesso-logo.png.asset.json";
+import academyLogo from "@/assets/endocannabis-logo.png.asset.json";
 
 type Oferta = { titulo: string; descricao: string; slug: string };
 export default function CadastroOferta() {
   const { slug = "" } = useParams();
   const isNeuro = slug === "neuroacesso";
+  const isAcademy = slug === "endocannabis-academy";
   const [params] = useSearchParams();
   const [oferta, setOferta] = useState<Oferta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,12 +27,12 @@ export default function CadastroOferta() {
   const [whatsapp, setWhatsapp] = useState("");
   const request = useRef(crypto.randomUUID());
   useEffect(() => {
-    if (!isNeuro) return;
+    if (!isNeuro && !isAcademy) return;
     const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
     const previous = icon?.getAttribute("href");
-    icon?.setAttribute("href", "/favicon-neuroacesso.png");
+    icon?.setAttribute("href", isAcademy ? "/favicon-endocannabis.png" : "/favicon-neuroacesso.png");
     return () => { if (previous) icon?.setAttribute("href", previous); };
-  }, [isNeuro]);
+  }, [isNeuro, isAcademy]);
   useEffect(() => {
     let alive = true;
     setLoading(true); setError(""); setOferta(null); setWhatsapp(""); request.current = crypto.randomUUID();
@@ -65,8 +67,11 @@ export default function CadastroOferta() {
     } catch (err) { setError(err instanceof Error ? err.message : "Não foi possível salvar seu cadastro."); }
     finally { setSaving(false); }
   }
-  return <main className={`${isNeuro ? "neuro-capture " : ""}min-h-screen bg-background text-foreground`}>
-    <header className="border-b border-border"><div className="mx-auto flex max-w-3xl items-center gap-3 px-6 py-5"><img src={isNeuro ? neuroLogo.url : logo} alt={isNeuro ? "NeuroAcesso — N com ponto dourado" : "Símbolo da Dra. Amélia Carvalho"} className={isNeuro ? "h-16 w-16 object-contain" : "h-12 w-12 object-contain"} /><span className="font-display text-2xl">{isNeuro ? "Método NeuroAcesso" : "Dra. Amélia Carvalho"}</span></div></header>
+  return <main className={`${isAcademy ? "endocannabis-capture " : isNeuro ? "neuro-capture " : ""}min-h-screen bg-background text-foreground`}>
+    <header className="border-b border-border"><div className={`mx-auto flex max-w-3xl items-center gap-3 px-6 py-5 ${isAcademy ? "justify-center" : ""}`}>
+      <img src={isAcademy ? academyLogo.url : isNeuro ? neuroLogo.url : logo} alt={isAcademy ? "Endocannabis Academy" : isNeuro ? "NeuroAcesso — N com ponto dourado" : "Símbolo da Dra. Amélia Carvalho"} className={isAcademy ? "h-28 w-44 object-contain" : isNeuro ? "h-16 w-16 object-contain" : "h-12 w-12 object-contain"} />
+      {!isAcademy && <span className="font-display text-2xl">{isNeuro ? "Método NeuroAcesso" : "Dra. Amélia Carvalho"}</span>}
+    </div></header>
     <div className="mx-auto max-w-xl px-6 py-10 sm:py-14">
       {loading ? <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" />Carregando...</div> : !oferta ? <p role="alert" className="text-destructive">{error}</p> : whatsapp ? <div className="space-y-6"><CheckCircle2 className="h-12 w-12 text-primary" /><h1 className="font-display text-4xl">Cadastro recebido</h1><p className="text-muted-foreground">{nome}, seus dados já estão com nossa equipe.</p><Button asChild className="w-full"><a href={whatsapp}><MessageCircle className="mr-2 h-4 w-4" />Continuar no WhatsApp</a></Button></div> : <>
         <p className="mb-3 text-sm font-medium uppercase text-accent">Vamos conversar</p>
@@ -82,6 +87,6 @@ export default function CadastroOferta() {
         </form>
       </>}
     </div>
-    <footer className="mx-auto max-w-xl border-t border-border px-6 py-6 text-center text-sm text-muted-foreground">{isNeuro ? "Acesso é direito. Método antes de esforço." : "Cuidado que entende. Tratamento que transforma."}</footer>
+    <footer className="mx-auto max-w-xl border-t border-border px-6 py-6 text-center text-sm text-muted-foreground">{isAcademy ? "Endocannabis Academy" : isNeuro ? "Acesso é direito. Método antes de esforço." : "Cuidado que entende. Tratamento que transforma."}</footer>
   </main>;
 }
