@@ -1,4 +1,5 @@
 # Project rules
+- Public capture brand overrides are scoped to the offer page and restore the original favicon on exit; shared clinical identity must not change when a program's branding changes.
 - Ad capture links use a public validated edge function and a service-only atomic reservation of contact identity, storing each submission and attribution separately; existing CRM placement is preserved to avoid duplicate cards and lost work.
 - Refresh the NeuroAcesso team agenda in place while visible and on focus, keeping booked meetings above availability so public reservations appear without reloading or clearing form drafts.
 - The team calendar manages persisted slot activation and books through the same atomic RPC as public guests, preserving reservation conflicts and advance-notice rules.

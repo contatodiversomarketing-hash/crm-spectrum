@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-
 @layer base {
   :root {
     --tag-ana: 133 13% 47%;
@@ -126,4 +124,25 @@
   #neuroacesso-print { position: absolute; inset: 0 auto auto 0; width: 100%; }
   #neuroacesso-print section, #neuroacesso-print tr { break-inside: avoid; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+/* Scoped identity: public NeuroAcesso capture, never the consultation pages. */
+.neuro-capture {
+  --background: 204 62% 9%;
+  --foreground: 40 36% 95%;
+  --primary: 41 54% 54%;
+  --primary-foreground: 204 42% 14%;
+  --accent: 41 54% 54%;
+  --accent-foreground: 204 42% 14%;
+  --muted: 204 34% 17%;
+  --muted-foreground: 40 20% 77%;
+  --border: 204 25% 30%;
+  --input: 204 25% 30%;
+  --ring: 41 54% 54%;
+  --destructive: 0 80% 76%;
+  font-family: 'Montserrat', system-ui, sans-serif;
+}
+.neuro-capture .font-display {
+  font-family: 'Playfair Display', Georgia, serif;
+  letter-spacing: 0;
 }
